@@ -3,7 +3,7 @@ const Bandcamp = require('./');
 
 (async () => {
 	const bandcamp = new Bandcamp();
-	const result = await bandcamp.search("Phony");
+	const result = await bandcamp.search("Phony ppl");
 	console.log("result:");
 	console.log(result);
 })().then(() => {

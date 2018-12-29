@@ -72,7 +72,14 @@ class Bandcamp {
 			let resultItemHtml = html(resultItem);
 			const item = {
 				type: resultItemHtml.find('.itemtype').text().toLowerCase().trim(),
-				name: resultItemHtml.find('.heading').text().trim()
+				name: resultItemHtml.find('.heading').text().trim(),
+				url: resultItemHtml.find('.itemurl').text().trim(),
+				imageUrl: resultItemHtml.find('.art img').attr('src') || null,
+				tags: (() => {
+					let tags = resultItemHtml.find('.tags').text().replace('tags:', '').trim().replace(/\s/g, '');
+					return (tags.length > 1) ? tags.split(',') : [];
+				})(),
+				genre: resultItemHtml.find('.genre').text().replace('genre:', '').trim().replace(/\s{2,}/g, ' ') || null
 			};
 			items.push(item);
 		});
