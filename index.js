@@ -70,17 +70,71 @@ class Bandcamp {
 		let items = [];
 		resultItems.each((index, resultItem) => {
 			let resultItemHtml = html(resultItem);
+
+			const subheads = resultItemHtml.find('.subhead').text().split('\n').map((text) => {
+				text = text.replace(/\s{2,}/g, ' ').trim();
+				if(!text) {
+					return undefined;
+				}
+				return text;
+			}).filter((text) => (text !== undefined));
+
+			// parse general fields
 			const item = {
 				type: resultItemHtml.find('.itemtype').text().toLowerCase().trim(),
 				name: resultItemHtml.find('.heading').text().trim(),
 				url: resultItemHtml.find('.itemurl').text().trim(),
 				imageUrl: resultItemHtml.find('.art img').attr('src') || null,
 				tags: (() => {
-					let tags = resultItemHtml.find('.tags').text().replace('tags:', '').trim().replace(/\s/g, '');
+					let tags = resultItemHtml.find('.tags').text().trim().replace(new RegExp('^tags:'), '').trim().replace(/\s/g, '');
 					return (tags.length > 1) ? tags.split(',') : [];
 				})(),
-				genre: resultItemHtml.find('.genre').text().replace('genre:', '').trim().replace(/\s{2,}/g, ' ') || null
+				genre: resultItemHtml.find('.genre').text().trim().replace(new RegExp('^genre:'), '').trim().replace(/\s{2,}/g, ' ') || null,
+				releaseDate: resultItemHtml.find('.released').text().trim().replace(new RegExp('^released '), '').trim() || null
 			};
+
+			// parse type-specific fields
+			switch(item.type) {
+				case 'track': {
+					item.artistName = subheads.find((subhead) => {
+						return subhead.startsWith('by ');
+					});
+					if(item.artistName) {
+						item.artistName = item.artistName.substring('by '.length).trim();
+					}
+					item.albumName = subheads.find((subhead) => {
+						return subhead.startsWith('from ');
+					});
+					if(item.albumName) {
+						item.albumName = item.albumName.substring('from '.length).trim();
+					}
+				}
+				break;
+
+				case 'artist': {
+					//
+				}
+				break;
+
+				case 'album': {
+					item.numTracks = (() => {
+						let info = resultItemHtml.find('.length').text().trim().split(',');
+						if(info.length !== 2) {
+							return undefined;
+						}
+						return parseInt(info[0].replace(' tracks$', ''));
+					})();
+					item.numMinutes = (() => {
+						let info = resultItemHtml.find('.length').text().trim().split(',');
+						if(info.length !== 2) {
+							return undefined;
+						}
+						return parseInt(info[1].replace(' minutes$', ''));
+					})();
+				}
+				break;
+			}
+
 			items.push(item);
 		});
 		return items;
