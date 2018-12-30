@@ -112,11 +112,17 @@ class Bandcamp {
 				break;
 
 				case 'artist': {
-					//
+					item.location = (subheads.length > 0) ? subheads[0] : undefined;
 				}
 				break;
 
 				case 'album': {
+					item.artistName = subheads.find((subhead) => {
+						return subhead.startsWith('by ');
+					});
+					if(item.artistName) {
+						item.artistName = item.artistName.substring('by '.length).trim();
+					}
 					item.numTracks = (() => {
 						let info = resultItemHtml.find('.length').text().trim().split(',');
 						if(info.length !== 2) {
