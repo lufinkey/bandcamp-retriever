@@ -88,11 +88,11 @@ class Bandcamp {
 				url: resultItemHtml.find('.itemurl').text().trim(),
 				imageUrl: resultItemHtml.find('.art img').attr('src') || undefined,
 				tags: (() => {
-					let tags = resultItemHtml.find('.tags').text().trim().replace(new RegExp('^tags:'), '').trim().replace(/\s/g, '');
+					let tags = resultItemHtml.find('.tags').text().trim().replace(/^tags:/, '').trim().replace(/\s/g, '');
 					return (tags.length > 1) ? tags.split(',') : [];
 				})(),
-				genre: resultItemHtml.find('.genre').text().trim().replace(new RegExp('^genre:'), '').trim().replace(/\s{2,}/g, ' ') || undefined,
-				releaseDate: resultItemHtml.find('.released').text().trim().replace(new RegExp('^released '), '').trim() || undefined
+				genre: resultItemHtml.find('.genre').text().trim().replace(/^genre:/, '').trim().replace(/\s{2,}/g, ' ') || undefined,
+				releaseDate: resultItemHtml.find('.released').text().trim().replace(/^released /, '').trim() || undefined
 			};
 
 			// parse type-specific fields
@@ -130,14 +130,14 @@ class Bandcamp {
 						if(info.length !== 2) {
 							return undefined;
 						}
-						return parseInt(info[0].replace(new RegExp(' tracks$'), ''));
+						return parseInt(info[0].replace(/ tracks$/, ''));
 					})();
 					item.numMinutes = (() => {
 						let info = resultItemHtml.find('.length').text().trim().split(',');
 						if(info.length !== 2) {
 							return undefined;
 						}
-						return parseInt(info[1].replace(new RegExp(' minutes$'), ''));
+						return parseInt(info[1].replace(/ minutes$/, ''));
 					})();
 				}
 				break;
@@ -149,8 +149,8 @@ class Bandcamp {
 	}
 
 
-	async getInfoFromURL(trackURL) {
-		const url = new URL(trackURL);
+	async getInfoFromURL(itemURL) {
+		const url = new URL(itemURL);
 
 		let type = null;
 		if(url.pathname) {
@@ -165,7 +165,7 @@ class Bandcamp {
 			}
 		}
 
-		const { res, data } = await sendHttpRequest(trackURL);
+		const { res, data } = await sendHttpRequest(itemURL);
 		const dataString = data.toString();
 		const $ = cheerio.load(dataString);
 		const nameSection = $('#name-section');
@@ -174,7 +174,7 @@ class Bandcamp {
 		const mp3Regex = /\{\"mp3-128\"\:\"(.+?(?=\"\}))\"\}/gmi;
 		let mp3RegMatch = null;
 		while(mp3RegMatch = mp3Regex.exec(dataString)) {
-			mp3URLs.push(mp3RegMatch[1]);
+			mp3URLs.push(JSON.parse(mp3RegMatch[0])["mp3-128"]);
 		}
 
 		let trackHtmls = [];
@@ -197,7 +197,7 @@ class Bandcamp {
 			item.albumName = albumName;
 		}
 
-		if(trackHtmls.length > 0) {
+		if(type === 'album') {
 			item.tracks = trackHtmls.map((trackHtml, index) => {
 				return {
 					name: trackHtml.find('.title span[itemprop="name"]').text().trim(),
@@ -206,11 +206,47 @@ class Bandcamp {
 				};
 			});
 		}
-		else if(mp3URLs.length > 0) {
+		else if(type === 'track') {
 			item.audioURL = mp3URLs[0];
 		}
 
 		return item;
+	}
+
+
+	async getArtistAlbums(artistURL) {
+		const { res, data } = await sendHttpRequest(artistURL+'/music');
+		const $ = cheerio.load(data.toString());
+
+		const basicAlbumInfos = [];
+		$('.music-grid > li').each((index, albumHtml) => {
+			albumHtml = $(albumHtml);
+			basicAlbumInfos.push({
+				id: albumHtml.attr('data-item-id').replace(/^(album|track)-/, ''),
+				name: albumHtml.find('.title').text().trim(),
+				imageURL: albumHtml.find('.art img').attr('src')
+			});
+		});
+
+		const albums = JSON.parse($('.music-grid').attr('data-initial-values'));
+		return albums.map((album) => {
+			const matchIndex = basicAlbumInfos.findIndex((albumInfo) => (albumInfo.id == album.id));
+			let basicAlbumInfo = null;
+			if(matchIndex !== -1) {
+				basicAlbumInfo = basicAlbumInfos[matchIndex];
+				basicAlbumInfos.splice(matchIndex, 1);
+			}
+			return {
+				type: album.type,
+				id: album.id,
+				name: album.title,
+				artistName: album.artist || album.band_name,
+				url: album.page_url.startsWith('/') ? (artistURL+album.page_url) : album.page_url,
+				imageURL: basicAlbumInfo ? basicAlbumInfo.imageURL : undefined,
+				releaseDate: album.release_date,
+				publishDate: album.publish_date
+			};
+		});
 	}
 }
 
