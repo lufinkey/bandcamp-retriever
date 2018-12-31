@@ -13,7 +13,8 @@ const sendHttpRequest = (url, options) => {
 		xhr.responseType = 'arraybuffer';
 		xhr.onreadystatechange = () => {
 			if(xhr.readyState === 4) {
-				resolve({ data: Buffer.from(xhr.response) });
+				const data = Buffer.from((xhr.response != null) ? xhr.response : xhr.responseText);
+				resolve({ data });
 			}
 		};
 		xhr.onerror = (error) => {
