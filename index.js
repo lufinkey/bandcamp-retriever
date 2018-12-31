@@ -19,7 +19,7 @@ const sendHttpRequest = (url, options) => {
 		xhr.onerror = (error) => {
 			reject(error);
 		};
-		xhr.open(options.method || 'GET');
+		xhr.open(options.method || 'GET', url);
 		if(options.body) {
 			xhr.send(options.body);
 		}
