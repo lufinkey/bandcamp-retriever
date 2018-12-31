@@ -9,49 +9,23 @@ const { parse: parseURL } = require('url');
 const sendHttpRequest = (url, options) => {
 	options = {...options};
 	return new Promise((resolve, reject) => {
-		// build request data
-		url = parseURL(url);
-		let path = url.pathname;
-		if(url.search) {
-			path = path + url.search;
-		}
-		const reqData = {
-			protocol: url.protocol,
-			hostname: url.hostname,
-			port: url.port,
-			path: path,
-			method: options.method || 'GET',
-			headers: options.headers || {}
+		const xhr = new XMLHttpRequest();
+		xhr.responseType = 'arraybuffer';
+		xhr.onreadystatechange = () => {
+			if(xhr.readyState === 4) {
+				resolve({ data: Buffer.from(xhr.response) });
+			}
 		};
-
-		// create request
-		const req = https.request(reqData, (res) => {
-			// build response
-			let buffers = [];
-			res.on('data', (chunk) => {
-				buffers.push(chunk);
-			});
-
-			res.on('end', () => {
-				// parse response
-				const data = Buffer.concat(buffers);
-				buffers = null;
-				setTimeout(() => {
-					resolve({ res: res, data: data });
-				}, 0);
-			});
-		});
-
-		// handle error
-		req.on('error', (error) => {
+		xhr.onerror = (error) => {
 			reject(error);
-		});
-
-		// send
-		if(options.data !== undefined) {
-			req.write(options.data);
+		};
+		xhr.open(options.method || 'GET');
+		if(options.body) {
+			xhr.send(options.body);
 		}
-		req.end();
+		else {
+			xhr.send();
+		}
 	});
 }
 
@@ -150,7 +124,7 @@ class Bandcamp {
 
 
 	async getInfoFromURL(itemURL) {
-		const url = new URL(itemURL);
+		const url = parseURL(itemURL);
 
 		let type = null;
 		if(url.pathname) {
