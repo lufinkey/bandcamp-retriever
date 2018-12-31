@@ -73,13 +73,15 @@ class Bandcamp {
 			switch(item.type) {
 				case 'track': {
 					item.artistName = subheads.find((subhead) => {
-						return subhead.startsWith('by ');
+						//return subhead.startsWith('by ');
+						return (subhead.substring(0, 'by '.length) === 'by ');
 					});
 					if(item.artistName) {
 						item.artistName = item.artistName.substring('by '.length).trim();
 					}
 					item.albumName = subheads.find((subhead) => {
-						return subhead.startsWith('from ');
+						//return subhead.startsWith('from ');
+						return (subhead.substring(0, 'from '.length) === 'from ');
 					});
 					if(item.albumName) {
 						item.albumName = item.albumName.substring('from '.length).trim();
@@ -94,7 +96,8 @@ class Bandcamp {
 
 				case 'album': {
 					item.artistName = subheads.find((subhead) => {
-						return subhead.startsWith('by ');
+						//return subhead.startsWith('by ');
+						return (subhead.substring(0, 'by '.length) === 'by ');
 					});
 					if(item.artistName) {
 						item.artistName = item.artistName.substring('by '.length).trim();
