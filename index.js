@@ -2,15 +2,15 @@
 const { Buffer } = require('buffer');
 const https = require('https');
 const QueryString = require('querystring');
-const cheerio = require('cheerio');
-const { URL } = require('url');
+const cheerio = require('cheerio-without-node-native');
+const { parse: parseURL } = require('url');
 
 
 const sendHttpRequest = (url, options) => {
 	options = {...options};
 	return new Promise((resolve, reject) => {
 		// build request data
-		url = new URL(url);
+		url = parseURL(url);
 		let path = url.pathname;
 		if(url.search) {
 			path = path + url.search;
