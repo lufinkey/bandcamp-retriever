@@ -3,7 +3,7 @@ const { Buffer } = require('buffer');
 const https = require('https');
 const QueryString = require('querystring');
 const cheerio = require('cheerio-without-node-native');
-const { parse: parseURL } = require('url');
+const UrlUtils = require('url');
 
 
 const sendHttpRequest = (url, options) => {
@@ -128,7 +128,7 @@ class Bandcamp {
 
 
 	async getInfoFromURL(itemURL) {
-		const url = parseURL(itemURL);
+		const url = UrlUtils.parse(itemURL);
 
 		let type = null;
 		if(url.pathname) {
@@ -165,6 +165,7 @@ class Bandcamp {
 
 		const item = {
 			type: type,
+			url: url,
 			name: nameSection.find('.trackTitle').text().trim()
 		};
 
@@ -177,7 +178,9 @@ class Bandcamp {
 
 		if(type === 'album') {
 			item.tracks = trackHtmls.map((trackHtml, index) => {
+				const trackURL = trackHtml.find('.title a[itemprop="url"]').attr('href');
 				return {
+					url: trackURL ? UrlUtils.resolve(itemURL, trackURL) : undefined,
 					name: trackHtml.find('.title span[itemprop="name"]').text().trim(),
 					duration: trackHtml.find('.title .time').text().trim() || undefined,
 					audioURL: mp3URLs[index]
