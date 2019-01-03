@@ -61,7 +61,7 @@ class Bandcamp {
 				type: resultItemHtml.find('.itemtype').text().toLowerCase().trim(),
 				name: resultItemHtml.find('.heading').text().trim(),
 				url: resultItemHtml.find('.itemurl').text().trim(),
-				imageUrl: resultItemHtml.find('.art img').attr('src') || undefined,
+				imageURL: resultItemHtml.find('.art img').attr('src') || undefined,
 				tags: (() => {
 					let tags = resultItemHtml.find('.tags').text().trim().replace(/^tags:/, '').trim().replace(/\s/g, '');
 					return (tags.length > 1) ? tags.split(',') : [];
