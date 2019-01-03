@@ -179,10 +179,11 @@ class Bandcamp {
 		if(type === 'album') {
 			item.tracks = trackHtmls.map((trackHtml, index) => {
 				const trackURL = trackHtml.find('.title a[itemprop="url"]').attr('href');
+				const durationText = trackHtml.find('.title .time').text().trim();
 				return {
 					url: trackURL ? UrlUtils.resolve(itemURL, trackURL) : undefined,
 					name: trackHtml.find('.title span[itemprop="name"]').text().trim(),
-					duration: trackHtml.find('.title .time').text().trim() || undefined,
+					duration: durationText ? durationText : undefined,
 					audioURL: mp3URLs[index]
 				};
 			});
