@@ -184,6 +184,7 @@ class Bandcamp {
 			trackHtmls.push($(trackHtml));
 		});
 
+		const imageURL = $('#tralbumArt img[itemprop="image"]').attr('src');
 		const artistTag = nameSection.find('span[itemprop="byArtist"] a');
 		const albumTag = nameSection.find('span[itemprop="inAlbum"] a');
 		const artistName = artistTag.text().trim();
@@ -197,6 +198,9 @@ class Bandcamp {
 			name: nameSection.find('.trackTitle').text().trim()
 		};
 
+		if(imageURL) {
+			item.imageURL = imageURL;
+		}
 		if(artistName) {
 			item.artistName = artistName;
 			item.artistURL = artistURL;
