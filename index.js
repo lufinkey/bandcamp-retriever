@@ -30,6 +30,30 @@ const sendHttpRequest = (url, options) => {
 	});
 }
 
+const getDurationFromText = (durationText) => {
+	const durationParts = durationText.split(':');
+	let durationPart = null;
+	let duration = 0;
+	let partCount = 0;
+	while(durationPart = durationParts.pop()) {
+		switch(partCount) {
+			case 0:
+				duration += parseInt(durationPart);
+				break;
+
+			case 1:
+				duration += parseInt(durationPart) * 60;
+				break;
+
+			case 2:
+				duration += parseInt(durationPart) * 60 * 60;
+				break;
+		}
+		partCount += 1;
+	}
+	return duration;
+}
+
 
 class Bandcamp {
 
@@ -183,7 +207,7 @@ class Bandcamp {
 				return {
 					url: trackURL ? UrlUtils.resolve(itemURL, trackURL) : undefined,
 					name: trackHtml.find('.title span[itemprop="name"]').text().trim(),
-					duration: durationText ? durationText : undefined,
+					duration: durationText ? getDurationFromText(durationText) : undefined,
 					audioURL: mp3URLs[index]
 				};
 			});
