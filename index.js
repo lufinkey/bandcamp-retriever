@@ -220,10 +220,7 @@ class Bandcamp {
 		}
 		else if(type === 'track') {
 			item.audioURL = mp3URLs[0];
-			const durationText = $('#trackInfo .time_total').text().trim();
-			if(durationText) {
-				item.duration = getDurationFromText(durationText);
-			}
+			item.duration = parseFloat($('.trackView meta[itemprop="duration"]').attr('content'));
 		}
 
 		return item;
