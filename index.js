@@ -147,7 +147,15 @@ class Bandcamp {
 
 			items.push(item);
 		});
-		return items;
+		let prevURL = $('.pager_controls a.next').attr('href');
+		prevURL = prevURL ? UrlUtils.resolve(url, prevURL) : null;
+		let nextURL = $('.pager_controls a.next').attr('href');
+		nextURL = nextURL ? UrlUtils.resolve(url, nextURL) : null;
+		return {
+			items,
+			nextURL,
+			prevURL
+		};
 	}
 
 
