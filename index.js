@@ -202,7 +202,7 @@ class Bandcamp {
 
 		const item = {
 			type: type,
-			url: url,
+			url: UrlUtils.format(url),
 			name: nameSection.find('.trackTitle').text().trim()
 		};
 
@@ -239,10 +239,11 @@ class Bandcamp {
 	}
 
 
-	async getArtistAlbums(artistURL) {
+	async getArtist(artistURL) {
 		const { res, data } = await sendHttpRequest(artistURL+'/music');
 		const $ = cheerio.load(data.toString());
 
+		// album list
 		const basicAlbumInfos = [];
 		$('.music-grid > li').each((index, albumHtml) => {
 			albumHtml = $(albumHtml);
@@ -253,24 +254,72 @@ class Bandcamp {
 			});
 		});
 
-		const albums = JSON.parse($('.music-grid').attr('data-initial-values'));
-		return albums.map((album) => {
-			const matchIndex = basicAlbumInfos.findIndex((albumInfo) => (albumInfo.id == album.id));
-			let basicAlbumInfo = null;
-			if(matchIndex !== -1) {
-				basicAlbumInfo = basicAlbumInfos[matchIndex];
-				basicAlbumInfos.splice(matchIndex, 1);
+		// images
+		const popupImage = $('a.popupImage');
+		let [ popupImageWidth, popupImageHeight ] = popupImage.attr('data-image-size').split(',').map((dimension) => {
+			dimension = parseInt(dimension);
+			if(Number.isNaN(dimension)) {
+				return undefined;
 			}
-			return {
-				type: album.type,
-				name: album.title,
-				artistName: album.artist || album.band_name,
-				url: album.page_url.startsWith('/') ? (artistURL+album.page_url) : album.page_url,
-				imageURL: basicAlbumInfo ? basicAlbumInfo.imageURL : undefined,
-				releaseDate: album.release_date,
-				publishDate: album.publish_date
-			};
+			return dimension;
 		});
+
+		// bio
+		const bioContainer = $('#bio-container');
+		const bandNameLocation = bioContainer.find('#band-name-location');
+
+		return {
+			url: artistURL,
+			name: bandNameLocation.find('.title').text().trim(),
+			location: bandNameLocation.find('.location').text().trim(),
+			description: bioContainer.find('meta[itemprop="description"]').attr('content'),
+			albums: JSON.parse($('.music-grid').attr('data-initial-values')).map((album) => {
+				const matchIndex = basicAlbumInfos.findIndex((albumInfo) => (albumInfo.id == album.id));
+				let basicAlbumInfo = null;
+				if(matchIndex !== -1) {
+					basicAlbumInfo = basicAlbumInfos[matchIndex];
+					basicAlbumInfos.splice(matchIndex, 1);
+				}
+				return {
+					type: album.type,
+					name: album.title,
+					artistName: album.artist || album.band_name,
+					url: album.page_url.startsWith('/') ? (artistURL+album.page_url) : album.page_url,
+					imageURL: basicAlbumInfo ? basicAlbumInfo.imageURL : undefined,
+					releaseDate: album.release_date,
+					publishDate: album.publish_date,
+				};
+			}),
+			images: [
+				{
+					url: popupImage.attr('href'),
+					width: popupImageWidth,
+					height: popupImageHeight
+				},
+				{
+					url: popupImage.find('img.band-photo').attr('src'),
+					width: (popupImageWidth >= popupImageHeight) ? 120 : (120 * popupImageWidth / popupImageHeight),
+					height: (popupImageHeight >= popupImageWidth ) ? 120 : (120 * popupImageHeight / popupImageWidth)
+				}
+			],
+			shows: $('#showography > ul > li').toArray().map((showHtml) => {
+				showHtml = $(showHtml);
+				return {
+					date: showHtml.find('.showDate').text().trim(),
+					url: showHtml.find('.showVenue a').attr('href'),
+					venueName: showHtml.find('.showVenue a').text().trim(),
+					location: showHtml.find('.showLoc').text().trim()
+				};
+			}),
+			links: $('#band-links > li').toArray().map((bandLinkHtml) => {
+				bandLinkHtml = $(bandLinkHtml);
+				const bandLink = bandLinkHtml.find('a');
+				return {
+					url: bandLink.attr('href'),
+					name: bandLink.text().trim()
+				};
+			})
+		};
 	}
 }
 
