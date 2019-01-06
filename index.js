@@ -263,7 +263,6 @@ class Bandcamp {
 			}
 			return {
 				type: album.type,
-				id: album.id,
 				name: album.title,
 				artistName: album.artist || album.band_name,
 				url: album.page_url.startsWith('/') ? (artistURL+album.page_url) : album.page_url,
