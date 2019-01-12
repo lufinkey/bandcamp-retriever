@@ -10,17 +10,17 @@ const Bandcamp = require('./');
 	console.log("search:");
 	console.log(result);
 	console.log("\n\n");
-	const albumInfo = await bandcamp.getInfoFromURL(result.items[1].url);
-	console.log("getInfoFromURL:");
+	const albumInfo = await bandcamp.getItemFromURL(result.items[1].url);
+	console.log("getItemFromURL:");
 	console.log(albumInfo);
 	console.log("\n\n");
-	const trackInfo = await bandcamp.getInfoFromURL(result.items[2].url);
-	console.log("getInfoFromURL 2:");
+	const trackInfo = await bandcamp.getItemFromURL(result.items[2].url);
+	console.log("getItemFromURL 2:");
 	console.log(trackInfo);
 	console.log("\n\n");
-	const albums = await bandcamp.getArtist(result.items[0].url);
-	console.log("getArtistAlbums:");
-	console.log(albums);
+	const artist = await bandcamp.getArtist(result.items[0].url);
+	console.log("getArtist:");
+	console.log(artist);
 	console.log("\n\n");
 })().then(() => {
 	//

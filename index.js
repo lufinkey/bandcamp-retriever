@@ -56,17 +56,36 @@ const getDurationFromText = (durationText) => {
 
 
 class Bandcamp {
+	_parseType(url, $=null) {
+		url = UrlUtils.parse(url);
+		if(url.pathname) {
+			if(url.pathname === '/' || url.pathname === '/music') {
+				return 'artist';
+			}
+			else if(url.pathname.startsWith('/album/')) {
+				return 'album';
+			}
+			else if(url.pathname.startsWith('/track/')) {
+				return 'track';
+			}
+		}
+		if($) {
+			const metaType = $('meta[property="og:type"]').attr('content');
+			if(metaType === 'band') {
+				return 'artist';
+			}
+			else if(metaType === 'song') {
+				return 'track';
+			}
+			else if(['track', 'artist', 'album'].indexOf(metaType) !== -1) {
+				return metaType;
+			}
+		}
+		return null;
+	}
 
-	async search(query, options) {
-		// create and send request
-		const params = {
-			...options,
-			q: query
-		};
-		const url = "https://bandcamp.com/search?"+QueryString.stringify(params);
-		const { res, data } = await sendHttpRequest(url);
-		// parse result
-		const $ = cheerio.load(data.toString());
+
+	_parseSearchResults(url, $, data) {
 		const resultItems = $('ul.result-items > li');
 		let items = [];
 		resultItems.each((index, resultItem) => {
@@ -80,9 +99,17 @@ class Bandcamp {
 				return text;
 			}).filter((text) => (text !== undefined));
 
+			let type = resultItemHtml.find('.itemtype').text().trim().toLowerCase();
+			if(type === 'song') {
+				type = 'track';
+			}
+			else if(type === 'band') {
+				type = 'artist';
+			}
+
 			// parse general fields
 			const item = {
-				type: resultItemHtml.find('.itemtype').text().toLowerCase().trim(),
+				type: type,
 				name: resultItemHtml.find('.heading').text().trim(),
 				url: resultItemHtml.find('.itemurl').text().trim(),
 				imageURL: resultItemHtml.find('.art img').attr('src') || undefined,
@@ -98,15 +125,13 @@ class Bandcamp {
 			switch(item.type) {
 				case 'track': {
 					item.artistName = subheads.find((subhead) => {
-						//return subhead.startsWith('by ');
-						return (subhead.substring(0, 'by '.length) === 'by ');
+						return subhead.startsWith('by ');
 					});
 					if(item.artistName) {
 						item.artistName = item.artistName.substring('by '.length).trim();
 					}
 					item.albumName = subheads.find((subhead) => {
-						//return subhead.startsWith('from ');
-						return (subhead.substring(0, 'from '.length) === 'from ');
+						return subhead.startsWith('from ');
 					});
 					if(item.albumName) {
 						item.albumName = item.albumName.substring('from '.length).trim();
@@ -121,8 +146,7 @@ class Bandcamp {
 
 				case 'album': {
 					item.artistName = subheads.find((subhead) => {
-						//return subhead.startsWith('by ');
-						return (subhead.substring(0, 'by '.length) === 'by ');
+						return subhead.startsWith('by ');
 					});
 					if(item.artistName) {
 						item.artistName = item.artistName.substring('by '.length).trim();
@@ -159,31 +183,20 @@ class Bandcamp {
 	}
 
 
-	async getInfoFromURL(itemURL) {
-		const url = UrlUtils.parse(itemURL);
+	_parseTrackInfo(url, $, data) {
+		const type = this._parseType(url);
 
-		let type = null;
-		if(url.pathname) {
-			if(url.pathname === '/') {
-				type = 'artist';
-			}
-			else if(url.pathname.startsWith('/album/')) {
-				type = 'album';
-			}
-			else if(url.pathname.startsWith('/track/')) {
-				type = 'track';
-			}
+		const trackInfo = $('#trackInfo');
+		if(trackInfo.index() === -1) {
+			return null;
 		}
 
-		const { res, data } = await sendHttpRequest(itemURL);
-		const dataString = data.toString();
-		const $ = cheerio.load(dataString);
 		const nameSection = $('#name-section');
 
 		const mp3URLs = [];
 		const mp3Regex = /\{\"mp3-128\"\:\"(.+?(?=\"\}))\"\}/gmi;
 		let mp3RegMatch = null;
-		while(mp3RegMatch = mp3Regex.exec(dataString)) {
+		while(mp3RegMatch = mp3Regex.exec(data)) {
 			mp3URLs.push(JSON.parse(mp3RegMatch[0])["mp3-128"]);
 		}
 
@@ -202,7 +215,7 @@ class Bandcamp {
 
 		const item = {
 			type: type,
-			url: UrlUtils.format(url),
+			url: url,
 			name: nameSection.find('.trackTitle').text().trim()
 		};
 
@@ -223,7 +236,7 @@ class Bandcamp {
 				const trackURL = trackHtml.find('.title a[itemprop="url"]').attr('href');
 				const durationText = trackHtml.find('.title .time').text().trim();
 				return {
-					url: trackURL ? UrlUtils.resolve(itemURL, trackURL) : undefined,
+					url: trackURL ? UrlUtils.resolve(url, trackURL) : undefined,
 					name: trackHtml.find('.title span[itemprop="name"]').text().trim(),
 					duration: durationText ? getDurationFromText(durationText) : undefined,
 					audioURL: mp3URLs[index]
@@ -239,24 +252,18 @@ class Bandcamp {
 	}
 
 
-	async getArtist(artistURL) {
-		const { res, data } = await sendHttpRequest(artistURL+'/music');
-		const $ = cheerio.load(data.toString());
-
-		// album list
-		const basicAlbumInfos = [];
-		$('.music-grid > li').each((index, albumHtml) => {
-			albumHtml = $(albumHtml);
-			basicAlbumInfos.push({
-				id: albumHtml.attr('data-item-id').replace(/^(album|track)-/, ''),
-				name: albumHtml.find('.title').text().trim(),
-				imageURL: albumHtml.find('.art img').attr('src')
-			});
-		});
+	_parseArtistInfo(url, $, data) {
+		// bio
+		const bioContainer = $('#bio-container');
+		if(bioContainer.index() === -1) {
+			return null;
+		}
+		const bandNameLocation = bioContainer.find('#band-name-location');
 
 		// images
-		const popupImage = $('a.popupImage');
-		let [ popupImageWidth, popupImageHeight ] = popupImage.attr('data-image-size').split(',').map((dimension) => {
+		const popupImage = bioContainer.find('a.popupImage');
+		const popupImageSize = popupImage.attr('data-image-size');
+		let [ popupImageWidth, popupImageHeight ] = popupImageSize.split(',').map((dimension) => {
 			dimension = parseInt(dimension);
 			if(Number.isNaN(dimension)) {
 				return undefined;
@@ -264,32 +271,12 @@ class Bandcamp {
 			return dimension;
 		});
 
-		// bio
-		const bioContainer = $('#bio-container');
-		const bandNameLocation = bioContainer.find('#band-name-location');
-
 		return {
-			url: artistURL,
+			type: 'artist',
+			url: UrlUtils.resolve(url, '/'),
 			name: bandNameLocation.find('.title').text().trim(),
 			location: bandNameLocation.find('.location').text().trim(),
 			description: bioContainer.find('meta[itemprop="description"]').attr('content'),
-			albums: JSON.parse($('.music-grid').attr('data-initial-values')).map((album) => {
-				const matchIndex = basicAlbumInfos.findIndex((albumInfo) => (albumInfo.id == album.id));
-				let basicAlbumInfo = null;
-				if(matchIndex !== -1) {
-					basicAlbumInfo = basicAlbumInfos[matchIndex];
-					basicAlbumInfos.splice(matchIndex, 1);
-				}
-				return {
-					type: album.type,
-					name: album.title,
-					artistName: album.artist || album.band_name,
-					url: album.page_url.startsWith('/') ? (artistURL+album.page_url) : album.page_url,
-					imageURL: basicAlbumInfo ? basicAlbumInfo.imageURL : undefined,
-					releaseDate: album.release_date,
-					publishDate: album.publish_date,
-				};
-			}),
 			images: [
 				{
 					url: popupImage.attr('href'),
@@ -298,8 +285,8 @@ class Bandcamp {
 				},
 				{
 					url: popupImage.find('img.band-photo').attr('src'),
-					width: (popupImageWidth >= popupImageHeight) ? 120 : (120 * popupImageWidth / popupImageHeight),
-					height: (popupImageHeight >= popupImageWidth ) ? 120 : (120 * popupImageHeight / popupImageWidth)
+					width: Math.round((popupImageWidth >= popupImageHeight) ? 120 : (120 * popupImageWidth / popupImageHeight)),
+					height: Math.round((popupImageHeight >= popupImageWidth ) ? 120 : (120 * popupImageHeight / popupImageWidth))
 				}
 			],
 			shows: $('#showography > ul > li').toArray().map((showHtml) => {
@@ -320,6 +307,101 @@ class Bandcamp {
 				};
 			})
 		};
+	}
+
+	_parseAlbumList(url, $, data) {
+		const basicAlbumInfos = [];
+		const musicGrid = $('.music-grid');
+		musicGrid.children('li').each((index, albumHtml) => {
+			albumHtml = $(albumHtml);
+			const itemURL = albumHtml.find('a').attr('href');
+			basicAlbumInfos.push({
+				id: albumHtml.attr('data-item-id').replace(/^(album|track)-/, ''),
+				url: (itemURL ? UrlUtils.resolve(url,itemURL) : undefined),
+				name: albumHtml.find('.title').text().trim(),
+				imageURL: albumHtml.find('.art img').attr('src')
+			});
+		});
+
+		const pageData = musicGrid.attr('data-initial-values');
+		if(pageData) {
+			return JSON.parse(pageData).map((album) => {
+				const matchIndex = basicAlbumInfos.findIndex((albumInfo) => (albumInfo.id == album.id));
+				let basicAlbumInfo = {};
+				if(matchIndex !== -1) {
+					basicAlbumInfo = basicAlbumInfos[matchIndex];
+					basicAlbumInfos.splice(matchIndex, 1);
+				}
+				const itemURL = (basicAlbumInfo.url || album.page_url);
+				return {
+					type: album.type,
+					name: album.title,
+					artistName: album.artist || album.band_name || undefined,
+					url: itemURL ? UrlUtils.resolve(url, itemURL) : undefined,
+					imageURL: basicAlbumInfo ? basicAlbumInfo.imageURL : undefined,
+					releaseDate: album.release_date,
+					publishDate: album.publish_date,
+				};
+			});
+		}
+		else if(musicGrid.index() !== -1) {
+			return basicAlbumInfos;
+		}
+		else {
+			return null;
+		}
+	}
+
+
+
+	async search(query, options) {
+		// create and send request
+		const params = {
+			...options,
+			q: query
+		};
+		const url = "https://bandcamp.com/search?"+QueryString.stringify(params);
+		const { res, data } = await sendHttpRequest(url);
+		// parse result
+		const $ = cheerio.load(data.toString());
+		return this._parseSearchResults(url, $);
+	}
+
+	async getItemFromURL(url, type=null) {
+		if(!type) {
+			type = this._parseType(url);
+		}
+
+		const { res, data } = await sendHttpRequest(url);
+		const dataString = data.toString();
+		const $ = cheerio.load(dataString);
+
+		if(type === 'track' || type === 'album') {
+			const item = this._parseTrackInfo(url, $, dataString);
+			item.artist = this._parseArtistInfo(url, $, dataString);
+			return item;
+		}
+		else if(type === 'artist') {
+			const artist = this._parseArtistInfo(url, $, dataString);
+			const albums = this._parseAlbumList(url, $, dataString);
+			if(albums) {
+				artist.albums = albums;
+			}
+			else {
+				const album = this._parseTrackInfo(url, $, dataString);
+				if(album) {
+					artist.albums = [ album ];
+				}
+			}
+			return artist;
+		}
+		else {
+			return this._parseArtistInfo(url, $, dataString);
+		}
+	}
+
+	async getArtist(artistURL) {
+		return this.getItemFromURL(UrlUtils.resolve(artistURL,'/music'), 'artist');
 	}
 }
 
