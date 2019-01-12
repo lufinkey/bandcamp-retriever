@@ -404,12 +404,12 @@ class Bandcamp {
 		return await this.getItemFromURL(trackURL, 'track');
 	}
 
-	async getArtist(artistURL) {
-		return await this.getItemFromURL(UrlUtils.resolve(artistURL,'/music'), 'artist');
-	}
-
 	async getAlbum(albumURL) {
 		return await this.getItemFromURL(albumURL, 'album');
+	}
+
+	async getArtist(artistURL) {
+		return await this.getItemFromURL(UrlUtils.resolve(artistURL,'/music'), 'artist');
 	}
 }
 
