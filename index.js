@@ -124,17 +124,24 @@ class Bandcamp {
 			// parse type-specific fields
 			switch(item.type) {
 				case 'track': {
-					const artistName = subheads.find((subhead) => {
+					let artistName = subheads.find((subhead) => {
 						return subhead.startsWith('by ');
 					});
 					if(artistName) {
-						item.artistName = artistName.substring('by '.length).trim();
+						artistName = artistName.substring('by '.length).trim();
+						item.artistName = artistName;
+						let artistURL = UrlUtils.resolve(item.url, '/');
+						if(artistURL.endsWith('/')) {
+							artistURL = artistURL.substring(0, artistURL.length-1);
+						}
+						item.artistURL = artistURL;
 					}
-					const albumName = subheads.find((subhead) => {
+					let albumName = subheads.find((subhead) => {
 						return subhead.startsWith('from ');
 					});
 					if(albumName) {
-						item.albumName = albumName.substring('from '.length).trim();
+						albumName = albumName.substring('from '.length).trim();
+						item.albumName = albumName;
 					}
 					else {
 						// if no album name is present, track is a single
@@ -150,11 +157,17 @@ class Bandcamp {
 				break;
 
 				case 'album': {
-					item.artistName = subheads.find((subhead) => {
+					let artistName = subheads.find((subhead) => {
 						return subhead.startsWith('by ');
 					});
-					if(item.artistName) {
-						item.artistName = item.artistName.substring('by '.length).trim();
+					if(artistName) {
+						artistName = artistName.substring('by '.length).trim();
+						item.artistName = artistName;
+						let artistURL = UrlUtils.resolve(item.url, '/');
+						if(artistURL.endsWith('/')) {
+							artistURL = artistURL.substring(0, artistURL.length-1);
+						}
+						item.artistURL = artistURL;
 					}
 					item.numTracks = (() => {
 						let info = resultItemHtml.find('.length').text().trim().split(',');
@@ -172,6 +185,16 @@ class Bandcamp {
 					})();
 				}
 				break;
+			}
+
+			const deleteKeys = [];
+			for(const key in item) {
+				if(item[key] === undefined) {
+					deleteKeys.push(key);
+				}
+			}
+			for(const key of deleteKeys) {
+				delete item[key];
 			}
 
 			items.push(item);
