@@ -1,6 +1,5 @@
 
 const { Buffer } = require('buffer');
-const https = require('https');
 const QueryString = require('querystring');
 const cheerio = require('./cheerio');
 const UrlUtils = require('url');
