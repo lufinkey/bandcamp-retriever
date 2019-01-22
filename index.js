@@ -294,15 +294,31 @@ class Bandcamp {
 		const bandNameLocation = bioContainer.find('#band-name-location');
 
 		// images
+		let images = [];
 		const popupImage = bioContainer.find('a.popupImage');
-		const popupImageSize = popupImage.attr('data-image-size');
-		let [ popupImageWidth, popupImageHeight ] = popupImageSize.split(',').map((dimension) => {
-			dimension = parseInt(dimension);
-			if(Number.isNaN(dimension)) {
-				return undefined;
-			}
-			return dimension;
-		});
+		if(popupImage) {
+			const popupImageSize = popupImage.attr('data-image-size') || "";
+			let [ popupImageWidth, popupImageHeight ] = popupImageSize.split(',').map((dimension) => {
+				dimension = parseInt(dimension);
+				if(!dimension) {
+					return undefined;
+				}
+				return dimension;
+			});
+			images.push({
+				url: popupImage.attr('href'),
+				width: popupImageWidth,
+				height: popupImageHeight
+			}, {
+				url: popupImage.find('img.band-photo').attr('src'),
+				width: (popupImageWidth && popupImageHeight) ?
+					Math.round((popupImageWidth >= popupImageHeight) ? 120 : (120 * popupImageWidth / popupImageHeight))
+					: undefined,
+				height: (popupImageWidth && popupImageHeight) ?
+					Math.round((popupImageHeight >= popupImageWidth ) ? 120 : (120 * popupImageHeight / popupImageWidth))
+					: undefined
+			});
+		}
 
 		return {
 			type: 'artist',
@@ -310,18 +326,7 @@ class Bandcamp {
 			name: bandNameLocation.find('.title').text().trim(),
 			location: bandNameLocation.find('.location').text().trim(),
 			description: bioContainer.find('meta[itemprop="description"]').attr('content'),
-			images: [
-				{
-					url: popupImage.attr('href'),
-					width: popupImageWidth,
-					height: popupImageHeight
-				},
-				{
-					url: popupImage.find('img.band-photo').attr('src'),
-					width: Math.round((popupImageWidth >= popupImageHeight) ? 120 : (120 * popupImageWidth / popupImageHeight)),
-					height: Math.round((popupImageHeight >= popupImageWidth ) ? 120 : (120 * popupImageHeight / popupImageWidth))
-				}
-			],
+			images: images,
 			shows: $('#showography > ul > li').toArray().map((showHtml) => {
 				showHtml = $(showHtml);
 				return {
