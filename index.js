@@ -232,7 +232,9 @@ class Bandcamp {
 			trackHtmls.push($(trackHtml));
 		});
 
-		const imageURL = $('#tralbumArt img[itemprop="image"]').attr('src');
+		const tralbumArt = $('#tralbumArt');
+		const smallImageURL = tralbumArt.find('img[itemprop="image"]').attr('src');
+		const largeImageURL = tralbumArt.find('a.popupImage').attr('href');
 		const artistTag = nameSection.find('span[itemprop="byArtist"] a');
 		const albumTag = nameSection.find('span[itemprop="inAlbum"] a');
 		const artistName = artistTag.text().trim();
@@ -243,11 +245,15 @@ class Bandcamp {
 		const item = {
 			type: type,
 			url: url,
-			name: nameSection.find('.trackTitle').text().trim()
+			name: nameSection.find('.trackTitle').text().trim(),
+			images: []
 		};
 
-		if(imageURL) {
-			item.imageURL = imageURL;
+		if(largeImageURL) {
+			item.images.push({url: largeImageURL});
+		}
+		if(smallImageURL) {
+			item.images.push({url: smallImageURL});
 		}
 		if(artistName) {
 			item.artistName = artistName;
