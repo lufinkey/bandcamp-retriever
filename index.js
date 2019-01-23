@@ -121,69 +121,67 @@ class Bandcamp {
 			};
 
 			// parse type-specific fields
-			switch(item.type) {
-				case 'track': {
-					let artistName = subheads.find((subhead) => {
-						return subhead.startsWith('by ');
-					});
-					if(artistName) {
-						artistName = artistName.substring('by '.length).trim();
-						item.artistName = artistName;
-						let artistURL = UrlUtils.resolve(item.url, '/');
-						if(artistURL.endsWith('/')) {
-							artistURL = artistURL.substring(0, artistURL.length-1);
-						}
-						item.artistURL = artistURL;
+			if(item.type === 'track' || item.type === 'album') {
+				let artistName = subheads.find((subhead) => {
+					return subhead.startsWith('by ');
+				});
+				if(artistName) {
+					artistName = artistName.substring('by '.length).trim();
+					item.artistName = artistName;
+					let artistURL = UrlUtils.resolve(item.url, '/');
+					if(artistURL.endsWith('/')) {
+						artistURL = artistURL.substring(0, artistURL.length-1);
 					}
-					let albumName = subheads.find((subhead) => {
-						return subhead.startsWith('from ');
-					});
-					if(albumName) {
-						albumName = albumName.substring('from '.length).trim();
-						item.albumName = albumName;
-					}
-					else {
-						// if no album name is present, track is a single
-						item.albumName = item.name;
-						item.albumURL = item.url;
+					item.artistURL = artistURL;
+				}
+			}
+			if(item.type === 'track') {
+				let albumName = subheads.find((subhead) => {
+					return subhead.startsWith('from ');
+				});
+				if(albumName) {
+					albumName = albumName.substring('from '.length).trim();
+					item.albumName = albumName;
+					if(item.artistURL) {
+						item.albumURL = UrlUtils.resolve(item.artistURL, '/album/'+this.slugify(albumName));
 					}
 				}
-				break;
-
-				case 'artist': {
-					item.location = (subheads.length > 0) ? subheads[0] : undefined;
+				else {
+					// if no album name is present, track is a single
+					item.albumName = item.name;
+					item.albumURL = item.url;
 				}
-				break;
-
-				case 'album': {
-					let artistName = subheads.find((subhead) => {
-						return subhead.startsWith('by ');
-					});
-					if(artistName) {
-						artistName = artistName.substring('by '.length).trim();
-						item.artistName = artistName;
-						let artistURL = UrlUtils.resolve(item.url, '/');
-						if(artistURL.endsWith('/')) {
-							artistURL = artistURL.substring(0, artistURL.length-1);
-						}
-						item.artistURL = artistURL;
+			}
+			else if(item.type === 'artist') {
+				item.location = (subheads.length > 0) ? subheads[0] : undefined;
+			}
+			else if(item.type === 'album') {
+				let artistName = subheads.find((subhead) => {
+					return subhead.startsWith('by ');
+				});
+				if(artistName) {
+					artistName = artistName.substring('by '.length).trim();
+					item.artistName = artistName;
+					let artistURL = UrlUtils.resolve(item.url, '/');
+					if(artistURL.endsWith('/')) {
+						artistURL = artistURL.substring(0, artistURL.length-1);
 					}
-					item.numTracks = (() => {
-						let info = resultItemHtml.find('.length').text().trim().split(',');
-						if(info.length !== 2) {
-							return undefined;
-						}
-						return parseInt(info[0].replace(/ tracks$/, ''));
-					})();
-					item.numMinutes = (() => {
-						let info = resultItemHtml.find('.length').text().trim().split(',');
-						if(info.length !== 2) {
-							return undefined;
-						}
-						return parseInt(info[1].replace(/ minutes$/, ''));
-					})();
+					item.artistURL = artistURL;
 				}
-				break;
+				item.numTracks = (() => {
+					let info = resultItemHtml.find('.length').text().trim().split(',');
+					if(info.length !== 2) {
+						return undefined;
+					}
+					return parseInt(info[0].replace(/ tracks$/, ''));
+				})();
+				item.numMinutes = (() => {
+					let info = resultItemHtml.find('.length').text().trim().split(',');
+					if(info.length !== 2) {
+						return undefined;
+					}
+					return parseInt(info[1].replace(/ minutes$/, ''));
+				})();
 			}
 
 			const deleteKeys = [];
@@ -255,13 +253,19 @@ class Bandcamp {
 		if(smallImageURL) {
 			item.images.push({url: smallImageURL});
 		}
+
 		if(artistName) {
 			item.artistName = artistName;
-			item.artistURL = artistURL;
 		}
+		if(artistURL) {
+			item.artistURL = UrlUtils.resolve(url, artistURL);
+		}
+
 		if(albumName) {
 			item.albumName = albumName;
-			item.albumURL = albumURL;
+		}
+		if(albumURL) {
+			item.albumURL = UrlUtils.resolve(url, albumURL);
 		}
 
 		if(type === 'album') {
@@ -391,6 +395,40 @@ class Bandcamp {
 	}
 
 
+	slugify(str) {
+		let charMap = {
+			"'": '',
+			'"': '',
+			'(': '',
+			')': ''
+		};
+		let output = str.split('')
+			// replace special characters
+			.reduce((result, ch) => {
+				const repCh = charMap[ch];
+				if(repCh != null) {
+					return result + repCh;
+				}
+				return result + ch.replace(/[^\w\s$*_+~.'"!:@]/g, '-')
+			}, '')
+			.toLowerCase()
+			// trim leading/trailing spaces
+			.trim()
+			// convert spaces
+			.replace(/[-\s]+/g, '-')
+			// remove consecutive dashes;
+			.replace(/--+/, '-');
+		// remove ending dashes
+		while(output.length > 1 && output.endsWith('-')) {
+			output = output.slice(0, output.length-1);
+		}
+		while(output.length > 1 && output.startsWith('-')) {
+			output = output.slice(1, output.length-1);
+		}
+		return output;
+	}
+
+
 
 	async search(query, options) {
 		// create and send request
@@ -411,11 +449,20 @@ class Bandcamp {
 		}
 
 		const { res, data } = await sendHttpRequest(url);
+		if(!data) {
+			throw new Error("Unable to get data from url");
+		}
 		const dataString = data.toString();
+		if(!dataString) {
+			throw new Error("Unable to get data from url");
+		}
 		const $ = cheerio.load(dataString);
 
 		if(type === 'track' || type === 'album') {
 			const item = this._parseTrackInfo(url, $, dataString);
+			if(!item) {
+				throw new Error("Unable to parse track data");
+			}
 			item.artist = this._parseArtistInfo(url, $, dataString);
 			return item;
 		}
