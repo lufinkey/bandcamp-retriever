@@ -422,6 +422,7 @@ class Bandcamp {
 		while(output.length > 1 && output.endsWith('-')) {
 			output = output.slice(0, output.length-1);
 		}
+		// remove beginning dashes
 		while(output.length > 1 && output.startsWith('-')) {
 			output = output.slice(1, output.length-1);
 		}
