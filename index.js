@@ -357,11 +357,12 @@ class Bandcamp {
 		musicGrid.children('li').each((index, albumHtml) => {
 			albumHtml = $(albumHtml);
 			const itemURL = albumHtml.find('a').attr('href');
+			const albumArtImage = albumHtml.find('.art img');
 			basicAlbumInfos.push({
 				id: albumHtml.attr('data-item-id').replace(/^(album|track)-/, ''),
 				url: (itemURL ? UrlUtils.resolve(url,itemURL) : undefined),
 				name: albumHtml.find('.title').text().trim(),
-				imageURL: albumHtml.find('.art img').attr('src')
+				imageURL: albumArtImage ? (albumArtImage.attr('data-original') || albumArtImage.attr('src')) : undefined
 			});
 		});
 
