@@ -1,8 +1,9 @@
 
 const { Buffer } = require('buffer');
 const QueryString = require('querystring');
-const cheerio = require('./cheerio');
 const UrlUtils = require('url');
+const cheerio = require('./external/cheerio');
+const { XMLHttpRequest } = require('./external/XMLHttpRequest');
 
 
 const sendHttpRequest = (url, options) => {

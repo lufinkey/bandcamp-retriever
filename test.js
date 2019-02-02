@@ -1,8 +1,5 @@
 
-if(typeof XMLHttpRequest === 'undefined') {
-	global.XMLHttpRequest = require('xmlhttprequest').XMLHttpRequest;
-}
-const Bandcamp = require('./');
+const Bandcamp = require('./src/Bandcamp');
 
 (async () => {
 	const bandcamp = new Bandcamp();
