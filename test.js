@@ -39,7 +39,8 @@ const Bandcamp = require('./');
 		'Instrumentais V. 1': 'instrumentais-v-1',
 		'V.1': 'v-1',
 		'A+B': 'a-b',
-		'A/B': 'a-b'
+		'A/B': 'a-b',
+		'(///)': '-'
 	};
 	let slugPassCount = 0;
 	let slugTotalCount = 0;
