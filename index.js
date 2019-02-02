@@ -58,7 +58,7 @@ class Bandcamp {
 	_parseType(url, $=null) {
 		url = UrlUtils.parse(url);
 		if(url.pathname) {
-			if(url.pathname === '/' || url.pathname === '/music') {
+			if(url.pathname === '/' || url.pathname === '/music' || url.pathname === '/releases') {
 				return 'artist';
 			}
 			else if(url.pathname.startsWith('/album/')) {
@@ -209,14 +209,10 @@ class Bandcamp {
 
 
 	_parseTrackInfo(url, $, data) {
-		const type = this._parseType(url);
-
 		const trackInfo = $('#trackInfo');
 		if(trackInfo.index() === -1) {
 			return null;
 		}
-
-		const nameSection = $('#name-section');
 
 		const mp3URLs = [];
 		const mp3Regex = /\{\"mp3-128\"\:\"(.+?(?=\"\}))\"\}/gmi;
@@ -225,10 +221,32 @@ class Bandcamp {
 			mp3URLs.push(JSON.parse(mp3RegMatch[0])["mp3-128"]);
 		}
 
+		let type = 'album';
 		let trackHtmls = [];
-		$('#trackInfo .track_list .track_row_view').each((index, trackHtml) => {
-			trackHtmls.push($(trackHtml));
-		});
+		const trackTable = $('#track_table');
+		if(trackTable.index() === -1) {
+			type = 'track';
+		}
+		else {
+			trackTable.find('.track_row_view').each((index, trackHtml) => {
+				trackHtmls.push($(trackHtml));
+			});
+		}
+
+		const nameSection = $('#name-section');
+		const itemName = nameSection.find('.trackTitle').text().trim();
+
+		let itemURL = url;
+		let urlType = this._parseType(url, $);
+		if(urlType !== 'track' && urlType !== 'album') {
+			const ogType = $('meta[property="og:type"]').attr('content');
+			if(ogType === 'album' || ogType === 'track') {
+				itemURL = $('meta[property="og:url"]').attr('content');
+			}
+			else {
+				itemURL = UrlUtils.resolve(url, '/'+type+'/'+this.slugify(itemName));
+			}
+		}
 
 		const tralbumArt = $('#tralbumArt');
 		const smallImageURL = tralbumArt.find('img[itemprop="image"]').attr('src');
@@ -242,8 +260,8 @@ class Bandcamp {
 
 		const item = {
 			type: type,
-			url: url,
-			name: nameSection.find('.trackTitle').text().trim(),
+			url: itemURL,
+			name: itemName,
 			images: []
 		};
 
@@ -410,7 +428,7 @@ class Bandcamp {
 				if(repCh != null) {
 					return result + repCh;
 				}
-				return result + ch.replace(/[^\w\s$*_+~.'"!:@]/g, '-')
+				return result + ch.replace(/([^\w\s$*_+~.'"!:@]|(\.|\+|\*|~|\\|\/))/g, '-')
 			}, '')
 			.toLowerCase()
 			// trim leading/trailing spaces

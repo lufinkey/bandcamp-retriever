@@ -36,7 +36,10 @@ const Bandcamp = require('./');
 		'(G​)​LOVE​(​S)': 'g-love-s',
 		'20 2 ∞': '20-2',
 		'Industrial Noise Concert (Remixes)': 'industrial-noise-concert-remixes',
-		
+		'Instrumentais V. 1': 'instrumentais-v-1',
+		'V.1': 'v-1',
+		'A+B': 'a-b',
+		'A/B': 'a-b'
 	};
 	let slugPassCount = 0;
 	let slugTotalCount = 0;
