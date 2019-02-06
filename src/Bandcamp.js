@@ -216,10 +216,15 @@ class Bandcamp {
 		}
 
 		const mp3URLs = [];
-		const mp3Regex = /\{\"mp3-128\"\:\"(.+?(?=\"\}))\"\}/gmi;
+		const mp3Regex = /,\s*\"file\"\s*\:\s*((?:\{\"mp3-128\"\:\"(.+?(?=\"\}))\"\})|(?:null))\s*,/gmi;
 		let mp3RegMatch = null;
 		while(mp3RegMatch = mp3Regex.exec(data)) {
-			mp3URLs.push(JSON.parse(mp3RegMatch[0])["mp3-128"]);
+			let audioURL = null;
+			const audioURLJSON = mp3RegMatch[1];
+			if(audioURLJSON) {
+				audioURL = (JSON.parse(audioURLJSON) || {})["mp3-128"] || null
+			}
+			mp3URLs.push(audioURL);
 		}
 
 		let type = 'album';
@@ -291,11 +296,13 @@ class Bandcamp {
 			item.tracks = trackHtmls.map((trackHtml, index) => {
 				const trackURL = trackHtml.find('.title a[itemprop="url"]').attr('href');
 				const durationText = trackHtml.find('.title .time').text().trim();
+				const audioURL = mp3URLs[index];
 				return {
 					url: trackURL ? UrlUtils.resolve(url, trackURL) : undefined,
 					name: trackHtml.find('.title span[itemprop="name"]').text().trim(),
 					duration: durationText ? getDurationFromText(durationText) : undefined,
-					audioURL: mp3URLs[index]
+					audioURL: audioURL,
+					available: audioURL ? true : false
 				};
 			});
 		}
