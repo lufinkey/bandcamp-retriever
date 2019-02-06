@@ -302,7 +302,7 @@ class Bandcamp {
 					name: trackHtml.find('.title span[itemprop="name"]').text().trim(),
 					duration: durationText ? getDurationFromText(durationText) : undefined,
 					audioURL: audioURL,
-					available: audioURL ? true : false
+					playable: audioURL ? true : false
 				};
 			});
 		}
