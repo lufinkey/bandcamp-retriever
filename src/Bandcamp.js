@@ -255,7 +255,7 @@ class Bandcamp {
 		}
 
 		const tralbumArt = $('#tralbumArt');
-		const smallImageURL = tralbumArt.find('img[itemprop="image"]').attr('src');
+		const mediumImageURL = tralbumArt.find('img[itemprop="image"]').attr('src');
 		const largeImageURL = tralbumArt.find('a.popupImage').attr('href');
 		const artistTag = nameSection.find('span[itemprop="byArtist"] a');
 		const albumTag = nameSection.find('span[itemprop="inAlbum"] a');
@@ -272,10 +272,10 @@ class Bandcamp {
 		};
 
 		if(largeImageURL) {
-			item.images.push({url: largeImageURL});
+			item.images.push({url: largeImageURL, size: 'large'});
 		}
-		if(smallImageURL) {
-			item.images.push({url: smallImageURL});
+		if(mediumImageURL) {
+			item.images.push({url: mediumImageURL, size: 'medium'});
 		}
 
 		if(artistName) {
