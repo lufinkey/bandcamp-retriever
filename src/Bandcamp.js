@@ -298,6 +298,7 @@ class Bandcamp {
 				const durationText = trackHtml.find('.title .time').text().trim();
 				const audioURL = mp3URLs[index];
 				return {
+					type: 'track',
 					url: trackURL ? UrlUtils.resolve(url, trackURL) : undefined,
 					name: trackHtml.find('.title span[itemprop="name"]').text().trim(),
 					duration: durationText ? getDurationFromText(durationText) : undefined,
