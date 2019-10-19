@@ -335,26 +335,30 @@ class Bandcamp {
 		let images = [];
 		const popupImage = bioContainer.find('a.popupImage');
 		if(popupImage) {
-			const popupImageSize = popupImage.attr('data-image-size') || "";
-			let [ popupImageWidth, popupImageHeight ] = popupImageSize.split(',').map((dimension) => {
+			const popupImageDims = popupImage.attr('data-image-size') || "";
+			let [ popupImageWidth, popupImageHeight ] = popupImageDims.split(',').map((dimension) => {
 				dimension = parseInt(dimension);
 				if(!dimension) {
 					return undefined;
 				}
 				return dimension;
 			});
+			const defaultImageWidth = (popupImageWidth && popupImageHeight) ?
+				Math.round((popupImageWidth >= popupImageHeight) ? 120 : (120 * popupImageWidth / popupImageHeight))
+				: undefined;
+			const defaultImageHeight = (popupImageWidth && popupImageHeight) ?
+				Math.round((popupImageHeight >= popupImageWidth ) ? 120 : (120 * popupImageHeight / popupImageWidth))
+				: undefined;
 			images.push({
 				url: popupImage.attr('href'),
 				width: popupImageWidth,
-				height: popupImageHeight
+				height: popupImageHeight,
+				size: 'large'
 			}, {
 				url: popupImage.find('img.band-photo').attr('src'),
-				width: (popupImageWidth && popupImageHeight) ?
-					Math.round((popupImageWidth >= popupImageHeight) ? 120 : (120 * popupImageWidth / popupImageHeight))
-					: undefined,
-				height: (popupImageWidth && popupImageHeight) ?
-					Math.round((popupImageHeight >= popupImageWidth ) ? 120 : (120 * popupImageHeight / popupImageWidth))
-					: undefined
+				width: defaultImageWidth,
+				height: defaultImageHeight,
+				size: 'small'
 			});
 		}
 
