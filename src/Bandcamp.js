@@ -293,10 +293,16 @@ class Bandcamp {
 		}
 
 		if(type === 'album') {
+			let mp3Index = 0;
 			item.tracks = trackHtmls.map((trackHtml, index) => {
 				const trackURL = trackHtml.find('.title a[itemprop="url"]').attr('href');
 				const durationText = trackHtml.find('.title .time').text().trim();
-				const audioURL = mp3URLs[index];
+				const playDisabled = trackHtml.find('.play_col .play_status').hasClass('disabled');
+				let audioURL = null;
+				if(!playDisabled) {
+					audioURL = mp3URLs[mp3Index];
+					mp3Index++;
+				}
 				return {
 					type: 'track',
 					url: trackURL ? UrlUtils.resolve(url, trackURL) : undefined,
