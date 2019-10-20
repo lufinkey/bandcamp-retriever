@@ -331,6 +331,13 @@ class Bandcamp {
 		}
 		const bandNameLocation = bioContainer.find('#band-name-location');
 
+		// navbar items
+		const navBarArtists = $('#band-navbar a[href="/artists"]');
+		let isLabel = false;
+		if(navBarArtists.index() !== -1) {
+			isLabel = true;
+		}
+
 		// images
 		let images = [];
 		const popupImage = bioContainer.find('a.popupImage');
@@ -363,7 +370,7 @@ class Bandcamp {
 		}
 
 		return {
-			type: 'artist',
+			type: (isLabel) ? 'label' : 'artist',
 			url: UrlUtils.resolve(url, '/'),
 			name: bandNameLocation.find('.title').text().trim(),
 			location: bandNameLocation.find('.location').text().trim(),
