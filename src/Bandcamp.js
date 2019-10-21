@@ -441,7 +441,7 @@ class Bandcamp {
 					url: itemURL,
 					artistName: album.artist || album.band_name || basicAlbumInfo.artistName || albumsArtistName,
 					artistURL: artistURL,
-					images: basicAlbumInfo ? basicAlbumInfo.images : undefined,
+					images: basicAlbumInfo ? basicAlbumInfo.images : [],
 					releaseDate: album.release_date,
 					publishDate: album.publish_date,
 				};
