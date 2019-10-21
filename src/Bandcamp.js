@@ -263,12 +263,17 @@ class Bandcamp {
 		const artistURL = artistTag.attr('href');
 		const albumName = albumTag.text().trim();
 		const albumURL = albumTag.attr('href');
+		const tags = [];
+		$('.tralbum-tags a[class="tag"]').each((index, tagHtml) => {
+			tags.push($(tagHtml).text().trim());
+		});
 
 		const item = {
 			type: type,
 			url: itemURL,
 			name: itemName,
-			images: []
+			images: [],
+			tags: tags
 		};
 
 		if(largeImageURL) {
