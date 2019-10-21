@@ -341,7 +341,7 @@ class Bandcamp {
 		// images
 		let images = [];
 		const popupImage = bioContainer.find('a.popupImage');
-		if(popupImage) {
+		if(popupImage.index() !== -1) {
 			const popupImageDims = popupImage.attr('data-image-size') || "";
 			let [ popupImageWidth, popupImageHeight ] = popupImageDims.split(',').map((dimension) => {
 				dimension = parseInt(dimension);
@@ -397,17 +397,29 @@ class Bandcamp {
 	}
 
 	_parseAlbumList(url, $, data) {
+		const albumsArtistName = $('#bio-container #band-name-location .title').text().trim() || undefined;
 		const basicAlbumInfos = [];
 		const musicGrid = $('.music-grid');
 		musicGrid.children('li').each((index, albumHtml) => {
 			albumHtml = $(albumHtml);
 			const itemURL = albumHtml.find('a').attr('href');
 			const albumArtImage = albumHtml.find('.art img');
+			const albumArtURL = (albumArtImage.index() !== -1) ? (albumArtImage.attr('data-original') || albumArtImage.attr('src')) : undefined;
+			let titleHtml = albumHtml.find('.title');
+			const artistNameHtml = titleHtml.find('span[class="artist-override"]');
+			const titleText = titleHtml.clone().find('span[class="artist-override"]').remove().end().text().trim();
+			const artistNameText = ((artistNameHtml.index() !== -1) ? artistNameHtml.text().trim() : albumsArtistName);
 			basicAlbumInfos.push({
 				id: albumHtml.attr('data-item-id').replace(/^(album|track)-/, ''),
 				url: (itemURL ? UrlUtils.resolve(url,itemURL) : undefined),
-				name: albumHtml.find('.title').text().trim(),
-				imageURL: albumArtImage ? (albumArtImage.attr('data-original') || albumArtImage.attr('src')) : undefined
+				name: titleText,
+				artistName: artistNameText,
+				images: (albumArtURL) ? [
+					{
+						url: albumArtURL,
+						size: 'small'
+					}
+				] : []
 			});
 		});
 
@@ -420,13 +432,16 @@ class Bandcamp {
 					basicAlbumInfo = basicAlbumInfos[matchIndex];
 					basicAlbumInfos.splice(matchIndex, 1);
 				}
-				const itemURL = (basicAlbumInfo.url || album.page_url);
+				let itemURL = (basicAlbumInfo.url || album.page_url);
+				itemURL = itemURL ? UrlUtils.resolve(url, itemURL) : undefined;
+				const artistURL = itemURL ? UrlUtils.resolve(itemURL, '/') : undefined;
 				return {
 					type: album.type,
-					name: album.title,
-					artistName: album.artist || album.band_name || undefined,
-					url: itemURL ? UrlUtils.resolve(url, itemURL) : undefined,
-					imageURL: basicAlbumInfo ? basicAlbumInfo.imageURL : undefined,
+					name: album.title || basicAlbumInfo.name,
+					url: itemURL,
+					artistName: album.artist || album.band_name || basicAlbumInfo.artistName || albumsArtistName,
+					artistURL: artistURL,
+					images: basicAlbumInfo ? basicAlbumInfo.images : undefined,
 					releaseDate: album.release_date,
 					publishDate: album.publish_date,
 				};
