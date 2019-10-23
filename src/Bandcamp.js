@@ -254,7 +254,11 @@ class Bandcamp {
 			}
 		}
 
+
+
 		const tralbumArt = $('#tralbumArt');
+		const tralbumAbout = $('.tralbum-about');
+		const releaseMetaText = $('meta[itemprop="datePublished"]').attr("content");
 		const mediumImageURL = tralbumArt.find('img[itemprop="image"]').attr('src');
 		const largeImageURL = tralbumArt.find('a.popupImage').attr('href');
 		const artistTag = nameSection.find('span[itemprop="byArtist"] a');
@@ -268,12 +272,22 @@ class Bandcamp {
 			tags.push($(tagHtml).text().trim());
 		});
 
+		let releaseDate = null;
+		if(releaseMetaText != null && releaseMetaText.length > 0 && releaseMetaText.length >= 8) {
+			const len = releaseMetaText.length;
+			releaseDate = releaseMetaText.substring(len-4,len-2)
+				+ '/' + releaseMetaText.substring(len-2,len)
+				+ '/' + releaseMetaText.substring(0,len-4);
+		}
+
 		const item = {
 			type: type,
 			url: itemURL,
 			name: itemName,
 			images: [],
-			tags: tags
+			tags: tags,
+			description: (tralbumAbout.index() !== -1) ? tralbumAbout.text() : null,
+			releaseDate: releaseDate
 		};
 
 		if(largeImageURL) {
@@ -310,7 +324,7 @@ class Bandcamp {
 				}
 				return {
 					type: 'track',
-					url: trackURL ? UrlUtils.resolve(url, trackURL) : undefined,
+					url: trackURL ? UrlUtils.resolve(url, trackURL) : null,
 					name: trackHtml.find('.title span[itemprop="name"]').text().trim(),
 					trackNum: (index + 1),
 					duration: durationText ? getDurationFromText(durationText) : undefined,
@@ -447,8 +461,7 @@ class Bandcamp {
 					artistName: album.artist || album.band_name || basicAlbumInfo.artistName || albumsArtistName,
 					artistURL: artistURL,
 					images: basicAlbumInfo ? basicAlbumInfo.images : [],
-					releaseDate: album.release_date,
-					publishDate: album.publish_date,
+					releaseDate: album.release_date
 				};
 			});
 		}
