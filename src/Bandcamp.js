@@ -326,6 +326,8 @@ class Bandcamp {
 					type: 'track',
 					url: trackURL ? UrlUtils.resolve(url, trackURL) : null,
 					name: trackHtml.find('.title span[itemprop="name"]').text().trim(),
+					artistName: item.artistName,
+					artistURL: item.artistURL,
 					trackNum: (index + 1),
 					duration: durationText ? getDurationFromText(durationText) : undefined,
 					audioURL: audioURL,
