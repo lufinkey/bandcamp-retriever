@@ -539,11 +539,27 @@ class Bandcamp {
 		const $ = cheerio.load(dataString);
 
 		if(type === 'track' || type === 'album') {
-			const item = this._parseTrackInfo(url, $, dataString);
+			let item = this._parseTrackInfo(url, $, dataString);
 			if(!item) {
 				throw new Error("Unable to parse track data");
 			}
 			item.artist = this._parseArtistInfo(url, $, dataString);
+			if(item.type == 'track' && type == 'album' && !item.albumName && !item.albumURL) {
+				const track = item;
+				item = {
+					type: 'album',
+					url: track.url,
+					name: track.name,
+					images: track.images,
+					artistName: track.artistName,
+					artistURL: track.artistURL,
+					artist: track.artist,
+					tracks: [ track ],
+					numTracks: 1,
+					tags: track.tags,
+					description: track.description
+				};
+			}
 			return item;
 		}
 		else if(type === 'artist') {
