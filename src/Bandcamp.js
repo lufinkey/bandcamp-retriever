@@ -337,6 +337,7 @@ class Bandcamp {
 		}
 		else if(type === 'track') {
 			item.audioURL = mp3URLs[0];
+			item.playable = item.audioURL ? true : false;
 			item.duration = parseFloat($('.trackView meta[itemprop="duration"]').attr('content'));
 		}
 
