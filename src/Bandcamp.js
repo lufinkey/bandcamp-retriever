@@ -310,6 +310,10 @@ class Bandcamp {
 		if(albumURL) {
 			item.albumURL = UrlUtils.resolve(url, albumURL);
 		}
+		if(albumTag.index() === -1) {
+			item.albumName = itemName;
+			item.albumURL = itemURL;
+		}
 
 		if(type === 'album') {
 			let mp3Index = 0;
