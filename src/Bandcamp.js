@@ -180,44 +180,9 @@ class Bandcamp {
 			return null;
 		}
 
-		// get MP3 files
-		const mp3URLs = [];
-		const mp3Regex = /,\s*\"file\"\s*\:\s*((?:\{\"mp3-128\"\:\"(.+?(?=\"\}))\"\})|(?:null))\s*,/gmi;
-		let mp3RegMatch = null;
-		while(mp3RegMatch = mp3Regex.exec(data)) {
-			let audioURL = null;
-			const audioURLJSON = mp3RegMatch[1];
-			if(audioURLJSON) {
-				audioURL = (JSON.parse(audioURLJSON) || {})["mp3-128"] || null
-			}
-			mp3URLs.push(audioURL);
-		}
-
-		// determine if track or album
-		let type = 'album';
-		let trackHtmls = [];
-		const trackTable = $('#track_table');
-		if(trackTable.index() === -1) {
-			type = 'track';
-		}
-		else {
-			trackTable.find('.track_row_view').each((index, trackHtml) => {
-				trackHtmls.push($(trackHtml));
-			});
-		}
-
-		// get true item URL
-		let itemURL = url;
-		let urlType = this._parseType(url, $);
-		if(urlType !== 'track' && urlType !== 'album') {
-			const ogType = $('meta[property="og:type"]').attr('content');
-			if(ogType === 'album' || ogType === 'track' || ogType === 'song') {
-				itemURL = $('meta[property="og:url"]').attr('content');
-			}
-		}
-
 		// find common elements
 		const nameSection = $('#name-section');
+		const trackTable = $('#track_table');
 		const trAlbumCredits = $('.tralbum-credits');
 		const trAlbumCreditsLines = trAlbumCredits.text().split('\n').map((text) => {
 			text = text.trim();
@@ -227,8 +192,101 @@ class Bandcamp {
 			return text;
 		}).filter((text) => (text !== undefined));
 
+		// get LD JSON
+		let ldJson = null;
+		const ldJsonTag = $('script[type="application/ld+json"]');
+		if(ldJsonTag != null && ldJsonTag.index() !== -1) {
+			try {
+				ldJson = JSON.parse(ldJsonTag.text().trim());
+			} catch(error) {
+				ldJson = null;
+			}
+		}
+
+		// get data-tralbum
+		let trAlbumData = null;
+		const trAlbumDataText = $('script[data-tralbum]').attr('data-tralbum');
+		if(trAlbumDataText) {
+			try {
+				trAlbumData = JSON.parse(trAlbumDataText);
+			} catch(error) {
+				trAlbumData = null;
+			}
+		}
+
+		// determine if track or album
+		let type = null;
+		if(ldJson) {
+			let ldTypes = ldJson['@type'];
+			if(typeof ldTypes === 'string') {
+				ldTypes = [ ldTypes ];
+			}
+			if(ldTypes && ldTypes instanceof Array) {
+				if(ldTypes.includes('MusicAlbum') || ldTypes.includes('album') || ldTypes.includes('Album')) {
+					type = 'album';
+				}
+				else if(ldTypes.includes('MusicRecording') || ldTypes.includes('track') || ldTypes.includes('Track')) {
+					type = 'track';
+				}
+			}
+		}
+		if(trAlbumData) {
+			const trItemType = trAlbumData['item_type'];
+			if(trItemType === 'album' || trItemType === 'track') {
+				type = trItemType;
+			} else if(trItemType === 'song') {
+				type = 'track';
+			}
+		}
+		if(type == null) {
+			if(trackTable.index() === -1) {
+				type = 'track';
+			}
+			else {
+				type = 'album';
+			}
+		}
+
+		// get item URL
+		let itemURL = url;
+		let urlType = this._parseType(url, $);
+		if(urlType !== 'track' && urlType !== 'album') {
+			const ogType = $('meta[property="og:type"]').attr('content');
+			if(ogType === 'album' || ogType === 'track' || ogType === 'song') {
+				itemURL = $('meta[property="og:url"]').attr('content');
+			}
+		}
+		if(ldJson) {
+			const ldJsonURL = ldJson['url'];
+			if(typeof ldJsonURL === 'string') {
+				itemURL = ldJsonURL;
+			} else {
+				const ldJsonId = ldJson['@id'];
+				if(typeof ldJsonId === 'string' && ldJsonId.startsWith('http')) {
+					itemURL = ldJsonId;
+				}
+			}
+		}
+		if(trAlbumData) {
+			const trURL = trAlbumData['url'];
+			if(typeof trURL === 'string' && trURL) {
+				itemURL = trURL;
+			}
+		}
+		if(itemURL.startsWith('/')) {
+			itemURL = this._cleanUpURL(UrlUtils.resolve(url, itemURL));
+		} else if(itemURL) {
+			itemURL = this._cleanUpURL(itemURL);
+		}
+
 		// find item name
-		const itemName = nameSection.find('.trackTitle').text().trim();
+		let itemName = nameSection.find('.trackTitle').text().trim();
+		if(ldJson) {
+			const ldJsonName = ldJson['name'];
+			if(typeof ldJsonName === 'string' && ldJsonName) {
+				itemName = ldJsonName;
+			}
+		}
 
 		// find artist / album name
 		let artistName = undefined;
@@ -291,6 +349,40 @@ class Bandcamp {
 				}
 			}
 		}
+		if(ldJson) {
+			const ldByArtist = ldJson['byArtist'];
+			if(ldByArtist) {
+				const ldArtistName = ldByArtist['name'];
+				if(typeof ldArtistName === 'string' && ldArtistName) {
+					artistName = ldArtistName;
+				}
+				const ldArtistURL = ldByArtist['url'];
+				if(typeof ldArtistURL === 'string' && ldArtistURL) {
+					artistURL = ldArtistURL;
+				} else {
+					const ldArtistId = ldByArtist['@id'];
+					if(typeof ldArtistId === 'string' && ldArtistId.startsWith('http')) {
+						artistURL = ldArtistId;
+					}
+				}
+			}
+			const ldInAlbum = ldJson['inAlbum'];
+			if(ldInAlbum) {
+				const ldAlbumName = ldInAlbum['name'];
+				if(typeof ldAlbumName === 'string' && ldAlbumName) {
+					albumName = ldAlbumName;
+				}
+				const ldAlbumURL = ldInAlbum['url'];
+				if(typeof ldAlbumURL === 'string' && ldAlbumURL) {
+					albumURL = ldAlbumURL;
+				} else {
+					const ldAlbumId = ldInAlbum['@id'];
+					if(typeof ldAlbumId === 'string' && ldAlbumId.startsWith('http')) {
+						albumURL = ldAlbumId;
+					}
+				}
+			}
+		}
 
 		// find tags
 		const tags = [];
@@ -300,15 +392,23 @@ class Bandcamp {
 
 		// get release date
 		let releaseDate = null;
-		const releasedLinePrefix = "released ";
-		const releasedLine = trAlbumCreditsLines.find((line) => {
-			if(line.startsWith(releasedLinePrefix) && line.length > releasedLinePrefix.length) {
-				return true;
+		if(ldJson) {
+			const ldDatePublished = ldJson['datePublished'];
+			if(typeof ldDatePublished === 'string' && ldDatePublished) {
+				releaseDate = ldDatePublished;
 			}
-			return false;
-		})
-		if(releasedLine != null) {
-			releaseDate = releasedLine.substring(releasedLinePrefix.length).trim();
+		}
+		if(releaseDate == null) {
+			const releasedLinePrefix = "released ";
+			const releasedLine = trAlbumCreditsLines.find((line) => {
+				if(line.startsWith(releasedLinePrefix) && line.length > releasedLinePrefix.length) {
+					return true;
+				}
+				return false;
+			})
+			if(releasedLine != null) {
+				releaseDate = releasedLine.substring(releasedLinePrefix.length).trim();
+			}
 		}
 
 		// get description
@@ -316,6 +416,21 @@ class Bandcamp {
 		const tralbumAbout = $('.tralbum-about');
 		if(tralbumAbout != null && tralbumAbout.index() !== -1) {
 			description = tralbumAbout.text();
+		}
+		if(!description && ldJson) {
+			const ldDescription = ldJson['description'];
+			if(typeof ldDescription === 'string') {
+				description = ldDescription;
+			}
+		}
+		if(!description && trAlbumData) {
+			const trCurrent = trAlbumData['current'];
+			if(trCurrent) {
+				const trDescription = trCurrent['about'];
+				if(typeof trDescription === 'string') {
+					description = trDescription;
+				}
+			}
 		}
 
 		// make item object with basic data
@@ -334,7 +449,7 @@ class Bandcamp {
 			item.artistName = artistName;
 		}
 		if(artistURL) {
-			item.artistURL = UrlUtils.resolve(url, artistURL);
+			item.artistURL = this._cleanUpURL(UrlUtils.resolve(url, artistURL));
 		}
 
 		// apply album name / url
@@ -342,11 +457,11 @@ class Bandcamp {
 			item.albumName = albumName;
 		}
 		if(albumURL) {
-			item.albumURL = UrlUtils.resolve(url, albumURL);
+			item.albumURL = this._cleanUpURL(UrlUtils.resolve(url, albumURL));
 		}
 
 		// if item is a single, set album name / url as self
-		if((subAlbumTag == null || subAlbumTag.index() === -1) && (fromAlbumTag == null || fromAlbumTag.index() === -1) && !albumName && !albumURL) {
+		if((subAlbumTag == null || subAlbumTag.index() === -1) && (fromAlbumTag == null || fromAlbumTag.index() === -1) && albumName == null && albumURL == null) {
 			item.albumName = itemName;
 			item.albumURL = itemURL;
 		}
@@ -356,6 +471,24 @@ class Bandcamp {
 		const largeImageURL = tralbumArt.find('a.popupImage').attr('href');
 		if(largeImageURL) {
 			item.images.push({url: largeImageURL, size: 'large'});
+		}
+		if(ldJson) {
+			const ldJsonImages = ldJson['image'];
+			if(typeof ldJsonImages === 'string') {
+				ldJsonImages = [ ldJsonImages ];
+			}
+			if(ldJsonImages instanceof Array) {
+				for(const ldJsonImage of ldJsonImages) {
+					if(typeof ldJsonImage === 'string' && ldJsonImage.startsWith('http')) {
+						if(item.images.find((img) => (img.url == ldJsonImage)) == null) {
+							ldJsonImages.push({
+								url: ldJsonImage,
+								size: 'large'
+							});
+						}
+					}
+				}
+			}
 		}
 		const linkImageSrc = $('link[rel="image_src"]');
 		if(linkImageSrc.index() !== -1) {
@@ -376,36 +509,156 @@ class Bandcamp {
 			item.images.push({url: mediumImageURL, size: 'medium'});
 		}
 
-		if(type === 'album') {
-			// add tracks
-			let mp3Index = 0;
-			item.tracks = trackHtmls.map((trackHtml, index) => {
-				const trackURL = trackHtml.find('.title a').attr('href');
-				const durationText = trackHtml.find('.title .time').text().trim();
-				const playDisabled = trackHtml.find('.play_col .play_status').hasClass('disabled');
-				let audioURL = null;
-				if(!playDisabled) {
-					audioURL = mp3URLs[mp3Index];
-					mp3Index++;
+		// helper function to parse audio sources
+		const parseTrTrackAudioSources = (trTrack) => {
+			const trTrackFile = trTrack['file'];
+			if(trTrackFile) {
+				const trFileTypes = Object.keys(trTrackFile);
+				const audioSources = [];
+				for(const trFileType of trFileTypes) {
+					const fileURL = trTrackFile[trFileType];
+					if(typeof fileURL === 'string' && fileURL) {
+						audioSources.push({
+							type: trFileType,
+							url: fileURL
+						});
+					}
 				}
-				return {
+				return audioSources;
+			}
+			return [];
+		};
+
+		// parse type-specific data
+		if(type === 'album') {
+			// construct tracks
+			let trackHtmls = [];
+			if(trackTable.index() !== -1) {
+				trackTable.find('.track_row_view').each((index, trackHtml) => {
+					trackHtmls.push($(trackHtml));
+				});
+			}
+			let ldTracks = [];
+			if(ldJson) {
+				const ldTrackObj = ldJson['track'];
+				if(ldTrackObj) {
+					const ldItems = ldTrackObj['itemListElement'];
+					if(ldItems instanceof Array) {
+						ldTracks = ldItems;
+					}
+				}
+			}
+			let trTracks = [];
+			if(trAlbumData) {
+				const trAlbumTracks = trAlbumData['trackinfo'];
+				if(trAlbumTracks instanceof Array) {
+					trTracks = trAlbumTracks;
+				}
+			}
+			const tracks = [];
+			for(let i=0; i<trackHtmls.length || i<ldTracks.length || i<trTracks.length; i++) {
+				const track = {
 					type: 'track',
-					url: trackURL ? UrlUtils.resolve(url, trackURL) : null,
-					name: trackHtml.find('.track-title').text().trim(),
 					artistName: item.artistName,
 					artistURL: item.artistURL,
-					trackNum: (index + 1),
-					duration: durationText ? getDurationFromText(durationText) : undefined,
-					audioURL: audioURL,
-					playable: audioURL ? true : false
+					trackNum: (i + 1)
 				};
-			});
+				// add properties from html
+				if(i < trackHtmls.length) {
+					const trackHtml = trackHtmls[i];
+					const trackURLTag = trackHtml.find('.title a');
+					const trackTitle = trackHtml.find('.track-title');
+					const durationText = trackHtml.find('.title .time').text().trim();
+					const playStatus = trackHtml.find('.play_col .play_status');
+
+					if(trackURLTag.index() !== -1) {
+						const trackURL = trackURLTag.attr('href');
+						if(trackURL) {
+							track.url = this._cleanUpURL(UrlUtils.resolve(url, trackURL));
+						}
+					}
+					if(trackTitle.index() !== -1) {
+						track.name = trackTitle.text().trim();
+					}
+					if(durationText) {
+						const duration = getDurationFromText(durationText);
+						if(duration != null) {
+							track.duration = duration;
+						}
+					}
+					if(playStatus.index() !== -1) {
+						track.playable = playStatus.hasClass('disabled');
+					}
+				}
+				// add properties from LD JSON
+				if(i < ldTracks.length) {
+					const ldTrack = ldTracks[i];
+					const ldTrackItem = ldTrack['item'];
+					if(ldTrackItem) {
+						const ldTrackName = ldTrackItem['name'];
+						if(typeof ldTrackName === 'string' && ldTrackName) {
+							track.name = ldTrackName;
+						}
+						const ldTrackURL = ldTrackItem['url'];
+						if(typeof ldTrackURL === 'string' && ldTrackURL) {
+							track.url = this._cleanUpURL(UrlUtils.resolve(url, ldTrackURL));
+						} else {
+							const ldTrackId = ldTrackId['@id'];
+							if(typeof ldTrackId === 'string' && ldTrackId.startsWith('http')) {
+								track.url = this._cleanUpURL(ldTrackId);
+							}
+						}
+					}
+				}
+				// add properties from data-tralbum
+				if(i < trTracks.length) {
+					const trTrack = trTracks[i];
+					const audioSources = parseTrTrackAudioSources(trTrack);
+					if(audioSources.length > 0) {
+						track.audioSources = audioSources;
+						track.playable = true;
+					} else {
+						track.playable = false;
+					}
+					const trTrackTitle = trTrack['title'];
+					if(typeof trTrackTitle === 'string' && trTrackTitle) {
+						track.name = trTrackTitle;
+					}
+					const trTrackDuration = trTrack['duration'];
+					if(typeof trTrackDuration === 'number' && trTrackDuration) {
+						track.duration = trTrackDuration;
+					}
+					const trTrackURL = trTrack['title_link'];
+					if(typeof trTrackURL === 'string' && trTrackURL) {
+						track.url = UrlUtils.resolve(url, trTrackURL);
+					}
+				}
+				// append track
+				tracks.push(track);
+			}
+			item.tracks = tracks;
 		}
 		else if(type === 'track') {
 			// apply track
-			item.audioURL = mp3URLs[0];
-			item.playable = item.audioURL ? true : false;
-			item.duration = parseFloat($('.trackView meta[itemprop="duration"]').attr('content'));
+			if(trAlbumData) {
+				const trTracks = trAlbumData['trackinfo'];
+				if(trTracks instanceof Array && trTracks.length > 0) {
+					const trTrack = trTracks[0];
+					const audioSources = parseTrTrackAudioSources(trTrack);
+					if(audioSources.length > 0) {
+						item.audioSources = audioSources;
+						item.playable = true;
+					} else {
+						item.playable = false;
+					}
+					item.audioSources = audioSources;
+					item.playable = item.audioURL ? true : false;
+					const trTrackDuration = trTrack['duration'];
+					if(typeof trTrackDuration === 'number' && trTrackDuration) {
+						item.duration = trTrackDuration;
+					}
+				}
+			}
 		}
 
 		return item;

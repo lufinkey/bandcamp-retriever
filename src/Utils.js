@@ -33,17 +33,24 @@ module.exports.getDurationFromText = (durationText) => {
 	let duration = 0;
 	let partCount = 0;
 	while(durationPart = durationParts.pop()) {
+		if(durationPart.length == 0) {
+			continue;
+		}
+		const durationPartNum = parseInt(durationPart);
+		if(isNaN(durationPartNum)) {
+			return null;
+		}
 		switch(partCount) {
 			case 0:
-				duration += parseInt(durationPart);
+				duration += durationPartNum;
 				break;
 
 			case 1:
-				duration += parseInt(durationPart) * 60;
+				duration += durationPartNum * 60;
 				break;
 
 			case 2:
-				duration += parseInt(durationPart) * 60 * 60;
+				duration += durationPartNum * 60 * 60;
 				break;
 		}
 		partCount += 1;
