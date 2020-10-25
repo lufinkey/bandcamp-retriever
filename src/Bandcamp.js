@@ -461,10 +461,10 @@ class Bandcamp {
 		}
 
 		// if item is a single, set album name / url as self
-		if((subAlbumTag == null || subAlbumTag.index() === -1) && (fromAlbumTag == null || fromAlbumTag.index() === -1) && albumName == null && albumURL == null) {
+		/*if((subAlbumTag == null || subAlbumTag.index() === -1) && (fromAlbumTag == null || fromAlbumTag.index() === -1) && albumName == null && albumURL == null) {
 			item.albumName = itemName;
 			item.albumURL = itemURL;
-		}
+		}*/
 
 		// add images
 		const tralbumArt = $('#tralbumArt');
@@ -614,8 +614,8 @@ class Bandcamp {
 				if(i < trTracks.length) {
 					const trTrack = trTracks[i];
 					const audioSources = parseTrTrackAudioSources(trTrack);
+					track.audioSources = audioSources;
 					if(audioSources.length > 0) {
-						track.audioSources = audioSources;
 						track.playable = true;
 					} else {
 						track.playable = false;
@@ -645,8 +645,8 @@ class Bandcamp {
 				if(trTracks instanceof Array && trTracks.length > 0) {
 					const trTrack = trTracks[0];
 					const audioSources = parseTrTrackAudioSources(trTrack);
+					item.audioSources = audioSources;
 					if(audioSources.length > 0) {
-						item.audioSources = audioSources;
 						item.playable = true;
 					} else {
 						item.playable = false;
