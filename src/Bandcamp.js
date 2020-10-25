@@ -651,8 +651,6 @@ class Bandcamp {
 					} else {
 						item.playable = false;
 					}
-					item.audioSources = audioSources;
-					item.playable = item.audioURL ? true : false;
 					const trTrackDuration = trTrack['duration'];
 					if(typeof trTrackDuration === 'number' && trTrackDuration) {
 						item.duration = trTrackDuration;
