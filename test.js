@@ -19,9 +19,9 @@ const Bandcamp = require('./src/Bandcamp');
 	console.log(trackInfo);
 	console.log("\n\n");
 
-	const track2Info = await bandcamp.getItemFromURL("https://percyjonez.bandcamp.com/track/come-over-the-phone-call");
-	console.log("getItemFromURL: Come Over (The Phone Call)");
-	console.log(track2Info);
+	const album2Info = await bandcamp.getItemFromURL("https://a3cmusic.bandcamp.com/album/a3c-volume-2");
+	console.log("getItemFromURL: A3C Volume 2");
+	console.log(album2Info);
 	console.log("\n\n");
 
 	const artist = await bandcamp.getArtist(result.items[0].url);

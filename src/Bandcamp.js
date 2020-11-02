@@ -635,6 +635,46 @@ class Bandcamp {
 						track.url = UrlUtils.resolve(url, trTrackURL);
 					}
 				}
+				// attempt to split track name into artist and track name
+				if(track.name) {
+					var nameSlug = null;
+					if(track.url != null) {
+						const urlParts = UrlUtils.parse(track.url);
+						const prefixTrim = "/track/"
+						if(urlParts.pathname && urlParts.pathname.startsWith(prefixTrim)) {
+							nameSlug = urlParts.pathname.substring(prefixTrim.length);
+							while(nameSlug.startsWith('/')) {
+								nameSlug = nameSlug.substring(1);
+							}
+							while(nameSlug.endsWith('/')) {
+								nameSlug = nameSlug.substring(0, nameSlug.length-1);
+							}
+							const slashIndex = nameSlug.indexOf('/');
+							if(slashIndex != -1) {
+								nameSlug = numSlug.substring(0, nameSlug);
+							}
+						}
+					}
+					if(nameSlug != null) {
+						const dashSearchStr = " - ";
+						let dashSearchStartIndex = 0;
+						while(true) {
+							const dashIndex = track.name.indexOf(dashSearchStr, dashSearchStartIndex);
+							if(dashIndex == -1) {
+								break;
+							}
+							const possibleName = track.name.substring(dashIndex+dashSearchStr.length);
+							const cmpNameSlug = this.slugify(possibleName);
+							if(cmpNameSlug === nameSlug) {
+								const artistName = track.name.substring(0, dashIndex);
+								track.name = possibleName;
+								track.artistName = artistName;
+								break;
+							}
+							dashSearchStartIndex = dashIndex + dashSearchStr.length;
+						}
+					}
+				}
 				// append track
 				tracks.push(track);
 			}
