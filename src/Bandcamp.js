@@ -665,7 +665,7 @@ class Bandcamp {
 							}
 							const possibleName = track.name.substring(dashIndex+dashSearchStr.length);
 							const cmpNameSlug = this.slugify(possibleName);
-							if(cmpNameSlug === nameSlug) {
+							if(cmpNameSlug === nameSlug || (cmpNameSlug.length >= (nameSlug.length / 2) && nameSlug.startsWith(cmpNameSlug))) {
 								const artistName = track.name.substring(0, dashIndex);
 								track.name = possibleName;
 								track.artistName = artistName;
