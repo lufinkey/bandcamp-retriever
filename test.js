@@ -14,7 +14,7 @@ const Bandcamp = require('./src/Bandcamp');
 	console.log(albumInfo);
 	console.log("\n\n");
 
-	const trackInfo = await bandcamp.getItemFromURL(result.items[2].url);
+	const trackInfo = await bandcamp.getItemFromURL(result.items[4].url);
 	console.log("getItemFromURL: 2");
 	console.log(trackInfo);
 	console.log("\n\n");

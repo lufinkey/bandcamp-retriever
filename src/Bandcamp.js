@@ -196,8 +196,9 @@ class Bandcamp {
 		let ldJson = null;
 		const ldJsonTag = $('script[type="application/ld+json"]');
 		if(ldJsonTag != null && ldJsonTag.index() !== -1) {
+			const ldJsonStr = ldJsonTag.html().trim();
 			try {
-				ldJson = JSON.parse(ldJsonTag.text().trim());
+				ldJson = JSON.parse(ldJsonStr);
 			} catch(error) {
 				ldJson = null;
 			}
@@ -287,6 +288,7 @@ class Bandcamp {
 				itemName = ldJsonName;
 			}
 		}
+		console.log("itemName = "+itemName);
 
 		// find artist / album name
 		let artistName = undefined;
@@ -473,7 +475,7 @@ class Bandcamp {
 			item.images.push({url: largeImageURL, size: 'large'});
 		}
 		if(ldJson) {
-			const ldJsonImages = ldJson['image'];
+			let ldJsonImages = ldJson['image'];
 			if(typeof ldJsonImages === 'string') {
 				ldJsonImages = [ ldJsonImages ];
 			}
