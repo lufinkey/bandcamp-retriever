@@ -836,6 +836,14 @@ class Bandcamp {
 		}
 	}
 
+	_createFetchResult(res, data) {
+		return {
+			headers: res.rawHeaders,
+			data: data
+		};
+	}
+
+
 
 	slugify(str) {
 		let charMap = {
@@ -883,7 +891,8 @@ class Bandcamp {
 		const { res, data } = await sendHttpRequest(url);
 		// parse result
 		const $ = cheerio.load(data.toString());
-		return this._parseSearchResults(url, $);
+		const searchResults = this._parseSearchResults(url, $);
+		return this._createFetchResult(res, searchResults);
 	}
 
 	async getItemFromURL(url, type=null) {
@@ -923,7 +932,7 @@ class Bandcamp {
 					description: track.description
 				};
 			}
-			return item;
+			return this._createFetchResult(res, item);
 		}
 		else if(type === 'artist') {
 			const artist = this._parseArtistInfo(url, $, dataString);
@@ -937,10 +946,11 @@ class Bandcamp {
 					artist.albums = [ album ];
 				}
 			}
-			return artist;
+			return this._createFetchResult(res, artist);
 		}
 		else {
-			return this._parseArtistInfo(url, $, dataString);
+			const artist = this._parseArtistInfo(url, $, dataString);
+			return this._createFetchResult(res, artist);
 		}
 	}
 
