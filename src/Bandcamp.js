@@ -45,6 +45,29 @@ class Bandcamp {
 		return UrlUtils.format(urlParts);
 	}
 
+	_createFetchResult(res, data) {
+		const headers = {};
+		const rawHeaders = res.rawHeaders;
+		for(let i=0; i<rawHeaders.length; i++) {
+			const headerName = rawHeaders[i];
+			i++;
+			const headerValue = rawHeaders[i];
+			const existingHeaderValue = headers[headerName];
+			if(existingHeaderValue) {
+				if(existingHeaderValue instanceof Array) {
+					headerValue = existingHeaderValue.concat([ headerValue ]);
+				} else {
+					headerValue = [ existingHeaderValue, headerValue ]
+				}
+			}
+			headers[headerName] = headerValue;
+		}
+		return {
+			headers: headers,
+			data: data
+		};
+	}
+
 
 
 	_parseSearchResults(url, $, data) {
@@ -836,13 +859,6 @@ class Bandcamp {
 		}
 	}
 
-	_createFetchResult(res, data) {
-		return {
-			headers: res.rawHeaders,
-			data: data
-		};
-	}
-
 
 
 	slugify(str) {
@@ -881,26 +897,26 @@ class Bandcamp {
 
 
 
-	async search(query, options) {
+	async search(query, options={}) {
 		// create and send request
 		const params = {
 			...options,
 			q: query
 		};
 		const url = "https://bandcamp.com/search?"+QueryString.stringify(params);
-		const { res, data } = await sendHttpRequest(url);
+		const { res, data } = await sendHttpRequest(url, {headers:options.headers});
 		// parse result
 		const $ = cheerio.load(data.toString());
 		const searchResults = this._parseSearchResults(url, $);
 		return this._createFetchResult(res, searchResults);
 	}
 
-	async getItemFromURL(url, type=null) {
+	async getItemFromURL(url, type=null, options={}) {
 		if(!type) {
 			type = this._parseType(url);
 		}
 
-		const { res, data } = await sendHttpRequest(url);
+		const { res, data } = await sendHttpRequest(url, {headers:options.headers});
 		if(!data) {
 			throw new Error("Unable to get data from url");
 		}
@@ -954,16 +970,16 @@ class Bandcamp {
 		}
 	}
 
-	async getTrack(trackURL) {
-		return await this.getItemFromURL(trackURL, 'track');
+	async getTrack(trackURL, options={}) {
+		return await this.getItemFromURL(trackURL, 'track', options);
 	}
 
-	async getAlbum(albumURL) {
-		return await this.getItemFromURL(albumURL, 'album');
+	async getAlbum(albumURL, options={}) {
+		return await this.getItemFromURL(albumURL, 'album', options);
 	}
 
-	async getArtist(artistURL) {
-		return await this.getItemFromURL(UrlUtils.resolve(artistURL,'/music'), 'artist');
+	async getArtist(artistURL, options={}) {
+		return await this.getItemFromURL(UrlUtils.resolve(artistURL,'/music'), 'artist', options);
 	}
 }
 

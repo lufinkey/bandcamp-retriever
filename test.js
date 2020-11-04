@@ -4,27 +4,31 @@ const Bandcamp = require('./src/Bandcamp');
 (async () => {
 	const bandcamp = new Bandcamp();
 
-	const result = await bandcamp.search("Phony ppl");
+	const searchResponse = await bandcamp.search("Phony ppl");
+	console.log("search headers:");
+	console.log(searchResponse.headers);
+	console.log("\n\n");
+	const searchResult = searchResponse.data;
 	console.log("search:");
-	console.log(result);
+	console.log(searchResult);
 	console.log("\n\n");
 
-	const albumInfo = await bandcamp.getItemFromURL(result.items[1].url);
+	const albumInfo = (await bandcamp.getItemFromURL(searchResult.items[1].url)).data;
 	console.log("getItemFromURL: 1");
 	console.log(albumInfo);
 	console.log("\n\n");
 
-	const trackInfo = await bandcamp.getItemFromURL(result.items[4].url);
+	const trackInfo = (await bandcamp.getItemFromURL(searchResult.items[4].url)).data;
 	console.log("getItemFromURL: 2");
 	console.log(trackInfo);
 	console.log("\n\n");
 
-	const album2Info = await bandcamp.getItemFromURL("https://a3cmusic.bandcamp.com/album/a3c-volume-2");
+	const album2Info = (await bandcamp.getItemFromURL("https://a3cmusic.bandcamp.com/album/a3c-volume-2")).data;
 	console.log("getItemFromURL: A3C Volume 2");
 	console.log(album2Info);
 	console.log("\n\n");
 
-	const artist = await bandcamp.getArtist(result.items[0].url);
+	const artist = (await bandcamp.getArtist(searchResult.items[0].url)).data;
 	console.log("getArtist:");
 	console.log(artist);
 	console.log("\n\n");
