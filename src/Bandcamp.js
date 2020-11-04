@@ -1,18 +1,42 @@
 
-const BandcampParser = require('./Parser');
 const QueryString = require('querystring');
 const UrlUtils = require('url');
+const BandcampAuth = require('./Auth');
+const BandcampParser = require('./Parser');
 const { sendHttpRequest } = require('./Utils');
 
 
 class Bandcamp {
-	constructor() {
+	constructor(options={}) {
+		this._auth = new BandcampAuth(options.auth || {});
 		this._parser = new BandcampParser();
 	}
 
 	slugify(str) {
 		return this._parser.slugify(str);
 	}
+
+
+
+	loginWithCookies(cookies) {
+		return this._auth.loginWithCookies(cookies);
+	}
+
+	updateSessionCookies(cookies) {
+		this._auth.updateSessionCookies(cookies);
+	}
+
+	logout() {
+		this._auth.logout();
+	}
+
+
+
+	async sendHttpRequest(url, options={}) {
+		return await sendHttpRequest(url, options);
+	}
+
+
 
 	async search(query, options={}) {
 		// create and send request
@@ -21,7 +45,7 @@ class Bandcamp {
 			q: query
 		};
 		const url = "https://bandcamp.com/search?"+QueryString.stringify(params);
-		const { res, data } = await sendHttpRequest(url, {headers:options.headers});
+		const { res, data } = await this.sendHttpRequest(url, {headers:options.headers});
 		if(!data) {
 			throw new Error("Unable to get data from search url");
 		}
@@ -34,7 +58,7 @@ class Bandcamp {
 		if(!options.type) {
 			options.type = this._parser.parseType(url);
 		}
-		const { res, data } = await sendHttpRequest(url, {headers:options.headers});
+		const { res, data } = await this.sendHttpRequest(url, {headers:options.headers});
 		if(!data) {
 			throw new Error("Unable to get data from url");
 		}
