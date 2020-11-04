@@ -2,13 +2,13 @@
 const { Buffer } = require('buffer');
 const http = require('http');
 const https = require('https');
-const { URL } = require('url');
+const UrlUtils = require('url');
 
 
 module.exports.sendHttpRequest = (url, options={}) => {
 	return new Promise((resolve, reject) => {
 		// build request data
-		url = new URL(url);
+		url = UrlUtils.parse(url);
 		const reqData = {
 			protocol: url.protocol,
 			hostname: url.hostname,
