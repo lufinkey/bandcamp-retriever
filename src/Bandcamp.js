@@ -61,7 +61,17 @@ class Bandcamp {
 			q: query
 		};
 		const url = "https://bandcamp.com/search?"+QueryString.stringify(params);
-		const { res, data } = await this.sendHttpRequest(url, {headers:options.headers});
+		const headers = {
+			...this._auth.getSameSiteRequestHeaders(url)
+		};
+		if(options.headers) {
+			headers = {
+				...headers,
+				...options.headers
+			};
+		}
+		const { res, data } = await this.sendHttpRequest(url, {headers:headers});
+		this._updateSessionFromResponse(res);
 		if(!data) {
 			throw new Error("Unable to get data from search url");
 		}
@@ -74,7 +84,24 @@ class Bandcamp {
 		if(!options.type) {
 			options.type = this._parser.parseType(url);
 		}
-		const { res, data } = await this.sendHttpRequest(url, {headers:options.headers});
+		let headers = {};
+		const isBandcampDomain = this._parser.isUrlBandcampDomain(url);
+		if(isBandcampDomain) {
+			headers = {
+				...headers,
+				...this._auth.getSameSiteRequestHeaders(url)
+			};
+		}
+		if(options.headers) {
+			headers = {
+				...headers,
+				...options.headers
+			};
+		}
+		const { res, data } = await this.sendHttpRequest(url, {headers:headers});
+		if(isBandcampDomain) {
+			this._updateSessionFromResponse(res);
+		}
 		if(!data) {
 			throw new Error("Unable to get data from url");
 		}
@@ -84,8 +111,12 @@ class Bandcamp {
 		}
 		const $ = cheerio.load(dataString);
 		const item = this._parser.parseItemFromURL(url, options.type, $);
-		// get missing audio streams if we're logged in and missing some
-		if(this._auth.isLoggedIn && (item.type === 'track' || (item.type === 'album' && item.tracks && item.tracks.length > 0))) {
+		// if we're logged in and missing some audio streams,
+		//  and if the link isn't a bandcamp subdomain
+		//  then fetch the missing audio files
+		if(this._auth.isLoggedIn && !isBandcampDomain
+		   && (item.type === 'track'
+		    || (item.type === 'album' && item.tracks && item.tracks.length > 0))) {
 			let missingAudioSources = false;
 			if((item.type == 'track' && (!item.audioSources || item.audioSources.length === 0))
 			   || (item.type === 'album' && item.tracks && item.tracks.find((track) => (!track.audioSources || track.audioSources.length === 0)))) {
@@ -108,7 +139,7 @@ class Bandcamp {
 
 	async _fetchItemStreams(streamsURL, refererURL) {
 		const headers = {
-			...this._auth.requestHeaders,
+			...this._auth.getCrossSiteRequestHeaders(streamsURL),
 			'Pragma': 'no-cache',
 			'Referer': refererURL,
 			'Sec-Fetch-Dest': 'script',

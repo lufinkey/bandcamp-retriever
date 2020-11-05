@@ -22,10 +22,8 @@ class BandcampSession {
 		return this._cookieStore.getCookiesSync(BANDCAMP_COOKIES_URL);
 	}
 
-	get requestCookies() {
-		return this._cookieStore.getCookiesSync(BANDCAMP_COOKIES_URL, {
-			sameSiteContext: 'none'
-		});
+	getURLCookies(url, options) {
+		return this._cookieStore.getCookiesSync(url, options);
 	}
 
 	getCookie(cookieName) {

@@ -28,6 +28,16 @@ class BandcampParser {
 
 
 
+	isUrlBandcampDomain(url) {
+		const urlParts = UrlUtils.parse(url);
+		if(urlParts.hostname === 'bandcamp.com' || urlParts.hostname.endsWith('.bandcamp.com')) {
+			return true;
+		}
+		return false;
+	}
+
+
+
 	slugify(str) {
 		let charMap = {
 			"'": '',

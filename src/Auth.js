@@ -23,14 +23,27 @@ class BandcampAuth {
 		return this._session;
 	}
 
-	get requestHeaders() {
+	getSameSiteRequestHeaders(url) {
 		if(this._session == null) {
 			return {};
 		}
 		return {
-			'Cookie': this._session.requestCookies.map((cookie) => {
-				return cookie.cookieString();
-			}).join('; ')
+			'Cookie': this._session.getURLCookies(url).map((cookie) => {
+					return cookie.cookieString();
+				}).join('; ')
+		};
+	}
+
+	getCrossSiteRequestHeaders(url) {
+		if(this._session == null) {
+			return {};
+		}
+		return {
+			'Cookie': this._session.getURLCookies(url, {
+					sameSiteContext: 'none'
+				}).map((cookie) => {
+					return cookie.cookieString();
+				}).join('; ')
 		};
 	}
 
