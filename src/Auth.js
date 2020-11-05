@@ -1,5 +1,4 @@
 
-const tough = require('tough-cookie');
 const BandcampSession = require('./Session');
 
 class BandcampAuth {
