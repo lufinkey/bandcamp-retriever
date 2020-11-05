@@ -974,7 +974,7 @@ class BandcampParser {
 
 
 
-	parseDurationFromText = (durationText) => {
+	parseDurationFromText(durationText) {
 		const durationParts = durationText.split(':');
 		let durationPart = null;
 		let duration = 0;
