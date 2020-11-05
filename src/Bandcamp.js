@@ -84,8 +84,9 @@ class Bandcamp {
 		if(!options.type) {
 			options.type = this._parser.parseType(url);
 		}
-		let headers = {};
 		const isBandcampDomain = this._parser.isUrlBandcampDomain(url);
+		// build headers
+		let headers = {};
 		if(isBandcampDomain) {
 			headers = {
 				...headers,
@@ -98,6 +99,7 @@ class Bandcamp {
 				...options.headers
 			};
 		}
+		// perform request
 		const { res, data } = await this.sendHttpRequest(url, {headers:headers});
 		if(isBandcampDomain) {
 			this._updateSessionFromResponse(res);
@@ -109,6 +111,7 @@ class Bandcamp {
 		if(!dataString) {
 			throw new Error("Unable to get data from url");
 		}
+		// parse response
 		const $ = cheerio.load(dataString);
 		const item = this._parser.parseItemFromURL(url, options.type, $);
 		// if we're logged in and missing some audio streams,
