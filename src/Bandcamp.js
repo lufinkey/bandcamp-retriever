@@ -3,11 +3,16 @@ const QueryString = require('querystring');
 const UrlUtils = require('url');
 const cheerio = require('./external/cheerio');
 const BandcampAuth = require('./Auth');
+const BandcampSession = require('./Session');
 const BandcampParser = require('./Parser');
 const { sendHttpRequest } = require('./Utils');
 
 
 class Bandcamp {
+	static Auth = BandcampAuth;
+	static Session = BandcampSession;
+	static Parser = BandcampParser;
+
 	constructor(options={}) {
 		this._auth = new BandcampAuth(options.auth || {});
 		this._parser = new BandcampParser();

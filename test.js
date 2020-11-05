@@ -9,8 +9,6 @@ const Bandcamp = require('./src/Bandcamp');
 	console.log(paidAlbumResult);
 	console.log("\n\n");
 
-	return;
-
 	const result = await bandcamp.search("Phony ppl");
 	console.log("search:");
 	console.log(result);

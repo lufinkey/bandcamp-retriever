@@ -1,2 +1,4 @@
 
-module.exports = require('./src/Bandcamp');
+const Bandcamp = require('./src/Bandcamp');
+
+module.exports = Bandcamp;
