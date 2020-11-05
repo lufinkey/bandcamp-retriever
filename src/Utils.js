@@ -69,35 +69,3 @@ module.exports.sendHttpRequest = (url, options={}) => {
 		req.end();
 	});
 }
-
-
-module.exports.getDurationFromText = (durationText) => {
-	const durationParts = durationText.split(':');
-	let durationPart = null;
-	let duration = 0;
-	let partCount = 0;
-	while(durationPart = durationParts.pop()) {
-		if(durationPart.length == 0) {
-			continue;
-		}
-		const durationPartNum = parseInt(durationPart);
-		if(isNaN(durationPartNum)) {
-			return null;
-		}
-		switch(partCount) {
-			case 0:
-				duration += durationPartNum;
-				break;
-
-			case 1:
-				duration += durationPartNum * 60;
-				break;
-
-			case 2:
-				duration += durationPartNum * 60 * 60;
-				break;
-		}
-		partCount += 1;
-	}
-	return duration;
-}
