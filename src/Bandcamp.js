@@ -28,6 +28,10 @@ class Bandcamp {
 		return this._auth.loginWithCookies(cookies);
 	}
 
+	loginWithSession(session) {
+		return this._auth.loginWithSession(session);
+	}
+
 	updateSessionCookies(cookies) {
 		this._auth.updateSessionCookies(cookies);
 	}

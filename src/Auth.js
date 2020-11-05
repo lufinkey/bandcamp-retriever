@@ -49,6 +49,10 @@ class BandcampAuth {
 
 	loginWithCookies(sessionCookies) {
 		const session = new BandcampSession(sessionCookies);
+		return this.loginWithSession(session);
+	}
+
+	loginWithSession(session) {
 		if(session.isLoggedIn) {
 			this._session = session;
 			return true;
