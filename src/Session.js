@@ -9,11 +9,11 @@ const COOKIE_NAME_SESSION = "session";
 
 
 class BandcampSession {
-	constructor(cookieStrings) {
+	constructor(cookies) {
 		this._cookieStore = new tough.CookieJar();
-		if(cookieStrings) {
-			for(const cookieString of cookieStrings) {
-				this._cookieStore.setCookieSync(cookieString, BANDCAMP_COOKIES_URL);
+		if(cookies) {
+			for(const cookie of cookies) {
+				this._cookieStore.setCookieSync(cookie, BANDCAMP_COOKIES_URL);
 			}
 		}
 	}
