@@ -84,17 +84,36 @@ class Bandcamp {
 		}
 		const $ = cheerio.load(dataString);
 		const item = this._parser.parseItemFromURL(url, options.type, $);
-		//const cdUIURL = this._parser.parseCDUILink($);
-		//const streams = await this._fetchItemStreams(cdUIURL, url);
+		// get missing audio streams if we're logged in and missing some
+		if(this._auth.isLoggedIn && (item.type === 'track' || (item.type === 'album' && item.tracks && item.tracks.length > 0))) {
+			let missingAudioSources = false;
+			if((item.type == 'track' && (!item.audioSources || item.audioSources.length === 0))
+			   || (item.type === 'album' && item.tracks && item.tracks.find((track) => (!track.audioSources || track.audioSources.length === 0)))) {
+				missingAudioSources = true;
+			}
+			if(missingAudioSources) {
+				const cdUIURL = this._parser.parseCDUILink($);
+				const streams = await this._fetchItemStreams(cdUIURL, url);
+				if(streams) {
+					if(item.type === 'track') {
+						this._parser.attachStreamsToTracks([item], streams);
+					} else if(item.type === 'album' && item.tracks) {
+						this._parser.attachStreamsToTracks(item.tracks, streams);
+					}
+				}
+			}
+		}
 		return item;
 	}
 
 	async _fetchItemStreams(streamsURL, refererURL) {
 		const headers = {
 			...this._auth.requestHeaders,
+			'Pragma': 'no-cache',
 			'Referer': refererURL,
 			'Sec-Fetch-Dest': 'script',
-			'Sec-Fetch-Mode': 'no-cors'
+			'Sec-Fetch-Mode': 'no-cors',
+			'Sec-Fetch-Site': 'cross-site'
 		};
 		const { res, data } = await this.sendHttpRequest(streamsURL, {headers:headers});
 		this._updateSessionFromResponse(res);

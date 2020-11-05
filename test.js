@@ -5,6 +5,11 @@ const Bandcamp = require('./src/Bandcamp');
 	const bandcamp = new Bandcamp();
 
 	const paidAlbumResult = await bandcamp.getAlbum('https://music.dirtwire.net/album/atlas-ep');
+	console.log("paid album:");
+	console.log(paidAlbumResult);
+	console.log("\n\n");
+
+	return;
 
 	const result = await bandcamp.search("Phony ppl");
 	console.log("search:");

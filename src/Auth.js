@@ -28,9 +28,9 @@ class BandcampAuth {
 			return {};
 		}
 		return {
-			'Cookie': this._session.cookies.map((cookie) => {
+			'Cookie': this._session.requestCookies.map((cookie) => {
 				return cookie.cookieString();
-			})
+			}).join('; ')
 		};
 	}
 

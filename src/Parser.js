@@ -687,6 +687,10 @@ class BandcampParser {
 					} else {
 						track.playable = false;
 					}
+					const trTrackId = trTrack['id'];
+					if(trTrackId) {
+						track.id = trTrackId;
+					}
 					const trTrackTitle = trTrack['title'];
 					if(typeof trTrackTitle === 'string' && trTrackTitle) {
 						track.name = trTrackTitle;
@@ -970,10 +974,11 @@ class BandcampParser {
 			throw new Error("request misformatted, got an oops");
 		}
 		const regex = /OwnerStreaming\.init\(.*\);/g;
-		const match = dataString.search(regex);
-		if(!match) {
+		const matches = dataString.match(regex);
+		if(!matches || matches.length === 0) {
 			return null;
 		}
+		let match = matches[0];
 		const prefix = 'OwnerStreaming.init(';
 		if(match.startsWith(prefix)) {
 			match = match.substring(prefix.length);
@@ -1000,6 +1005,39 @@ class BandcampParser {
 			return null;
 		}
 		return scriptTags[0].attr('src');
+	}
+
+
+	attachStreamsToTracks(tracks, streams) {
+		const getStreamFiles = (id, index) => {
+			if(id == null) {
+				const keys = Object.keys(streams);
+				return streams[keys[index]];
+			}
+			return streams[id];
+		};
+		let i=0;
+		for(const track of tracks) {
+			const streamFiles = getStreamFiles(track.id, i);
+			const streamFileKeys = Object.keys(streamFiles).sort();
+			if(streamFileKeys.length > 0) {
+				if(!track.audioSources) {
+					track.audioSources = [];
+				}
+				for(const streamFileType of streamFileKeys) {
+					const url = streamFiles[streamFileType];
+					// avoid duplicate audio sources
+					if(track.audioSources.find((source) => (source.url === url || source.type === streamFileType))) {
+						continue;
+					}
+					track.audioSources.push({
+						type: streamFileType,
+						url: url
+					});
+				}
+			}
+			i++;
+		}
 	}
 }
 
