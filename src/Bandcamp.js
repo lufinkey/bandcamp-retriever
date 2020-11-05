@@ -9,10 +9,6 @@ const { sendHttpRequest } = require('./Utils');
 
 
 class Bandcamp {
-	static Auth = BandcampAuth;
-	static Session = BandcampSession;
-	static Parser = BandcampParser;
-
 	constructor(options={}) {
 		this._auth = new BandcampAuth(options.auth || {});
 		this._parser = new BandcampParser();
@@ -179,6 +175,10 @@ class Bandcamp {
 	}
 }
 
+
+Bandcamp.Auth = BandcampAuth;
+Bandcamp.Session = BandcampSession;
+Bandcamp.Parser = BandcampParser;
 
 
 module.exports = Bandcamp;
