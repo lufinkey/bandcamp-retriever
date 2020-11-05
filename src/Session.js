@@ -17,13 +17,17 @@ class BandcampSession {
 			}
 		}
 	}
-
+	
 	get cookies() {
-		return this._cookieStore.getCookiesSync(BANDCAMP_COOKIES_URL);
+		return this.getURLCookies(BANDCAMP_COOKIES_URL);
 	}
 
 	getURLCookies(url, options) {
-		return this._cookieStore.getCookiesSync(url, options);
+		if(options) {
+			return this._cookieStore.getCookiesSync(url, options);
+		} else {
+			return this._cookieStore.getCookiesSync(url);
+		}
 	}
 
 	getCookie(cookieName) {
@@ -50,10 +54,23 @@ class BandcampSession {
 		return false;
 	}
 
-	updateCookies(cookieStrings) {
-		for(const cookieString of cookieStrings) {
-			this._cookieStore.setCookieSync(cookieString, BANDCAMP_COOKIES_URL);
+	updateCookies(cookies) {
+		for(const cookie of cookies) {
+			this._cookieStore.setCookieSync(cookie, BANDCAMP_COOKIES_URL);
 		}
+	}
+
+	serialize() {
+		const cookies = this.cookies;
+		const clientIdCookie = findCookie(cookies, COOKIE_NAME_CLIENT_ID);
+		const identityCookie = findCookie(cookies, COOKIE_NAME_IDENTITY);
+		return JSON.stringify({
+			clientId: (clientIdCookie != null) ? clientIdCookie.value : null,
+			identity: (identityCookie != null) ? identityCookie.value : null,
+			cookies: cookies.map((cookie) => {
+				cookie.toString()
+			})
+		});
 	}
 }
 
