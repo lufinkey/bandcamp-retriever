@@ -354,7 +354,6 @@ class BandcampParser {
 				itemName = ldJsonName;
 			}
 		}
-		console.log("itemName = "+itemName);
 
 		// find artist / album name
 		let artistName = undefined;
@@ -958,6 +957,49 @@ class BandcampParser {
 			const artist = this.parseArtistInfo(url, $);
 			return artist;
 		}
+	}
+
+
+
+	parseStreamFiles(data) {
+		const dataString = data.toString();
+		if(!dataString) {
+			return null;
+		}
+		if(dataString === 'oops') {
+			throw new Error("request misformatted, got an oops");
+		}
+		const regex = /OwnerStreaming\.init\(.*\);/g;
+		const match = dataString.search(regex);
+		if(!match) {
+			return null;
+		}
+		const prefix = 'OwnerStreaming.init(';
+		if(match.startsWith(prefix)) {
+			match = match.substring(prefix.length);
+		}
+		const suffix = ');';
+		if(match.endsWith(suffix)) {
+			match = match.substring(0, match.length-suffix.length);
+		}
+		return JSON.parse(match);
+	}
+
+
+
+	parseCDUILink($) {
+		let scriptTags = [];
+		$('script').each((index, tag) => {
+			tag = $(tag);
+			const src = tag.attr('src');
+			if(src && src.startsWith('https://bandcamp.com/cd_ui?')) {
+				scriptTags.push(tag);
+			}
+		});
+		if(scriptTags.length === 0) {
+			return null;
+		}
+		return scriptTags[0].attr('src');
 	}
 }
 

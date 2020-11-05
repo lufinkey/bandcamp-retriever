@@ -23,6 +23,17 @@ class BandcampAuth {
 		return this._session;
 	}
 
+	get requestHeaders() {
+		if(this._session == null) {
+			return {};
+		}
+		return {
+			'Cookie': this._session.cookies.map((cookie) => {
+				return cookie.cookieString();
+			})
+		};
+	}
+
 	loginWithCookies(sessionCookies) {
 		const session = new BandcampSession(sessionCookies);
 		if(session.isLoggedIn) {

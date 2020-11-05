@@ -1,6 +1,7 @@
 
 const QueryString = require('querystring');
 const UrlUtils = require('url');
+const cheerio = require('./external/cheerio');
 const BandcampAuth = require('./Auth');
 const BandcampParser = require('./Parser');
 const { sendHttpRequest } = require('./Utils');
@@ -32,6 +33,17 @@ class Bandcamp {
 
 	get session() {
 		return this._auth.session;
+	}
+
+	_updateSessionFromResponse(res) {
+		const headers = this._parser.parseResponseHeaders(res);
+		let setCookiesHeaders = headers["Set-Cookie"];
+		if(setCookiesHeaders) {
+			if(!(setCookiesHeaders instanceof Array)) {
+				setCookiesHeaders = [ setCookiesHeaders ];
+			}
+			this._auth.updateSessionCookies(setCookiesHeaders);
+		}
 	}
 
 
@@ -66,8 +78,30 @@ class Bandcamp {
 		if(!data) {
 			throw new Error("Unable to get data from url");
 		}
-		const item = this._parser.parseItemDataFromURL(url, options.type, data);
+		const dataString = data.toString();
+		if(!dataString) {
+			throw new Error("Unable to get data from url");
+		}
+		const $ = cheerio.load(dataString);
+		const item = this._parser.parseItemFromURL(url, options.type, $);
+		//const cdUIURL = this._parser.parseCDUILink($);
+		//const streams = await this._fetchItemStreams(cdUIURL, url);
 		return item;
+	}
+
+	async _fetchItemStreams(streamsURL, refererURL) {
+		const headers = {
+			...this._auth.requestHeaders,
+			'Referer': refererURL,
+			'Sec-Fetch-Dest': 'script',
+			'Sec-Fetch-Mode': 'no-cors'
+		};
+		const { res, data } = await this.sendHttpRequest(streamsURL, {headers:headers});
+		this._updateSessionFromResponse(res);
+		if(!data) {
+			throw new Error("Unable to get data from url");
+		}
+		return this._parser.parseStreamFiles(data);
 	}
 
 	async getTrack(trackURL, options={}) {
