@@ -6,7 +6,7 @@ const { getDurationFromText } = require('./Utils');
 
 
 class BandcampParser {
-	createFetchResult(res, data) {
+	parseResponseHeaders(res) {
 		const headers = {};
 		const rawHeaders = res.rawHeaders;
 		for(let i=0; i<rawHeaders.length; i++) {
@@ -23,10 +23,7 @@ class BandcampParser {
 			}
 			headers[headerName] = headerValue;
 		}
-		return {
-			headers: headers,
-			data: data
-		};
+		return headers;
 	}
 
 

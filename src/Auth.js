@@ -19,12 +19,17 @@ class BandcampAuth {
 		return false;
 	}
 
+	get session() {
+		return this._session;
+	}
+
 	loginWithCookies(sessionCookies) {
 		const session = new BandcampSession(sessionCookies);
 		if(session.isLoggedIn) {
 			this._session = session;
+			return true;
 		}
-		return this.isLoggedIn;
+		return false;
 	}
 
 	updateSessionCookies(sessionCookies) {

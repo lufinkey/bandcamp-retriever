@@ -30,6 +30,10 @@ class Bandcamp {
 		this._auth.logout();
 	}
 
+	get session() {
+		return this._auth.session;
+	}
+
 
 
 	async sendHttpRequest(url, options={}) {
@@ -51,7 +55,7 @@ class Bandcamp {
 		}
 		// parse result
 		const searchResults = this._parser.parseSearchResultsData(url, data);
-		return this._parser.createFetchResult(res, searchResults);
+		return searchResults;
 	}
 
 	async getItemFromURL(url, options={}) {
@@ -62,8 +66,8 @@ class Bandcamp {
 		if(!data) {
 			throw new Error("Unable to get data from url");
 		}
-		const result = this._parser.parseItemDataFromURL(url, options.type, data);
-		return this._parser.createFetchResult(res, result);
+		const item = this._parser.parseItemDataFromURL(url, options.type, data);
+		return item;
 	}
 
 	async getTrack(trackURL, options={}) {
