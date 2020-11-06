@@ -68,7 +68,7 @@ class BandcampSession {
 			clientId: (clientIdCookie != null) ? clientIdCookie.value : null,
 			identity: (identityCookie != null) ? identityCookie.value : null,
 			cookies: cookies.map((cookie) => {
-				cookie.toString()
+				return cookie.toString()
 			})
 		});
 	}
