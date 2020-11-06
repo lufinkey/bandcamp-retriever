@@ -61,7 +61,7 @@ class BandcampAuth {
 
 	updateSessionCookies(sessionCookies) {
 		if(this._session) {
-			this._session.updateSessionCookies(sessionCookies);
+			this._session.updateCookies(sessionCookies);
 		} else {
 			const session = new BandcampSession(sessionCookies);
 			if(session.isLoggedIn) {
