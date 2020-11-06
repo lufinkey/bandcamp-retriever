@@ -1077,6 +1077,9 @@ class BandcampParser {
 						url: url
 					});
 				}
+				if(track.audioSources.length > 0) {
+					track.playable = true;
+				}
 			}
 			i++;
 		}
