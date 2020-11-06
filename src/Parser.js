@@ -1061,7 +1061,7 @@ class BandcampParser {
 		let i=0;
 		for(const track of tracks) {
 			const streamFiles = getStreamFiles(track.id, i);
-			const streamFileKeys = Object.keys(streamFiles).sort();
+			const streamFileKeys = Object.keys(streamFiles);//.sort();
 			if(streamFileKeys.length > 0) {
 				if(!track.audioSources) {
 					track.audioSources = [];
