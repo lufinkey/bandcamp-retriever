@@ -6,6 +6,7 @@ const BandcampAuth = require('./Auth');
 const BandcampSession = require('./Session');
 const BandcampParser = require('./Parser');
 const { sendHttpRequest } = require('./Utils');
+const { rejects } = require('assert');
 
 
 class Bandcamp {
@@ -120,7 +121,11 @@ class Bandcamp {
 		const $ = cheerio.load(dataString);
 		const item = this._parser.parseItemFromURL(url, options.type, $);
 		if(item == null) {
-			throw new Error("Failed to parse item");
+			if(res.statusCode >= 200 && res.statusCode < 300) {
+				throw new Error("Failed to parse item");
+			} else {
+				throw new Error(res.statusCode+": "+res.statusMessage);
+			}
 		}
 		// if we're logged in and missing some audio streams,
 		//  and if the link isn't a bandcamp subdomain

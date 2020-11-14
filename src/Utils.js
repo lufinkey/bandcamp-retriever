@@ -38,7 +38,7 @@ const sendHttpRequest = (url, options={}) => {
 		// create request
 		const protocolObj = (url.protocol === 'https:' || url.protocol === 'https') ? https : http;
 		const req = protocolObj.request(reqData, (res) => {
-			if(res.statusCode === 301 || res.statusCode === 302) {
+			if(res.statusCode >= 301 && res.statusCode < 400) {
 				if(options.redirectCount == null) {
 					options.redirectCount = 1;
 				} else {
