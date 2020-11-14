@@ -835,7 +835,7 @@ class BandcampParser {
 			url: UrlUtils.resolve(url, '/'),
 			name: bandNameLocation.find('.title').text().trim(),
 			location: bandNameLocation.find('.location').text().trim(),
-			description: bioContainer.find('meta[itemprop="description"]').attr('content'),
+			description: bioContainer.find('#bio-text').text().trim(),
 			images: images,
 			shows: $('#showography > ul > li').toArray().map((showHtml) => {
 				showHtml = $(showHtml);
