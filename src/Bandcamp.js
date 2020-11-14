@@ -119,6 +119,9 @@ class Bandcamp {
 		// parse response
 		const $ = cheerio.load(dataString);
 		const item = this._parser.parseItemFromURL(url, options.type, $);
+		if(item == null) {
+			throw new Error("Failed to parse item");
+		}
 		// if we're logged in and missing some audio streams,
 		//  and if the link isn't a bandcamp subdomain
 		//  then fetch the missing audio files

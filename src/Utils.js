@@ -5,7 +5,7 @@ const https = require('https');
 const UrlUtils = require('url');
 
 
-module.exports.sendHttpRequest = (url, options={}) => {
+const sendHttpRequest = (url, options={}) => {
 	return new Promise((resolve, reject) => {
 		// build request data
 		url = UrlUtils.parse(url);
@@ -38,6 +38,28 @@ module.exports.sendHttpRequest = (url, options={}) => {
 		// create request
 		const protocolObj = (url.protocol === 'https:' || url.protocol === 'https') ? https : http;
 		const req = protocolObj.request(reqData, (res) => {
+			if(res.statusCode === 301 || res.statusCode === 302) {
+				if(options.redirectCount == null) {
+					options.redirectCount = 1;
+				} else {
+					options.redirectCount += 1;
+				}
+				let maxRedirects = 10;
+				if(options.maxRedirects != null) {
+					maxRedirects = options.maxRedirects;
+				}
+				if(options.redirectCount > maxRedirects) {
+					reject(new Error("too many redirects"));
+					return;
+				}
+				if(res.headers.location == null) {
+					reject(new Error(res.statusCode+" status with no redirect"));
+					return;
+				}
+				sendHttpRequest(res.headers.location, options).then(resolve,reject);
+				return;
+			}
+
 			// build response
 			let buffers = [];
 			res.on('data', (chunk) => {
@@ -69,3 +91,4 @@ module.exports.sendHttpRequest = (url, options={}) => {
 		req.end();
 	});
 }
+module.exports.sendHttpRequest = sendHttpRequest;

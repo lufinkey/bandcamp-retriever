@@ -34,6 +34,11 @@ const Bandcamp = require('./src/Bandcamp');
 	console.log(artist);
 	console.log("\n\n");
 
+	const artist2 = await bandcamp.getArtist("https://xphonyx.bandcamp.com/");
+	console.log("getArtist xphonyx:");
+	console.log(artist2);
+	console.log("\n\n");
+
 	console.log("slugify:");
 	const slugTests = {
 		'&': '-',
