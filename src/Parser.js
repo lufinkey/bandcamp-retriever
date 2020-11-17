@@ -886,9 +886,15 @@ class BandcampParser {
 			});
 		});
 
-		const pageData = musicGrid.attr('data-initial-values');
+		const pageDataJson = musicGrid.attr('data-initial-values');
+		let pageData;
+		try {
+			pageData = JSON.parse(pageDataJson);
+		} catch(error) {
+			pageData = null;
+		}
 		if(pageData) {
-			return JSON.parse(pageData).map((album) => {
+			return pageData.map((album) => {
 				const matchIndex = basicAlbumInfos.findIndex((albumInfo) => (albumInfo.id == album.id));
 				let basicAlbumInfo = {};
 				if(matchIndex !== -1) {
@@ -1029,7 +1035,11 @@ class BandcampParser {
 		if(match.endsWith(suffix)) {
 			match = match.substring(0, match.length-suffix.length);
 		}
-		return JSON.parse(match);
+		try {
+			return JSON.parse(match);
+		} catch(error) {
+			return null;
+		}
 	}
 
 
@@ -1051,6 +1061,9 @@ class BandcampParser {
 
 
 	attachStreamsToTracks(tracks, streams) {
+		if(typeof streams !== 'object') {
+			return;
+		}
 		const getStreamFiles = (id, index) => {
 			if(id == null) {
 				const keys = Object.keys(streams);
@@ -1061,6 +1074,10 @@ class BandcampParser {
 		let i=0;
 		for(const track of tracks) {
 			const streamFiles = getStreamFiles(track.id, i);
+			if(typeof streamFiles !== 'object') {
+				i++;
+				continue;
+			}
 			const streamFileKeys = Object.keys(streamFiles);//.sort();
 			if(streamFileKeys.length > 0) {
 				if(!track.audioSources) {
@@ -1083,6 +1100,63 @@ class BandcampParser {
 			}
 			i++;
 		}
+	}
+
+
+
+	parseIdentitiesFromHomepage($) {
+		const homePageDataJson = $('#pagedata').attr('data-blob');
+		if(!homePageDataJson) {
+			return null;
+		}
+		let pageData;
+		try {
+			pageData = JSON.parse(homePageDataJson);
+		} catch(error) {
+			return null;
+		}
+		if(!pageData || !pageData.identities) {
+			return null;
+		}
+		const identities = {};
+		// parse fan data
+		const fanData = pageData.identities.fan;
+		if(fanData) {
+			let images = null;
+			if(fanData.photo != null) {
+				if(typeof fanData.photo === 'string' && fanData.startsWith("http")) {
+					images = [
+						{
+							url: fanData.photo,
+							size: 'medium'
+						}
+					];
+				} else {
+					images = [
+						{
+							url: `https://f4.bcbits.com/img/${fanData.photo}_10.jpg`,
+							size: 'medium'
+						},
+						{
+							url: `https://f4.bcbits.com/img/${fanData.photo}_6.jpg`,
+							size: 'tiny'
+						}
+					];
+				}
+			}
+			identities.fan = {
+				id: fanData.id,
+				url: fanData.url,
+				username: fanData.username,
+				private: fanData.private,
+				verified: fanData.verified,
+				photoId: fanData.photo,
+				name: fanData.name,
+				images: images
+			};
+		}
+		// return identities
+		return identities;
 	}
 }
 

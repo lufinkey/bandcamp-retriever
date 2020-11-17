@@ -55,7 +55,47 @@ class Bandcamp {
 
 
 	async sendHttpRequest(url, options={}) {
-		return await sendHttpRequest(url, options);
+		// add auth headers
+		const isBandcampDomain = this._parser.isUrlBandcampDomain(url);
+		const refererURL = (options.headers ? options.headers['Referer'] : null);
+		let headers = {};
+		if(isBandcampDomain) {
+			let sameSiteReferrer = true;
+			if(refererURL) {
+				const refererIsBandcampDomain = this._parser.isUrlBandcampDomain(refererURL);
+				if(!refererIsBandcampDomain) {
+					sameSiteReferrer = false;
+				}
+			}
+			if(sameSiteReferrer) {
+				headers = {
+					...headers,
+					...this._auth.getSameSiteRequestHeaders(url)
+				};
+			} else {
+				headers = {
+					...headers,
+					...this._auth.getCrossSiteRequestHeaders(url)
+				};
+			}
+		}
+		if(options.headers) {
+			headers = {
+				...headers,
+				...options.headers
+			};
+		}
+		// send request
+		const { res, data } = await sendHttpRequest(url, {
+			...options,
+			headers: headers
+		});
+		// udpate session if needed
+		if(isBandcampDomain) {
+			this._updateSessionFromResponse(res);
+		}
+		// return result
+		return { res, data };
 	}
 
 
@@ -67,17 +107,7 @@ class Bandcamp {
 			q: query
 		};
 		const url = "https://bandcamp.com/search?"+QueryString.stringify(params);
-		const headers = {
-			...this._auth.getSameSiteRequestHeaders(url)
-		};
-		if(options.headers) {
-			headers = {
-				...headers,
-				...options.headers
-			};
-		}
-		const { res, data } = await this.sendHttpRequest(url, {headers:headers});
-		this._updateSessionFromResponse(res);
+		const { res, data } = await this.sendHttpRequest(url);
 		if(!data) {
 			throw new Error("Unable to get data from search url");
 		}
@@ -90,26 +120,8 @@ class Bandcamp {
 		if(!options.type) {
 			options.type = this._parser.parseType(url);
 		}
-		const isBandcampDomain = this._parser.isUrlBandcampDomain(url);
-		// build headers
-		let headers = {};
-		if(isBandcampDomain) {
-			headers = {
-				...headers,
-				...this._auth.getSameSiteRequestHeaders(url)
-			};
-		}
-		if(options.headers) {
-			headers = {
-				...headers,
-				...options.headers
-			};
-		}
 		// perform request
-		const { res, data } = await this.sendHttpRequest(url, {headers:headers});
-		if(isBandcampDomain) {
-			this._updateSessionFromResponse(res);
-		}
+		const { res, data } = await this.sendHttpRequest(url);
 		if(!data) {
 			throw new Error("Unable to get data from url");
 		}
@@ -154,16 +166,15 @@ class Bandcamp {
 	}
 
 	async _fetchItemStreams(streamsURL, refererURL) {
-		const headers = {
-			...this._auth.getCrossSiteRequestHeaders(streamsURL),
-			'Pragma': 'no-cache',
-			'Referer': refererURL,
-			'Sec-Fetch-Dest': 'script',
-			'Sec-Fetch-Mode': 'no-cors',
-			'Sec-Fetch-Site': 'cross-site'
-		};
-		const { res, data } = await this.sendHttpRequest(streamsURL, {headers:headers});
-		this._updateSessionFromResponse(res);
+		const { res, data } = await this.sendHttpRequest(streamsURL, {
+			headers: {
+				'Pragma': 'no-cache',
+				'Referer': refererURL,
+				'Sec-Fetch-Dest': 'script',
+				'Sec-Fetch-Mode': 'no-cors',
+				'Sec-Fetch-Site': 'cross-site'
+			}
+		});
 		if(!data) {
 			throw new Error("Unable to get data from url");
 		}
@@ -180,6 +191,15 @@ class Bandcamp {
 
 	async getArtist(artistURL, options={}) {
 		return await this.getItemFromURL(UrlUtils.resolve(artistURL,'/music'), {type:'artist',...options});
+	}
+
+
+	async getMyIdentities() {
+		const url = "https://bandcamp.com/";
+		const { res, data } = await this.sendHttpRequest(url);
+		// parse response
+		const $ = cheerio.load(dataString);
+		return this._parser.parseIdentitiesFromHomepage($);
 	}
 }
 
