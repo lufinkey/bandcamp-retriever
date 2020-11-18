@@ -1,4 +1,5 @@
 
+const { cpuUsage } = require('process');
 const UrlUtils = require('url');
 const cheerio = require('./external/cheerio');
 
@@ -108,7 +109,11 @@ class BandcampParser {
 		if(urlParts.hash) {
 			urlParts.hash = "";
 		}
-		return UrlUtils.format(urlParts);
+		let cleanedURL = UrlUtils.format(urlParts);
+		while(cleanedURL.endsWith('/')) {
+			cleanedURL = cleanedURL.substring(0, cleanedURL.length-1);
+		}
+		return cleanedURL;
 	}
 
 
@@ -935,11 +940,13 @@ class BandcampParser {
 	}
 	parseItemFromURL(url, type, $) {
 		if(type === 'track' || type === 'album') {
+			// parse track or album data
 			let item = this.parseTrackInfo(url, $);
 			if(!item) {
 				throw new Error("Unable to parse track data");
 			}
 			item.artist = this.parseArtistInfo(url, $);
+			// if item is a single, and we were requesting an album, mutate into an album
 			if(item.type == 'track' && type == 'album' && !item.albumName && !item.albumURL) {
 				const track = item;
 				item = {
@@ -965,6 +972,7 @@ class BandcampParser {
 				artist.albums = albums;
 			}
 			else {
+				// sometimes artist homepage is just a single album
 				const album = this.parseTrackInfo(url, $);
 				if(album) {
 					artist.albums = [ album ];
@@ -1103,8 +1111,7 @@ class BandcampParser {
 	}
 
 
-
-	parseIdentitiesFromHomepage($) {
+	parseIdentitiesFromPage($) {
 		const homePageDataJson = $('#pagedata').attr('data-blob');
 		if(!homePageDataJson) {
 			return null;
@@ -1115,48 +1122,427 @@ class BandcampParser {
 		} catch(error) {
 			return null;
 		}
-		if(!pageData || !pageData.identities) {
+		if(!pageData) {
+			return null;
+		}
+		return this.parseIdentitiesFromJson(pageData);
+	}
+
+	parseIdentitiesFromJson(pageData) {
+		if(!pageData.identities) {
 			return null;
 		}
 		const identities = {};
-		// parse fan data
-		const fanData = pageData.identities.fan;
-		if(fanData) {
+		// parse fan identity
+		const fanIdentity = pageData.identities.fan;
+		if(fanIdentity) {
 			let images = null;
-			if(fanData.photo != null) {
-				if(typeof fanData.photo === 'string' && fanData.startsWith("http")) {
+			if(fanIdentity.photo != null) {
+				if(typeof fanIdentity.photo === 'string' && fanIdentity.startsWith("http")) {
 					images = [
 						{
-							url: fanData.photo,
+							url: fanIdentity.photo,
 							size: 'medium'
 						}
 					];
-				} else {
+				} else if(typeof fanIdentity.photo === 'string' || typeof fanIdentity.photo === 'number') {
+					let photoId = ''+fanIdentity.photo;
+					while(photoId.length < 10) {
+						photoId = '0'+photoId;
+					}
 					images = [
 						{
-							url: `https://f4.bcbits.com/img/${fanData.photo}_10.jpg`,
+							url: `https://f4.bcbits.com/img/${photoId}_10.jpg`,
+							size: 'large'
+						},
+						{
+							url: `https://f4.bcbits.com/img/${photoId}_16.jpg`,
+							size: 'large'
+						},
+						{
+							url: `https://f4.bcbits.com/img/${photoId}_9.jpg`,
 							size: 'medium'
 						},
 						{
-							url: `https://f4.bcbits.com/img/${fanData.photo}_6.jpg`,
-							size: 'tiny'
+							url: `https://f4.bcbits.com/img/${photoId}_6.jpg`,
+							size: 'small'
 						}
 					];
 				}
 			}
 			identities.fan = {
-				id: fanData.id,
-				url: fanData.url,
-				username: fanData.username,
-				private: fanData.private,
-				verified: fanData.verified,
-				photoId: fanData.photo,
-				name: fanData.name,
+				id: fanIdentity.id,
+				url: fanIdentity.url,
+				username: fanIdentity.username,
+				private: fanIdentity.private,
+				verified: fanIdentity.verified,
+				photoId: fanIdentity.photo,
+				name: fanIdentity.name,
 				images: images
 			};
 		}
 		// return identities
 		return identities;
+	}
+
+
+
+	parseFanData(data) {
+		if(!data) {
+			return null;
+		}
+		const dataString = data.toString();
+		if(!dataString) {
+			return null;
+		}
+		const $ = cheerio.load(dataString);
+		return this.parseFan($);
+	}
+
+
+
+	parseFanPageDataFanJson(fanData, fan={}) {
+		if(!fanData) {
+			return null;
+		}
+		if(!fan) {
+			fan = {};
+		}
+		if(fanData.trackpipe_url) {
+			fan.url = fanData.trackpipe_url;
+		}
+		if(fanData.name) {
+			fan.name = fanData.name;
+		}
+		if(fanData.username) {
+			fan.username = fanData.username;
+		}
+		if(typeof fanData.bio === 'string') {
+			fan.description = fanData.bio;
+		}
+		if(fanData.photo && typeof fanData.photo === 'object' && fanData.photo.image_id) {
+			let imageId = ''+fanIdentity.photo.image_id;
+			while(imageId.length < 10) {
+				imageId = '0'+imageId;
+			}
+			fan.images = [
+				{
+					url: `https://f4.bcbits.com/img/${imageId}_10.jpg`,
+					size: 'large'
+				},
+				{
+					url: `https://f4.bcbits.com/img/${imageId}_16.jpg`,
+					size: 'large'
+				},
+				{
+					url: `https://f4.bcbits.com/img/${imageId}_9.jpg`,
+					size: 'medium'
+				},
+				{
+					url: `https://f4.bcbits.com/img/${imageId}_6.jpg`,
+					size: 'small'
+				}
+			];
+		}
+		return fan;
+	}
+
+	parseFanPageDataSection(listData, mapper) {
+		if(!listData || !(listData.sequence || listData.pending_sequence)) {
+			return null;
+		}
+		// parse items
+		const section = {};
+		if(typeof listData.last_token === 'string') {
+			section.lastToken = listData.last_token;
+		}
+		if(typeof listData.item_count === 'number') {
+			section.itemCount = listData.item_count;
+		}
+		if(typeof listData.batch_size === 'number') {
+			section.batchSize = listData.batch_size;
+		}
+		let sequence = listData.sequence;
+		if((!(sequence instanceof Array) || sequence.length === 0) && listData.pending_sequence && listData.pending_sequence instanceof Array) {
+			sequence = listData.pending_sequence;
+		}
+		if(sequence && sequence instanceof Array && itemCache) {
+			let items = sequence.map(mapper);
+			if(items.length > 0) {
+				// if everything we mapped was null, we shouldn't set the list
+				let allNulls = true;
+				for(const item of items) {
+					if(item) {
+						allNulls = false;
+						break;
+					}
+				}
+				if(allNulls) {
+					items = null;
+				}
+			}
+			// filter null items
+			if(items) {
+				items = items.filter((item) => {
+					return (!!item); // item must be truthy
+				});
+				section.items = items;
+			}
+		}
+		return section;
+	}
+
+	parseFanPageDataMediaSectionJson(listData, itemCache, trackLists) {
+		return this.parseFanPageDataSection(listData, (itemIdentifier) => {
+			const itemData = itemCache[itemIdentifier];
+			if(!itemData) {
+				return null;
+			}
+			// parse item type
+			let itemType = itemData.item_type;
+			if(!itemType && itemData.item_url) {
+				itemType = this.parseType(itemData.item_url);
+			}
+			if(itemType === 'song') {
+				itemType = 'track';
+			} else if(itemType == 'band') {
+				itemType = 'artist';
+			}
+			// build basic item data
+			let item = {
+				type: itemType,
+				url: itemData.item_url ? this.cleanUpURL(itemData.item_url) : undefined,
+				name: itemData.item_title
+			};
+			// attach artist if necessary
+			if(item.type === 'track' || item.type === 'album') {
+				item.artistName = itemData.band_name;
+				item.artistURL = itemData.item_url ? this.cleanUpURL(UrlUtils.resolve(itemData.item_url, '/')) : undefined;
+			}
+			// add photos
+			if(itemData.item_art_id) {
+				let artId = ''+itemData.item_art_id;
+				while(artId.length < 10) {
+					artId = '0'+artId;
+				}
+				item.images = [
+					{
+						url: `https://f4.bcbits.com/img/a${artId}_10.jpg`,
+						size: 'large'
+					},
+					{
+						url: `https://f4.bcbits.com/img/a${artId}_16.jpg`,
+						size: 'large'
+					},
+					{
+						url: `https://f4.bcbits.com/img/a${artId}_9.jpg`,
+						size: 'medium'
+					},
+					{
+						url: `https://f4.bcbits.com/img/a${artId}_6.jpg`,
+						size: 'small'
+					}
+				];
+			}
+			// attach audio sources if item is a track
+			if(item.type === 'track' && trackLists) {
+				const trackList = trackLists[itemIdentifier];
+				const itemId = itemData.item_id;
+				if(trackList && itemId) {
+					const trackData = trackList.find((trackData) => {
+						return trackData.id == itemId;
+					});
+					if(trackData) {
+						if(typeof trackData.title === 'string' && trackData.title) {
+							item.name = trackData.title;
+						}
+						if(typeof trackData.duration === 'number') {
+							item.duration = trackData.duration;
+						}
+						if(typeof trackData.artist === 'string' && trackData.artist) {
+							item.artistName = trackData.artist;
+						}
+						if(typeof trackData.track_number === 'number') {
+							item.trackNum = trackData.track_number;
+						}
+						if(typeof trackData.file === 'object' && trackData.file) {
+							item.audioSources = Object.keys(trackData.file).map((fileType) => {
+								return {
+									type: fileType,
+									url: trackData.file[fileType]
+								};
+							});
+						}
+					}
+				}
+			}
+			// attach album or become album if needed
+			if(item.type === 'track') {
+				if(itemData.album_id === null && (!itemData.url_hints || itemData.url_hints.item_type === 't')) {
+					// item is a "single", so make it an album
+					item = {
+						type: 'album',
+						url: item.url,
+						name: item.name,
+						artistName: item.artistName,
+						artistURL: item.artistURL,
+						images: item.images,
+						tracks: [ item ]
+					};
+				} else if(item.url && itemData.url_hints && itemData.url_hints.item_type === 'a' && itemData.url_hints.slug) {
+					// add album name / url
+					// TODO the only album name we can get from this endpoint is the slug
+					//  so update this whenever we get that piece of data
+					item.albumURL = this.cleanUpURL(UrlUtils.resolve(item.url, '/album/'+itemData.url_hints.slug));
+					item.albumName = null;
+					item.albumSlug = itemData.url_hints.slug;
+				}
+			}
+
+			// build item list node
+			const itemNode = {
+				itemId: itemData,
+				item: item
+			};
+			if(itemData.why != null) {
+				itemNode.userComment = itemData.why;
+			}
+			return itemNode;
+		});
+	}
+
+
+	parseFanPageDataBandsSectionJson(listData, itemCache) {
+		return this.parseFanPageDataSection(listData, (itemIdentifier) => {
+			const itemData = itemCache[itemIdentifier];
+			if(!itemData) {
+				return null;
+			}
+			// build basic item data
+			let item = {
+				id: itemData.band_id,
+				name: itemData.name,
+				location: itemData.location
+			}
+			// add item url
+			if(itemData.url_hints) {
+				if(itemData.url_hints.custom_domain) {
+					item.url = this.cleanUpURL(`https://${itemData.url_hints.custom_domain}`);
+				} else if(itemData.url_hints.subdomain) {
+					item.url = this.cleanUpURL(`https://${itemData.url_hints.subdomain}.bandcamp.com`);
+				}
+			}
+			// add images
+			if(itemData.image_id) {
+				let imageId = ''+itemData.image_id;
+				while(imageId.length < 10) {
+					imageId = '0'+imageId;
+				}
+				item.images = [
+					{
+						url: `https://f4.bcbits.com/img/${imageId}_10.jpg`,
+						size: 'large'
+					},
+					{
+						url: `https://f4.bcbits.com/img/${imageId}_16.jpg`,
+						size: 'large'
+					},
+					{
+						url: `https://f4.bcbits.com/img/${imageId}_9.jpg`,
+						size: 'medium'
+					},
+					{
+						url: `https://f4.bcbits.com/img/${imageId}_6.jpg`,
+						size: 'small'
+					}
+				];
+			}
+			// build item list node
+			const itemNode = {
+				item: item,
+				token: itemData.token
+			};
+			if(itemData.date_followed) {
+				itemNode.dateFollowed = itemData.date_followed;
+			}
+			return itemNode;
+		});
+	}
+
+	parseFanPageDataFansSectionJson(listData, itemCache) {
+		return this.parseFanPageDataSection(listData, (itemIdentifier) => {
+			const itemData = itemCache[itemIdentifier];
+			if(!itemData) {
+				return null;
+			}
+			// build basic item data
+			let item = {
+				id: itemData.fan_id,
+				url: itemData.trackpipe_url,
+				name: itemData.name,
+				location: itemData.location
+			}
+			// add images
+			if(itemData.image_id) {
+				let imageId = ''+itemData.image_id;
+				while(imageId.length < 10) {
+					imageId = '0'+imageId;
+				}
+				item.images = [
+					{
+						url: `https://f4.bcbits.com/img/${imageId}_10.jpg`,
+						size: 'large'
+					},
+					{
+						url: `https://f4.bcbits.com/img/${imageId}_16.jpg`,
+						size: 'large'
+					},
+					{
+						url: `https://f4.bcbits.com/img/${imageId}_9.jpg`,
+						size: 'medium'
+					},
+					{
+						url: `https://f4.bcbits.com/img/${imageId}_6.jpg`,
+						size: 'small'
+					}
+				];
+			}
+			// build item list node
+			const itemNode = {
+				item: item,
+				token: itemData.token
+			};
+			if(itemData.date_followed) {
+				itemNode.dateFollowed = itemData.date_followed;
+			}
+			return itemNode;
+		});
+	}
+
+
+
+	parseFan($) {
+		let fan = {};
+		const pageData = $('#pagedata').attr('data-blob');
+		
+		// parse pageData json
+		if(pageData) {
+			// parse fan data
+			fan = this.parseFanPageDataFanJson(pageData.fan_data, fan);
+
+			// build fan media sections
+			const itemCache = pageData.item_cache || {};
+			const trackLists = pageData.tracklists || {};
+			fan.collection = this.parseFanPageDataMediaSectionJson(pageData.collection_data, itemCache.collection, trackLists.collection);
+			fan.wishlist = this.parseFanPageDataMediaSectionJson(pageData.wishlist_data, itemCache.wishlist, trackLists.wishlist);
+			// build fan artist sections
+			fan.followingArtists = this.parseFanPageDataBandsSectionJson(pageData.following_bands_data, itemCache.following_bands);
+			// build fan sections
+			fan.followingFans = this.parseFanPageDataFansSectionJson(pageData.following_fans_data, itemCache.following_fans);
+			fan.followers = this.parseFanPageDataFansSectionJson(pageData.followers_data, itemCache.followers);
+		}
+
+		return fan;
 	}
 }
 

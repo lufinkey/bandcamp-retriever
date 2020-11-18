@@ -199,7 +199,7 @@ class Bandcamp {
 		const { res, data } = await this.sendHttpRequest(url);
 		// parse response
 		const $ = cheerio.load(dataString);
-		return this._parser.parseIdentitiesFromHomepage($);
+		return this._parser.parseIdentitiesFromPage($);
 	}
 }
 
