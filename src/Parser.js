@@ -1,7 +1,6 @@
 
-const { cpuUsage } = require('process');
 const UrlUtils = require('url');
-const cheerio = require('./external/cheerio');
+const cheerio = require('cheerio');
 
 
 

@@ -1,12 +1,11 @@
 
 const QueryString = require('querystring');
 const UrlUtils = require('url');
-const cheerio = require('./external/cheerio');
+const cheerio = require('cheerio');
+const { sendHttpRequest } = require('./Utils');
 const BandcampAuth = require('./Auth');
 const BandcampSession = require('./Session');
 const BandcampParser = require('./Parser');
-const { sendHttpRequest } = require('./Utils');
-const { rejects } = require('assert');
 
 
 class Bandcamp {
