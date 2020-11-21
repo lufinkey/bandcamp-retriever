@@ -4,7 +4,7 @@ const Bandcamp = require('./src/Bandcamp');
 (async () => {
 	const bandcamp = new Bandcamp();
 
-	const paidAlbumResult = await bandcamp.getAlbum('https://music.dirtwire.net/album/atlas-ep');
+	/*const paidAlbumResult = await bandcamp.getAlbum('https://music.dirtwire.net/album/atlas-ep');
 	console.log("paid album:");
 	console.log(paidAlbumResult);
 	console.log("\n\n");
@@ -37,6 +37,11 @@ const Bandcamp = require('./src/Bandcamp');
 	const artist2 = await bandcamp.getArtist("https://xphonyx.bandcamp.com/");
 	console.log("getArtist xphonyx:");
 	console.log(artist2);
+	console.log("\n\n");*/
+
+	const fan = await bandcamp.getFan("https://bandcamp.com/lufinkey");
+	console.log("getFan lufinkey:");
+	console.log(JSON.stringify(fan,null,'\t'));
 	console.log("\n\n");
 
 	console.log("slugify:");

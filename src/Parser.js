@@ -117,6 +117,37 @@ class BandcampParser {
 	}
 
 
+	padImageId(imageId) {
+		imageId = ''+imageId;
+		while(imageId.length < 10) {
+			imageId = '0'+imageId;
+		}
+		return imageId;
+	}
+
+	createImagesFromImageId(imageId) {
+		const baseURL = 'https://f4.bcbits.com/img';
+		return [
+			{
+				url: `${baseURL}/${imageId}_10.jpg`,
+				size: 'large'
+			},
+			{
+				url: `${baseURL}/${imageId}_16.jpg`,
+				size: 'large'
+			},
+			{
+				url: `${baseURL}/${imageId}_9.jpg`,
+				size: 'medium'
+			},
+			{
+				url: `${baseURL}/${imageId}_6.jpg`,
+				size: 'small'
+			}
+		];
+	}
+
+
 
 	parseSearchResultsData(url, data) {
 		const dataString = data.toString();
@@ -1146,28 +1177,8 @@ class BandcampParser {
 						}
 					];
 				} else if(typeof fanIdentity.photo === 'string' || typeof fanIdentity.photo === 'number') {
-					let photoId = ''+fanIdentity.photo;
-					while(photoId.length < 10) {
-						photoId = '0'+photoId;
-					}
-					images = [
-						{
-							url: `https://f4.bcbits.com/img/${photoId}_10.jpg`,
-							size: 'large'
-						},
-						{
-							url: `https://f4.bcbits.com/img/${photoId}_16.jpg`,
-							size: 'large'
-						},
-						{
-							url: `https://f4.bcbits.com/img/${photoId}_9.jpg`,
-							size: 'medium'
-						},
-						{
-							url: `https://f4.bcbits.com/img/${photoId}_6.jpg`,
-							size: 'small'
-						}
-					];
+					const imageId = this.padImageId(fanIdentity.photo);
+					images = this.createImagesFromImageId(imageId);
 				}
 			}
 			identities.fan = {
@@ -1187,7 +1198,7 @@ class BandcampParser {
 
 
 
-	parseFanData(data) {
+	parseFanHtmlData(url, data) {
 		if(!data) {
 			return null;
 		}
@@ -1196,7 +1207,7 @@ class BandcampParser {
 			return null;
 		}
 		const $ = cheerio.load(dataString);
-		return this.parseFan($);
+		return this.parseFanHtml(url, $);
 	}
 
 
@@ -1221,38 +1232,18 @@ class BandcampParser {
 			fan.description = fanData.bio;
 		}
 		if(fanData.photo && typeof fanData.photo === 'object' && fanData.photo.image_id) {
-			let imageId = ''+fanIdentity.photo.image_id;
-			while(imageId.length < 10) {
-				imageId = '0'+imageId;
-			}
-			fan.images = [
-				{
-					url: `https://f4.bcbits.com/img/${imageId}_10.jpg`,
-					size: 'large'
-				},
-				{
-					url: `https://f4.bcbits.com/img/${imageId}_16.jpg`,
-					size: 'large'
-				},
-				{
-					url: `https://f4.bcbits.com/img/${imageId}_9.jpg`,
-					size: 'medium'
-				},
-				{
-					url: `https://f4.bcbits.com/img/${imageId}_6.jpg`,
-					size: 'small'
-				}
-			];
+			const imageId = this.padImageId(fanData.photo.image_id);
+			fan.images = this.createImagesFromImageId(imageId);
 		}
 		return fan;
 	}
 
-	parseFanPageDataSection(listData, mapper) {
+	parseFanPageDataSection(listData, itemCache, existingSection, mapper) {
 		if(!listData || !(listData.sequence || listData.pending_sequence)) {
-			return null;
+			return existingSection || null;
 		}
 		// parse items
-		const section = {};
+		const section = existingSection || {};
 		if(typeof listData.last_token === 'string') {
 			section.lastToken = listData.last_token;
 		}
@@ -1292,8 +1283,10 @@ class BandcampParser {
 		return section;
 	}
 
-	parseFanPageDataMediaSectionJson(listData, itemCache, trackLists) {
-		return this.parseFanPageDataSection(listData, (itemIdentifier) => {
+	parseFanPageDataMediaSectionJson(listData, itemCache, trackLists, existingSection) {
+		const existingItems = existingSection.items || [];
+		return this.parseFanPageDataSection(listData, itemCache, existingSection, (itemIdentifier) => {
+			// pull item data
 			const itemData = itemCache[itemIdentifier];
 			if(!itemData) {
 				return null;
@@ -1308,41 +1301,47 @@ class BandcampParser {
 			} else if(itemType == 'band') {
 				itemType = 'artist';
 			}
-			// build basic item data
-			let item = {
-				type: itemType,
-				url: itemData.item_url ? this.cleanUpURL(itemData.item_url) : undefined,
-				name: itemData.item_title
-			};
+			// parse item url
+			const itemURL = itemData.item_url ? this.cleanUpURL(itemData.item_url) : undefined;
+			// find existing item
+			let itemNode = {};
+			let item = {};
+			if(itemData.item_id) {
+				const existingItemIndex = existingItems.findIndex((cmpNode) => {
+					if(itemData.item_id && cmpNode.itemId && itemData.item_id == cmpNode.itemId) {
+						return true;
+					}
+					return false;
+				});
+				if(existingItemIndex !== -1) {
+					itemNode = existingItems[existingItemIndex];
+					item = itemNode.item || {};
+					existingItems.splice(existingItemIndex,1);
+				}
+			}
+			// attach basic item data
+			if(itemType) {
+				item.type = itemType;
+			}
+			if(itemURL) {
+				item.url = itemURL;
+			}
+			if(itemData.item_title) {
+				item.name = itemData.item_title;
+			}
 			// attach artist if necessary
 			if(item.type === 'track' || item.type === 'album') {
-				item.artistName = itemData.band_name;
-				item.artistURL = itemData.item_url ? this.cleanUpURL(UrlUtils.resolve(itemData.item_url, '/')) : undefined;
+				if(itemData.band_name) {
+					item.artistName = itemData.band_name;
+				}
+				if(itemData.item_url) {
+					item.artistURL = this.cleanUpURL(UrlUtils.resolve(itemData.item_url, '/'));
+				}
 			}
 			// add photos
 			if(itemData.item_art_id) {
-				let artId = ''+itemData.item_art_id;
-				while(artId.length < 10) {
-					artId = '0'+artId;
-				}
-				item.images = [
-					{
-						url: `https://f4.bcbits.com/img/a${artId}_10.jpg`,
-						size: 'large'
-					},
-					{
-						url: `https://f4.bcbits.com/img/a${artId}_16.jpg`,
-						size: 'large'
-					},
-					{
-						url: `https://f4.bcbits.com/img/a${artId}_9.jpg`,
-						size: 'medium'
-					},
-					{
-						url: `https://f4.bcbits.com/img/a${artId}_6.jpg`,
-						size: 'small'
-					}
-				];
+				const imageId = 'a'+this.padImageId(itemData.item_art_id);
+				item.images = this.createImagesFromImageId(imageId);
 			}
 			// attach audio sources if item is a track
 			if(item.type === 'track' && trackLists) {
@@ -1400,10 +1399,10 @@ class BandcampParser {
 			}
 
 			// build item list node
-			const itemNode = {
-				itemId: itemData,
-				item: item
-			};
+			itemNode.item = item;
+			if(itemData.item_id) {
+				itemNode.itemId = itemData.item_id;
+			}
 			if(itemData.why != null) {
 				itemNode.userComment = itemData.why;
 			}
@@ -1412,14 +1411,15 @@ class BandcampParser {
 	}
 
 
-	parseFanPageDataBandsSectionJson(listData, itemCache) {
-		return this.parseFanPageDataSection(listData, (itemIdentifier) => {
+	parseFanPageDataBandsSectionJson(listData, itemCache, existingSection) {
+		return this.parseFanPageDataSection(listData, itemCache, existingSection, (itemIdentifier) => {
 			const itemData = itemCache[itemIdentifier];
 			if(!itemData) {
 				return null;
 			}
 			// build basic item data
 			let item = {
+				type: 'artist',
 				id: itemData.band_id,
 				name: itemData.name,
 				location: itemData.location
@@ -1434,28 +1434,8 @@ class BandcampParser {
 			}
 			// add images
 			if(itemData.image_id) {
-				let imageId = ''+itemData.image_id;
-				while(imageId.length < 10) {
-					imageId = '0'+imageId;
-				}
-				item.images = [
-					{
-						url: `https://f4.bcbits.com/img/${imageId}_10.jpg`,
-						size: 'large'
-					},
-					{
-						url: `https://f4.bcbits.com/img/${imageId}_16.jpg`,
-						size: 'large'
-					},
-					{
-						url: `https://f4.bcbits.com/img/${imageId}_9.jpg`,
-						size: 'medium'
-					},
-					{
-						url: `https://f4.bcbits.com/img/${imageId}_6.jpg`,
-						size: 'small'
-					}
-				];
+				const imageId = this.padImageId(itemData.image_id);
+				item.images = this.createImagesFromImageId(itemData.image_id);
 			}
 			// build item list node
 			const itemNode = {
@@ -1463,20 +1443,26 @@ class BandcampParser {
 				token: itemData.token
 			};
 			if(itemData.date_followed) {
-				itemNode.dateFollowed = itemData.date_followed;
+				const dateFollowed = new Date(itemData.date_followed);
+				if(dateFollowed instanceof Date && !Number.isNaN(dateFollowed.getTime())) {
+					itemNode.dateFollowed = dateFollowed.toISOString();
+				} else {
+					itemNode.dateFollowed = itemData.date_followed;
+				}
 			}
 			return itemNode;
 		});
 	}
 
-	parseFanPageDataFansSectionJson(listData, itemCache) {
-		return this.parseFanPageDataSection(listData, (itemIdentifier) => {
+	parseFanPageDataFansSectionJson(listData, itemCache, existingSection) {
+		return this.parseFanPageDataSection(listData, itemCache, existingSection, (itemIdentifier) => {
 			const itemData = itemCache[itemIdentifier];
 			if(!itemData) {
 				return null;
 			}
 			// build basic item data
 			let item = {
+				type: 'fan',
 				id: itemData.fan_id,
 				url: itemData.trackpipe_url,
 				name: itemData.name,
@@ -1484,28 +1470,8 @@ class BandcampParser {
 			}
 			// add images
 			if(itemData.image_id) {
-				let imageId = ''+itemData.image_id;
-				while(imageId.length < 10) {
-					imageId = '0'+imageId;
-				}
-				item.images = [
-					{
-						url: `https://f4.bcbits.com/img/${imageId}_10.jpg`,
-						size: 'large'
-					},
-					{
-						url: `https://f4.bcbits.com/img/${imageId}_16.jpg`,
-						size: 'large'
-					},
-					{
-						url: `https://f4.bcbits.com/img/${imageId}_9.jpg`,
-						size: 'medium'
-					},
-					{
-						url: `https://f4.bcbits.com/img/${imageId}_6.jpg`,
-						size: 'small'
-					}
-				];
+				const imageId = this.padImageId(itemData.image_id);
+				item.images = this.createImagesFromImageId(imageId);
 			}
 			// build item list node
 			const itemNode = {
@@ -1513,7 +1479,12 @@ class BandcampParser {
 				token: itemData.token
 			};
 			if(itemData.date_followed) {
-				itemNode.dateFollowed = itemData.date_followed;
+				const dateFollowed = new Date(itemData.date_followed);
+				if(dateFollowed instanceof Date && !Number.isNaN(dateFollowed.getTime())) {
+					itemNode.dateFollowed = dateFollowed.toISOString();
+				} else {
+					itemNode.dateFollowed = itemData.date_followed;
+				}
 			}
 			return itemNode;
 		});
@@ -1521,11 +1492,153 @@ class BandcampParser {
 
 
 
-	parseFan($) {
+	parseFanCollectionHtml($, sectionSlug='collection') {
+		const section = {};
+		// parse items
+		if($(`#${sectionSlug}-items`).index() !== -1) {
+			const items = [];
+			$(`#${sectionSlug}-items > ol.collection-grid > li`).each((index, itemHtml) => {
+				const html = $(itemHtml);
+				// parse item type
+				let itemType = html.attr('data-itemtype');
+				if(itemType === 'song') {
+					itemType = 'track';
+				} else if(itemType == 'band') {
+					itemType = 'artist';
+				}
+				// build basic item data
+				let item = {
+					type: itemType,
+					name: html.attr('data-title')
+				};
+				// parse name (again, just in case we don't have it)
+				let name = html.find('.collection-item-title').first().contents().filter(function(){ return this.nodeType === 3; }).text().trim();
+				if(name) {
+					item.name = name;
+				}
+				// parse artist name
+				let artistName = html.find('.collection-item-artist').first().contents().filter(function(){ return this.nodeType === 3; }).text().trim();
+				const artistPrefix = 'by ';
+				if(artistName.startsWith(artistPrefix)) {
+					artistName = artistName.substring(artistPrefix.length);
+				}
+				// build URLs
+				const url = html.find('a.item_link').attr('href');
+				if(url) {
+					const urlItemType = this.parseType(url);
+					if(itemType === 'track' && urlItemType === 'album') {
+						item.albumURL = this.cleanUpURL(url);
+						const lastSlashIndex = item.albumURL.lastIndexOf('/');
+						if(lastSlashIndex !== -1) {
+							item.albumSlug = item.albumURL.substring(lastSlashIndex+1);
+						}
+					} else {
+						item.url = this.cleanUpURL(url);
+					}
+					item.artistURL = this.cleanUpURL(UrlUtils.resolve(item.url, '/'));
+				}
+				// add slug URL if url is missing
+				if(!item.url && item.name && (itemType === 'track' || itemType === 'album')) {
+					item.url = this.cleanUpURL(`https://bandcamp.com/${itemType}/${this.slugify(item.name)}`);
+				}
+				// add images
+				const imageURL = html.find('img.collection-item-art').attr('src');
+				if(imageURL) {
+					item.images = [
+						{
+							url: imageURL,
+							size: 'large'
+						}
+					];
+				}
+				// build list item node
+				const itemNode = {
+					item: item
+				};
+				// parse id
+				let itemId = html.attr('data-itemid');
+				if(itemId) {
+					itemNode.itemId = itemId;
+				}
+				// add token / date added
+				const token = html.attr('data-token');
+				if(token) {
+					itemNode.token = token;
+					const tokenTimestamp = Number.parseFloat((''+token).split(':')[0]);
+					if(!Number.isNaN(tokenTimestamp)) {
+						const dateAdded = new Date(tokenTimestamp * 1000);
+						if(dateAdded instanceof Date && !Number.isNaN(dateAdded.getTime())) {
+							itemNode.dateAdded = dateAdded.toISOString();
+						}
+					}
+				}
+				// append item node
+				items.push(itemNode);
+			});
+			section.items = items;
+		}
+		// parse count
+		const count = Number.parseInt($(`#grid-tabs li[data-tab="${sectionSlug}"] .count`).text().trim());
+		if(!Number.isNaN(count)) {
+			section.itemCount = count;
+		}
+		return section;
+	}
+
+
+	parseFanHtml(url, $) {
 		let fan = {};
-		const pageData = $('#pagedata').attr('data-blob');
+
+		// parse fan username from url
+		let urlParts = UrlUtils.parse(url);
+		let username = urlParts.pathname;
+		while(username.startsWith('/')) {
+			username = username.substring(1);
+		}
+		username = username.split('/')[0];
+		if(username) {
+			fan.url = 'https://bandcamp.com/'+username;
+			fan.username = username;
+		}
+
+		// parse fan info html
+		let images = [];
+		const fanImagePopupLink = $('#fan-container .fan-bio-photo a.popupImage[href]').first().attr('href');
+		if(fanImagePopupLink) {
+			images.push({
+				url: fanImagePopupLink,
+				size: 'large'
+			});
+		}
+		const fanBioPicSrc = $('#fan-container .fan-bio-pic img').first().attr('src');
+		if(fanBioPicSrc) {
+			images.push({
+				url: fanBioPicSrc,
+				size: 'small'
+			});
+		}
+		if(images.length > 0) {
+			fan.images = images;
+		}
+		const name = $('#fan-container .fan-bio-inner .name span[data-bind="text: name"]').text().trim();
+		if(name) {
+			fan.name = name;
+		}
+
+		// parse sections html
+		fan.collection = this.parseFanCollectionHtml($,'collection');
+		fan.wishlist = this.parseFanCollectionHtml($,'wishlist');
 		
 		// parse pageData json
+		let pageData = null;
+		try {
+			const pageDataString = $('#pagedata').attr('data-blob');
+			if(pageDataString) {
+				pageData = JSON.parse(pageDataString);
+			}
+		} catch(error) {
+			// continue on
+		}
 		if(pageData) {
 			// parse fan data
 			fan = this.parseFanPageDataFanJson(pageData.fan_data, fan);
@@ -1533,15 +1646,15 @@ class BandcampParser {
 			// build fan media sections
 			const itemCache = pageData.item_cache || {};
 			const trackLists = pageData.tracklists || {};
-			fan.collection = this.parseFanPageDataMediaSectionJson(pageData.collection_data, itemCache.collection, trackLists.collection);
-			fan.wishlist = this.parseFanPageDataMediaSectionJson(pageData.wishlist_data, itemCache.wishlist, trackLists.wishlist);
+			fan.collection = this.parseFanPageDataMediaSectionJson(pageData.collection_data, itemCache.collection, trackLists.collection, fan.collection);
+			fan.wishlist = this.parseFanPageDataMediaSectionJson(pageData.wishlist_data, itemCache.wishlist, trackLists.wishlist, fan.wishlist);
 			// build fan artist sections
 			fan.followingArtists = this.parseFanPageDataBandsSectionJson(pageData.following_bands_data, itemCache.following_bands);
 			// build fan sections
 			fan.followingFans = this.parseFanPageDataFansSectionJson(pageData.following_fans_data, itemCache.following_fans);
 			fan.followers = this.parseFanPageDataFansSectionJson(pageData.followers_data, itemCache.followers);
 		}
-
+		
 		return fan;
 	}
 }

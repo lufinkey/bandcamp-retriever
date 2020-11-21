@@ -193,6 +193,14 @@ class Bandcamp {
 		return await this.getItemFromURL(UrlUtils.resolve(artistURL,'/music'), {type:'artist',...options});
 	}
 
+	async getFan(fanURL, options={}) {
+		const { res, data } = await this.sendHttpRequest(fanURL);
+		if(!data) {
+			throw new Error("Unable to get data from url");
+		}
+		return await this._parser.parseFanHtmlData(fanURL, data);
+	}
+
 
 	async getMyIdentities() {
 		const url = "https://bandcamp.com/";
