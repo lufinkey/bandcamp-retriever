@@ -198,7 +198,17 @@ class Bandcamp {
 		if(!data) {
 			throw new Error("Unable to get data from url");
 		}
-		return await this._parser.parseFanHtmlData(fanURL, data);
+		const fan = await this._parser.parseFanHtmlData(fanURL, data);
+		const wishlistURL = fanURL+'/wishlist';
+		const { res: res2, data: data2 } = await this.sendHttpRequest(wishlistURL);
+		if(!data2) {
+			throw new Error("Unable to get wishlist data from url");
+		}
+		const fan2 = await this._parser.parseFanHtmlData(wishlistURL, data2);
+		if(fan2.wishlist) {
+			fan.wishlist = fan2.wishlist;
+		}
+		return fan;
 	}
 
 
