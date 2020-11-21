@@ -1181,7 +1181,7 @@ class BandcampParser {
 				}
 			}
 			identities.fan = {
-				id: fanIdentity.id,
+				id: ''+fanIdentity.id,
 				url: fanIdentity.url,
 				username: fanIdentity.username,
 				private: fanIdentity.private,
@@ -1217,6 +1217,9 @@ class BandcampParser {
 		}
 		if(!fan) {
 			fan = {};
+		}
+		if(fanData.fan_id) {
+			fan.id = ''+fanData.fan_id;
 		}
 		if(fanData.trackpipe_url) {
 			fan.url = fanData.trackpipe_url;
