@@ -1403,7 +1403,7 @@ class BandcampParser {
 			// build item list node
 			itemNode.item = item;
 			if(itemData.item_id) {
-				itemNode.itemId = itemData.item_id;
+				itemNode.itemId = ''+itemData.item_id;
 			}
 			if(itemData.why != null) {
 				itemNode.userComment = itemData.why;
@@ -1437,7 +1437,7 @@ class BandcampParser {
 			// add images
 			if(itemData.image_id) {
 				const imageId = this.padImageId(itemData.image_id);
-				item.images = this.createImagesFromImageId(itemData.image_id);
+				item.images = this.createImagesFromImageId(imageId);
 			}
 			// build item list node
 			const itemNode = {
@@ -1465,7 +1465,7 @@ class BandcampParser {
 			// build basic item data
 			let item = {
 				type: 'fan',
-				id: itemData.fan_id,
+				id: ''+itemData.fan_id,
 				url: itemData.trackpipe_url,
 				name: itemData.name,
 				location: itemData.location
@@ -1560,7 +1560,7 @@ class BandcampParser {
 				// parse id
 				let itemId = html.attr('data-itemid');
 				if(itemId) {
-					itemNode.itemId = itemId;
+					itemNode.itemId = ''+itemId;
 				}
 				// add token / date added
 				const token = html.attr('data-token');
