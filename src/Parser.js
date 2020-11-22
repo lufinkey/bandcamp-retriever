@@ -672,7 +672,7 @@ class BandcampParser {
 					type: 'track',
 					artistName: item.artistName,
 					artistURL: item.artistURL,
-					trackNum: (i + 1)
+					trackNumber: (i + 1)
 				};
 				// add properties from html
 				if(i < trackHtmls.length) {
@@ -1364,7 +1364,7 @@ class BandcampParser {
 							item.artistName = trackData.artist;
 						}
 						if(typeof trackData.track_number === 'number') {
-							item.trackNum = trackData.track_number;
+							item.trackNumber = trackData.track_number;
 						}
 						if(typeof trackData.file === 'object' && trackData.file) {
 							item.audioSources = Object.keys(trackData.file).map((fileType) => {
