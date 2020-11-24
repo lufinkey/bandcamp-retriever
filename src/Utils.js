@@ -34,7 +34,7 @@ const sendHttpRequest = (url, options={}) => {
 		if(options.headers) {
 			reqData.headers = {...options.headers};
 		}
-
+		
 		// create request
 		const protocolObj = (url.protocol === 'https:' || url.protocol === 'https') ? https : http;
 		const req = protocolObj.request(reqData, (res) => {
@@ -86,6 +86,11 @@ const sendHttpRequest = (url, options={}) => {
 		req.on('error', (error) => {
 			reject(error);
 		});
+
+		// write data if needed
+		if(options.body != null) {
+			req.write(options.body);
+		}
 
 		// send
 		req.end();

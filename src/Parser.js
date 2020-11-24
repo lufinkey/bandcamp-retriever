@@ -1589,7 +1589,9 @@ class BandcampParser {
 
 
 	parseFanHtml(url, $) {
-		let fan = {};
+		let fan = {
+			type: 'fan'
+		};
 
 		// parse fan username from url
 		let urlParts = UrlUtils.parse(url);
@@ -1598,10 +1600,11 @@ class BandcampParser {
 			username = username.substring(1);
 		}
 		username = username.split('/')[0];
-		if(username) {
-			fan.url = 'https://bandcamp.com/'+username;
-			fan.username = username;
+		if(!username) {
+			throw new Error("invalid bandcamp fan URL");
 		}
+		fan.url = this.cleanUpURL('https://bandcamp.com/'+username);
+		fan.username = username;
 
 		// parse fan info html
 		let images = [];
@@ -1658,6 +1661,56 @@ class BandcampParser {
 		}
 		
 		return fan;
+	}
+
+
+
+	parseFanCollectionItemsJson(json) {
+		return {
+			hasMore: json.more_available,
+			lastToken: json.last_token,
+			items: (json.items || []).map((itemJson) => {
+				const item = {
+					type: itemJson.item_type,
+					url: itemJson.item_url,
+					name: ititemJsonem.item_title,
+					artistName: itemJson.band_name,
+					artistURL: itemJson.band_url
+				};
+				if(itemJson.item_art_id) {
+					const imageId = 'a'+this.padImageId(itemJson.item_art_id);
+					item.images = this.createImagesFromImageId(imageId);
+				}
+				if(item.type === 'track') {
+					if(itemJson.album_id) {
+						item.albumName = itemJson.album_title;
+						if(itemJson.url_hints && itemJson.url_hints.item_type === 'a') {
+							if(itemJson.url_hints.custom_domain) {
+								item.albumURL = `https://${itemJson.url_hints.custom_domain}/album/${itemJson.url_hints.slug}`;
+							} else {
+								item.albumURL = `https://${itemJson.subdomain}.bandcamp.com/album/${itemJson.slug}`;
+							}
+						} else if(item.albumName && item.url) {
+							item.albumURL = this.cleanUpURL(UrlUtils.resolve(item.url, '/album/'+this.slugify(item.albumName)));
+						}
+					}
+				}
+				// create item node
+				const itemNode = {
+					token: itemJson.token,
+					item: item
+				};
+				if(typeof itemJson.added === 'string') {
+					const dateAdded = new Date(itemJson.added);
+					if(dateAdded instanceof Date && !Number.isNaN(dateAdded.getTime())) {
+						itemNode.dateAdded = dateAdded.toISOString();
+					} else {
+						itemNode.dateAdded = itemJson.added;
+					}
+				}
+				return itemNode;
+			})
+		};
 	}
 }
 

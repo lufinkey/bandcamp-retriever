@@ -3,11 +3,8 @@ const BandcampSession = require('./Session');
 
 class BandcampAuth {
 	constructor(options) {
-		if(options.sessionCookies) {
-			const session = new BandcampSession(options.sessionCookies);
-			if(session.isLoggedIn) {
-				this._session = session;
-			}
+		if(options.sessionCookies && options.sessionCookies.length > 0) {
+			this._session = new BandcampSession(options.sessionCookies);
 		}
 	}
 
@@ -62,11 +59,8 @@ class BandcampAuth {
 	updateSessionCookies(sessionCookies) {
 		if(this._session) {
 			this._session.updateCookies(sessionCookies);
-		} else {
-			const session = new BandcampSession(sessionCookies);
-			if(session.isLoggedIn) {
-				this._session = session;
-			}
+		} else if(sessionCookies.length > 0) {
+			this._session = new BandcampSession(sessionCookies);
 		}
 	}
 

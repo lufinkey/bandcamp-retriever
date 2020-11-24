@@ -218,6 +218,93 @@ class Bandcamp {
 		const $ = cheerio.load(dataString);
 		return this._parser.parseIdentitiesFromPage($);
 	}
+	
+
+
+	async getFanCollectionItems(fanURL, fanId, olderThanToken, count=20) {
+		if(!fanURL || !fanId || !olderThanToken) {
+			throw new Error("missing required parameters for getFanCollectionItems");
+		}
+		if(!this._auth.session) {
+			// go to fan page first to acquire cookies
+			await this.getFan(fanURL);
+		}
+
+		const body = {
+			fan_id: fanId
+		};
+		if(olderThanToken) {
+			body.older_than_token = olderThanToken;
+		}
+		if(count != null) {
+			body.count = count;
+		}
+		const jsonBody = JSON.stringify(body);
+		const url = 'https://bandcamp.com/api/fancollection/1/collection_items';
+		const { res, data } = await this.sendHttpRequest(url, {
+			method: 'POST',
+			body: jsonBody,
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded', // Bandcamp doesn't set the content type on the request code, so it's not application/json
+				'Content-Length': jsonBody.length,
+				'Origin': 'https://bandcamp.com',
+				'Referer': fanURL,
+				'Sec-Fetch-Dest': 'empty',
+				'Sec-Fetch-Mode': 'cors',
+				'Sec-Fetch-Site': 'same-origin',
+				'X-Requested-With': 'XMLHttpRequest'
+			}
+		});
+		if(res.statusCode < 200 || res.statusCode >= 300) {
+			throw new Error(res.statusMessage);
+		}
+
+		const resJson = JSON.parse(res);
+		return this._parser.parseFanCollectionItemsJson(resJson);
+	}
+
+
+	async getFanWishlistItems(fanURL, fanId, olderThanToken, count=20) {
+		if(!fanURL || !fanId || !olderThanToken) {
+			throw new Error("missing required parameters for getFanWishlistItems");
+		}
+		if(!this._auth.session) {
+			// go to fan page first to acquire cookies
+			await this.getFan(fanURL);
+		}
+
+		const body = {
+			fan_id: fanId
+		};
+		if(olderThanToken) {
+			body.older_than_token = olderThanToken;
+		}
+		if(count != null) {
+			body.count = count;
+		}
+		const jsonBody = JSON.stringify(body);
+		const url = 'https://bandcamp.com/api/fancollection/1/wishlist_items';
+		const { res, data } = await this.sendHttpRequest(url, {
+			method: 'POST',
+			body: jsonBody,
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded', // Bandcamp doesn't set the content type on the request code, so it's not application/json
+				'Content-Length': jsonBody.length,
+				'Origin': 'https://bandcamp.com',
+				'Referer': `${fanURL}/wishlist`,
+				'Sec-Fetch-Dest': 'empty',
+				'Sec-Fetch-Mode': 'cors',
+				'Sec-Fetch-Site': 'same-origin',
+				'X-Requested-With': 'XMLHttpRequest'
+			}
+		});
+		if(res.statusCode < 200 || res.statusCode >= 300) {
+			throw new Error(res.statusMessage);
+		}
+
+		const resJson = JSON.parse(res);
+		return this._parser.parseFanCollectionItemsJson(resJson);
+	}
 }
 
 
