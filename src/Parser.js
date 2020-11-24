@@ -1241,7 +1241,7 @@ class BandcampParser {
 	}
 
 	parseFanPageDataSection(listData, itemCache, existingSection, mapper) {
-		if(!listData || !(listData.sequence || listData.pending_sequence)) {
+		if(!listData || !(listData.sequence || listData.pending_sequence) || listData.hidden === true) {
 			return existingSection || null;
 		}
 		// parse items
@@ -1286,7 +1286,7 @@ class BandcampParser {
 	}
 
 	parseFanPageDataMediaSectionJson(listData, itemCache, trackLists, existingSection) {
-		const existingItems = existingSection.items || [];
+		const existingItems = (existingSection || {}).items || [];
 		return this.parseFanPageDataSection(listData, itemCache, existingSection, (itemIdentifier) => {
 			// pull item data
 			const itemData = itemCache[itemIdentifier];
@@ -1499,9 +1499,18 @@ class BandcampParser {
 
 
 	parseFanCollectionHtml($, sectionSlug='collection') {
+		// get count
+		const count = Number.parseInt($(`#grid-tabs li[data-tab="${sectionSlug}"] .count`).text().trim());
+		// get section items html
+		const itemsWrapperHtml = $(`#${sectionSlug}-items`);
+		// check if we have the section or not
+		if(itemsWrapperHtml.index() === -1 && (Number.isNaN(count) || count == null)) {
+			return null;
+		}
+		// build section
 		const section = {};
 		// parse items
-		if($(`#${sectionSlug}-items`).index() !== -1) {
+		if(itemsWrapperHtml.index() !== -1) {
 			const items = [];
 			$(`#${sectionSlug}-items > ol.collection-grid > li`).each((index, itemHtml) => {
 				const html = $(itemHtml);
@@ -1584,7 +1593,7 @@ class BandcampParser {
 			section.items = items;
 		}
 		// parse count
-		const count = Number.parseInt($(`#grid-tabs li[data-tab="${sectionSlug}"] .count`).text().trim());
+		
 		if(!Number.isNaN(count)) {
 			section.itemCount = count;
 		}
