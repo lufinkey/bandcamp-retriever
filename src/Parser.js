@@ -1395,7 +1395,11 @@ class BandcampParser {
 					// TODO the only album name we can get from this endpoint is the slug
 					//  so update this whenever we get that piece of data
 					item.albumURL = this.cleanUpURL(UrlUtils.resolve(item.url, '/album/'+itemData.url_hints.slug));
-					item.albumName = null;
+					if(itemData.album_title) {
+						item.albumName = itemData.album_title;
+					} else {
+						item.albumName = null;
+					}
 					item.albumSlug = itemData.url_hints.slug;
 				}
 			}
@@ -1682,14 +1686,21 @@ class BandcampParser {
 					item.images = this.createImagesFromImageId(imageId);
 				}
 				if(item.type === 'track') {
+					if(itemJson.featured_track_duration) {
+						item.duration = itemJson.featured_track_duration;
+					}
+					if(itemJson.featured_track_number) {
+						item.trackNumber = itemJson.featured_track_number;
+					}
 					if(itemJson.album_id) {
 						item.albumName = itemJson.album_title;
 						if(itemJson.url_hints && itemJson.url_hints.item_type === 'a') {
 							if(itemJson.url_hints.custom_domain) {
 								item.albumURL = `https://${itemJson.url_hints.custom_domain}/album/${itemJson.url_hints.slug}`;
 							} else {
-								item.albumURL = `https://${itemJson.subdomain}.bandcamp.com/album/${itemJson.slug}`;
+								item.albumURL = `https://${itemJson.url_hints.subdomain}.bandcamp.com/album/${itemJson.url_hints.slug}`;
 							}
+							item.albumSlug = itemJson.url_hints.slug;
 						} else if(item.albumName && item.url) {
 							item.albumURL = this.cleanUpURL(UrlUtils.resolve(item.url, '/album/'+this.slugify(item.albumName)));
 						}
@@ -1700,6 +1711,9 @@ class BandcampParser {
 					token: itemJson.token,
 					item: item
 				};
+				if(itemJson.item_id) {
+					itemNode.itemId = itemJson.item_id;
+				}
 				if(typeof itemJson.added === 'string') {
 					const dateAdded = new Date(itemJson.added);
 					if(dateAdded instanceof Date && !Number.isNaN(dateAdded.getTime())) {
