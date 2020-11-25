@@ -1354,7 +1354,7 @@ class BandcampParser {
 			// attach audio sources if item is a track
 			if(item.type === 'track' && trackLists) {
 				const trackList = trackLists[itemIdentifier];
-				const itemId = itemData.item_id;
+				const itemId = ''+itemData.item_id;
 				if(trackList && itemId) {
 					const trackData = trackList.find((trackData) => {
 						return trackData.id == itemId;
@@ -1774,7 +1774,7 @@ class BandcampParser {
 					item: item
 				};
 				if(itemJson.item_id) {
-					itemNode.itemId = itemJson.item_id;
+					itemNode.itemId = ''+itemJson.item_id;
 				}
 				if(typeof itemJson.added === 'string') {
 					const dateAdded = new Date(itemJson.added);

@@ -246,6 +246,20 @@ class Bandcamp {
 			await this.getFan(fanURL);
 		}
 
+		if(typeof fanId === 'string') {
+			let fanIdAllDigits = true;
+			const digits = ['0','1','2','3','4','5','6','7','8','9'];
+			for(let i=0; i<fanId.length; i++) {
+				if(digits.indexOf(fanId[i]) === -1) {
+					fanIdAllDigits = false;
+					break;
+				}
+			}
+			if(fanIdAllDigits) {
+				fanId = Number.parseInt(fanId);
+			}
+		}
+
 		const body = {
 			fan_id: fanId
 		};
