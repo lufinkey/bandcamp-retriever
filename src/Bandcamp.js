@@ -289,7 +289,7 @@ class Bandcamp {
 			fanURL+'/wishlist', fanURL, fanId, { olderThanToken, count });
 	}
 
-	async getFanHiddenItems(fanURL, fanId, olderThanToken, count=20) {
+	async getFanHiddenItems(fanURL, fanId, { olderThanToken, count }) {
 		return await this._getFanSectionItems(
 			'https://bandcamp.com/api/fancollection/1/hidden_items',
 			fanURL, fanURL, fanId, { olderThanToken, count });
