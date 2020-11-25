@@ -237,7 +237,7 @@ class Bandcamp {
 
 
 
-	async getFanCollectionItems(fanURL, fanId, olderThanToken, count=20) {
+	async _getFanSectionItems(apiURL, referrer, fanURL, fanId, { olderThanToken, count }) {
 		if(!fanURL || !fanId || !olderThanToken) {
 			throw new Error("missing required parameters for getFanCollectionItems");
 		}
@@ -251,20 +251,23 @@ class Bandcamp {
 		};
 		if(olderThanToken) {
 			body.older_than_token = olderThanToken;
+		} else {
+			body.older_than_token = `${Math.floor((new Date()).getTime()/1000)+3600}::t::`;
 		}
 		if(count != null) {
 			body.count = count;
+		} else {
+			body.count = 20;
 		}
 		const jsonBody = JSON.stringify(body);
-		const url = 'https://bandcamp.com/api/fancollection/1/collection_items';
-		const { res, data } = await this.sendHttpRequest(url, {
+		const { res, data } = await this.sendHttpRequest(apiURL, {
 			method: 'POST',
 			body: jsonBody,
 			headers: {
 				'Content-Type': 'application/x-www-form-urlencoded', // Bandcamp doesn't set the content type on the request code, so it's not application/json
 				'Content-Length': jsonBody.length,
 				'Origin': 'https://bandcamp.com',
-				'Referer': fanURL,
+				'Referer': referrer,
 				'Sec-Fetch-Dest': 'empty',
 				'Sec-Fetch-Mode': 'cors',
 				'Sec-Fetch-Site': 'same-origin',
@@ -274,42 +277,24 @@ class Bandcamp {
 		return this._parser.parseFanCollectionItemsJsonData(res,data);
 	}
 
+	async getFanCollectionItems(fanURL, fanId, { olderThanToken, count }) {
+		return await this._getFanSectionItems(
+			'https://bandcamp.com/api/fancollection/1/collection_items',
+			fanURL, fanURL, fanId, { olderThanToken, count });
+	}
 
-	async getFanWishlistItems(fanURL, fanId, olderThanToken, count=20) {
-		if(!fanURL || !fanId || !olderThanToken) {
-			throw new Error("missing required parameters for getFanWishlistItems");
-		}
-		if(!this._auth.session) {
-			// go to fan page first to acquire cookies
-			await this.getFan(fanURL);
-		}
 
-		const body = {
-			fan_id: fanId
-		};
-		if(olderThanToken) {
-			body.older_than_token = olderThanToken;
-		}
-		if(count != null) {
-			body.count = count;
-		}
-		const jsonBody = JSON.stringify(body);
-		const url = 'https://bandcamp.com/api/fancollection/1/wishlist_items';
-		const { res, data } = await this.sendHttpRequest(url, {
-			method: 'POST',
-			body: jsonBody,
-			headers: {
-				'Content-Type': 'application/x-www-form-urlencoded', // Bandcamp doesn't set the content type on the request code, so it's not application/json
-				'Content-Length': jsonBody.length,
-				'Origin': 'https://bandcamp.com',
-				'Referer': `${fanURL}/wishlist`,
-				'Sec-Fetch-Dest': 'empty',
-				'Sec-Fetch-Mode': 'cors',
-				'Sec-Fetch-Site': 'same-origin',
-				'X-Requested-With': 'XMLHttpRequest'
-			}
-		});
-		return this._parser.parseFanCollectionItemsJsonData(res,data);
+	async getFanWishlistItems(fanURL, fanId, { olderThanToken, count }) {
+		return await this._getFanSectionItems(
+			'https://bandcamp.com/api/fancollection/1/wishlist_items',
+			fanURL+'/wishlist', fanURL, fanId, { olderThanToken, count });
+	}
+
+
+	async getFanHiddenItems(fanURL, fanId, olderThanToken, count=20) {
+		return await this._getFanSectionItems(
+			'https://bandcamp.com/api/fancollection/1/hidden_items',
+			fanURL, fanURL, fanId, { olderThanToken, count });
 	}
 }
 
