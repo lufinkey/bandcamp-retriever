@@ -888,7 +888,8 @@ class BandcampParser {
 					url: bandLink.attr('href'),
 					name: bandLink.text().trim()
 				};
-			})
+			}),
+			isLabel: isLabel
 		};
 	}
 
