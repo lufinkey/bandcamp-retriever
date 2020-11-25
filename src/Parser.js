@@ -1197,7 +1197,7 @@ class BandcampParser {
 
 
 
-	parseFanHtmlData(url, data) {
+	parseFanHtmlData(url, data, collectionSummaryData) {
 		if(!data) {
 			return null;
 		}
@@ -1205,8 +1205,9 @@ class BandcampParser {
 		if(!dataString) {
 			return null;
 		}
+		const collectionSummary = collectionSummaryData ? JSON.parse(collectionSummaryData) : null;
 		const $ = cheerio.load(dataString);
-		return this.parseFanHtml(url, $);
+		return this.parseFanHtml(url, $, collectionSummary);
 	}
 
 
@@ -1241,7 +1242,9 @@ class BandcampParser {
 	}
 
 	parseFanPageDataSection(listData, itemCache, existingSection, mapper) {
-		if(!listData || !(listData.sequence || listData.pending_sequence) || listData.hidden === true) {
+		if(!listData || !(listData.sequence || listData.pending_sequence)
+		  || (listData.hidden === true & listData.item_count === 0)
+		  || (listData.item_count === null && (listData.sequence || []).length === 0 && (listData.pending_sequence || []).length === 0)) {
 			return existingSection || null;
 		}
 		// parse items
@@ -1285,14 +1288,16 @@ class BandcampParser {
 		return section;
 	}
 
-	parseFanPageDataMediaSectionJson(listData, itemCache, trackLists, existingSection) {
+	parseFanPageDataMediaSectionJson(listData, itemCache, trackLists, trAlbumLookup, existingSection) {
 		const existingItems = (existingSection || {}).items || [];
 		return this.parseFanPageDataSection(listData, itemCache, existingSection, (itemIdentifier) => {
-			// pull item data
+			// get item data
 			const itemData = itemCache[itemIdentifier];
 			if(!itemData) {
 				return null;
 			}
+			// get tralbum data
+			const trAlbumData = trAlbumLookup[itemIdentifier];
 			// parse item type
 			let itemType = itemData.item_type;
 			if(!itemType && itemData.item_url) {
@@ -1377,19 +1382,12 @@ class BandcampParser {
 					}
 				}
 			}
-			// attach album or become album if needed
+			// attach album if needed
 			if(item.type === 'track') {
 				if(itemData.album_id === null && (!itemData.url_hints || itemData.url_hints.item_type === 't')) {
-					// item is a "single", so make it an album
-					item = {
-						type: 'album',
-						url: item.url,
-						name: item.name,
-						artistName: item.artistName,
-						artistURL: item.artistURL,
-						images: item.images,
-						tracks: [ item ]
-					};
+					// item is a "single", so make album the same as item
+					item.albumURL = item.url;
+					item.albumName = item.name;
 				} else if(item.url && itemData.url_hints && itemData.url_hints.item_type === 'a' && itemData.url_hints.slug) {
 					// add album name / url
 					// TODO the only album name we can get from this endpoint is the slug
@@ -1411,6 +1409,17 @@ class BandcampParser {
 			}
 			if(itemData.why != null) {
 				itemNode.userComment = itemData.why;
+			}
+			if(trAlbumData && typeof trAlbumData.purchased === 'string' && trAlbumData.purchased) {
+				const datePurchased = new Date(trAlbumData.purchased);
+				if(datePurchased instanceof Date && !Number.isNaN(datePurchased.getTime())) {
+					if(!itemNode.token && trAlbumData.item_id && trAlbumData.item_type) {
+						itemNode.token = `${Math.floor(date.getTime() / 1000)}:${trAlbumData.item_id}:${trAlbumData.item_type[0]}::`;
+					}
+					if(!itemNode.dateAdded) {
+						itemNode.dateAdded = date.toISOString();
+					}
+				}
 			}
 			return itemNode;
 		});
@@ -1601,7 +1610,7 @@ class BandcampParser {
 	}
 
 
-	parseFanHtml(url, $) {
+	parseFanHtml(url, $, collectionSummary) {
 		let fan = {
 			type: 'fan'
 		};
@@ -1662,10 +1671,12 @@ class BandcampParser {
 			fan = this.parseFanPageDataFanJson(pageData.fan_data, fan);
 
 			// build fan media sections
-			const itemCache = pageData.item_cache || {};
+			const itemCache = pageData.item_cache;
 			const trackLists = pageData.tracklists || {};
-			fan.collection = this.parseFanPageDataMediaSectionJson(pageData.collection_data, itemCache.collection, trackLists.collection, fan.collection);
-			fan.wishlist = this.parseFanPageDataMediaSectionJson(pageData.wishlist_data, itemCache.wishlist, trackLists.wishlist, fan.wishlist);
+			const trAlbumLookup = ((collectionSummary || {}).collection_summary || {}).tralbum_lookup || {};
+			fan.collection = this.parseFanPageDataMediaSectionJson(pageData.collection_data, itemCache.collection, trackLists.collection, trAlbumLookup, fan.collection);
+			fan.wishlist = this.parseFanPageDataMediaSectionJson(pageData.wishlist_data, itemCache.wishlist, trackLists.wishlist, trAlbumLookup, fan.wishlist);
+			fan.hiddenCollection = this.parseFanPageDataMediaSectionJson(pageData.hidden_data, itemCache.hidden, trackLists.hidden, trAlbumLookup, fan.hiddenCollection);
 			// build fan artist sections
 			fan.followingArtists = this.parseFanPageDataBandsSectionJson(pageData.following_bands_data, itemCache.following_bands);
 			// build fan sections
@@ -1678,7 +1689,48 @@ class BandcampParser {
 
 
 
-	parseFanCollectionItemsJson(json) {
+	parseFanCollectionItemsErrorJson(res, data) {
+		if(res.statusCode < 200 || res.statusCode >= 300) {
+			let resJson = null
+			try {
+				resJson = JSON.parse(data);
+			} catch(error) {
+				throw new Error(res.statusMessage);
+			}
+			if(resJson.error_message) {
+				throw new Error(resJson.error_message);
+			}
+			throw new Error(res.statusMessage);
+		}
+
+		const resJson = JSON.parse()
+	}
+
+	parseFanCollectionItemsJsonData(res, data) {
+		// check response code
+		if(res.statusCode < 200 || res.statusCode >= 300) {
+			let resJson = null
+			try {
+				resJson = JSON.parse(data);
+			} catch(error) {
+				throw new Error(res.statusMessage);
+			}
+			if(resJson.error_message) {
+				throw new Error(resJson.error_message);
+			}
+			throw new Error(res.statusMessage);
+		}
+		// parse json
+		const json = JSON.parse(data);
+		// check for error
+		if(json.error === true) {
+			if(json.error_message) {
+				throw new Error(json.error_message);
+			} else {
+				throw new Error("Bad request");
+			}
+		}
+		// return items
 		return {
 			hasMore: json.more_available,
 			lastToken: json.last_token,

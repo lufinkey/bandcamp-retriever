@@ -39,9 +39,9 @@ const Bandcamp = require('./src/Bandcamp');
 	console.log(artist2);
 	console.log("\n\n");*/
 
-	const fan = await bandcamp.getFan("https://bandcamp.com/Flamezles");
-	console.log("getFan Flamezles:");
-	console.log(JSON.stringify(fan,null,'\t'));
+	const fan = await bandcamp.getFan("https://bandcamp.com/lufinkey");
+	console.log("getFan lufinkey:");
+	console.log(fan);
 	console.log("\n\n");
 
 	console.log("slugify:");

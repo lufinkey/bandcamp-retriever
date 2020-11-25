@@ -193,17 +193,33 @@ class Bandcamp {
 	}
 
 	async getFan(fanURL, options={}) {
+		// load fan page
 		const { res, data } = await this.sendHttpRequest(fanURL);
+		if(res.statusCode < 200 || res.statusCode >= 300) {
+			throw new Error(res.statusMessage);
+		}
 		if(!data) {
 			throw new Error("Unable to get data from url");
 		}
-		const fan = await this._parser.parseFanHtmlData(fanURL, data);
+		// load collection summary
+		const collectionSummaryURL = 'https://bandcamp.com/api/fan/2/collection_summary';
+		const { res: resCs, data: dataCs } = await this.sendHttpRequest(collectionSummaryURL, {
+			headers: {
+				'Referer': fanURL,
+				'Sec-Fetch-Dest': 'empty',
+				'Sec-Fetch-Mode': 'cors',
+				'Sec-Fetch-Site': 'same-origin',
+			}
+		});
+		// parse fan
+		const fan = await this._parser.parseFanHtmlData(fanURL, data, dataCs);
+		// load and parse wishlist
 		const wishlistURL = fanURL+'/wishlist';
-		const { res: res2, data: data2 } = await this.sendHttpRequest(wishlistURL);
-		if(!data2) {
+		const { res: resWl, data: dataWl } = await this.sendHttpRequest(wishlistURL);
+		if(!dataWl) {
 			throw new Error("Unable to get wishlist data from url");
 		}
-		const fan2 = await this._parser.parseFanHtmlData(wishlistURL, data2);
+		const fan2 = await this._parser.parseFanHtmlData(wishlistURL, dataWl);
 		if(fan2.wishlist) {
 			fan.wishlist = fan2.wishlist;
 		}
@@ -212,13 +228,13 @@ class Bandcamp {
 
 
 	async getMyIdentities() {
-		const url = "https://bandcamp.com/";
+		const url = 'https://bandcamp.com/';
 		const { res, data } = await this.sendHttpRequest(url);
 		// parse response
 		const $ = cheerio.load(dataString);
 		return this._parser.parseIdentitiesFromPage($);
 	}
-	
+
 
 
 	async getFanCollectionItems(fanURL, fanId, olderThanToken, count=20) {
@@ -255,12 +271,7 @@ class Bandcamp {
 				'X-Requested-With': 'XMLHttpRequest'
 			}
 		});
-		if(res.statusCode < 200 || res.statusCode >= 300) {
-			throw new Error(res.statusMessage);
-		}
-
-		const resJson = JSON.parse(res);
-		return this._parser.parseFanCollectionItemsJson(resJson);
+		return this._parser.parseFanCollectionItemsJsonData(res,data);
 	}
 
 
@@ -298,12 +309,7 @@ class Bandcamp {
 				'X-Requested-With': 'XMLHttpRequest'
 			}
 		});
-		if(res.statusCode < 200 || res.statusCode >= 300) {
-			throw new Error(res.statusMessage);
-		}
-
-		const resJson = JSON.parse(res);
-		return this._parser.parseFanCollectionItemsJson(resJson);
+		return this._parser.parseFanCollectionItemsJsonData(res,data);
 	}
 }
 
