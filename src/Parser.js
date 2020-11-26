@@ -1245,7 +1245,8 @@ class BandcampParser {
 	parseFanPageDataSection(listData, itemCache, existingSection, mapper) {
 		if(!listData || !(listData.sequence || listData.pending_sequence)
 		  || (listData.hidden === true & listData.item_count === 0)
-		  || (listData.item_count === null && (listData.sequence || []).length === 0 && (listData.pending_sequence || []).length === 0)) {
+		  || (listData.item_count === null && (listData.sequence || []).length === 0 && (listData.pending_sequence || []).length === 0)
+		  || (!listData.last_token && listData.item_count === 0)) {
 			return existingSection || null;
 		}
 		// parse items
@@ -1383,7 +1384,7 @@ class BandcampParser {
 					}
 				}
 			}
-			// attach album if needed
+			// attach album info if needed
 			if(item.type === 'track') {
 				if(itemData.album_id === null && (!itemData.url_hints || itemData.url_hints.item_type === 't')) {
 					// item is a "single", so make album the same as item
