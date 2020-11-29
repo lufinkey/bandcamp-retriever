@@ -1785,6 +1785,10 @@ class BandcampParser {
 							item.albumURL = this.cleanUpURL(UrlUtils.resolve(item.url, '/album/'+this.slugify(item.albumName)));
 						}
 					}
+					if(itemJson.album_id === null) {
+						item.albumName = item.name;
+						item.albumURL = item.url;
+					}
 				}
 				// create item node
 				const itemNode = {
