@@ -58,9 +58,6 @@ const Bandcamp = require('./src/Bandcamp');
 	console.log(JSON.stringify(wishlist,null,'\t'));
 	console.log("\n\n");*/
 
-	const track = await bandcamp.getTrack("https://phonyland.bandcamp.com/track/does-he-really-2");
-	console.log(track);
-
 	console.log("slugify:");
 	const slugTests = {
 		'&': '-',

@@ -692,6 +692,7 @@ class BandcampParser {
 			for(let i=0; i<trackHtmls.length || i<ldTracks.length || i<trTracks.length; i++) {
 				const track = {
 					type: 'track',
+					images: item.images,
 					albumName: item.name,
 					albumURL: item.url,
 					artistName: item.artistName,
