@@ -638,7 +638,7 @@ class BandcampParser {
 			}
 		}
 		const mediumImageURL = tralbumArt.find('img').attr('src');
-		if(mediumImageURL) {
+		if(mediumImageURL && item.images.find((img) => (img.url == mediumImageURL)) == null) {
 			item.images.push({url: mediumImageURL, size: 'medium'});
 		}
 
@@ -881,7 +881,8 @@ class BandcampParser {
 				width: popupImageWidth,
 				height: popupImageHeight,
 				size: 'large'
-			}, {
+			});
+			images.push({
 				url: popupImage.find('img.band-photo').attr('src'),
 				width: defaultImageWidth,
 				height: defaultImageHeight,
