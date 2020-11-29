@@ -155,7 +155,7 @@ class BandcampParser {
 				dateString = date.toISOString();
 				const suffix = ".000Z";
 				if(dateString.endsWith(suffix)) {
-					dateString = dateString.substring(0,dateString.length-suffix.length);
+					dateString = dateString.substring(0,dateString.length-suffix.length)+'Z';
 				}
 			}
 		}
