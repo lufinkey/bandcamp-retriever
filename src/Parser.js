@@ -1754,8 +1754,12 @@ class BandcampParser {
 			hasMore: json.more_available,
 			lastToken: json.last_token,
 			items: (json.items || []).map((itemJson) => {
+				let itemType = itemJson.item_type;
+				if(itemType === 'song') {
+					itemType = 'track';
+				}
 				const item = {
-					type: itemJson.item_type,
+					type: itemType,
 					url: itemJson.item_url,
 					name: itemJson.item_title,
 					artistName: itemJson.band_name,
