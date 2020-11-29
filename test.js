@@ -42,12 +42,13 @@ const Bandcamp = require('./src/Bandcamp');
 	const single = await bandcamp.getTrack('https://selfeducatedvinyl.bandcamp.com/track/end-of-the-night-af-the-naysayer-remix');
 	console.log("getTrack end of the night");
 	console.log(single);
-	console.log("\n\n");*/
+	console.log("\n\n");
 
 	const fan = await bandcamp.getFan("https://bandcamp.com/lufinkey");
-	/*console.log("getFan lufinkey:");
+	console.log(JSON.stringify(fan.wishlist,null,'\t'));
+	console.log("getFan lufinkey:");
 	console.log(fan);
-	console.log("\n\n");*/
+	console.log("\n\n");
 
 	const wishlist = await bandcamp.getFanWishlistItems(fan.url, fan.id, {
 		olderThanToken: fan.wishlist.lastToken,
@@ -55,7 +56,10 @@ const Bandcamp = require('./src/Bandcamp');
 	});
 	console.log("getFanWishlistItems lufinkey:");
 	console.log(JSON.stringify(wishlist,null,'\t'));
-	console.log("\n\n");
+	console.log("\n\n");*/
+
+	const track = await bandcamp.getTrack("https://phonyland.bandcamp.com/track/does-he-really-2");
+	console.log(track);
 
 	console.log("slugify:");
 	const slugTests = {

@@ -834,6 +834,18 @@ class BandcampParser {
 					if(typeof trTrackDuration === 'number' && trTrackDuration) {
 						item.duration = trTrackDuration;
 					}
+					const trackNum = trTrack['track_num'];
+					if(typeof trackNum === 'number') {
+						item.trackNumber = trackNum;
+					}
+				}
+
+				const current = trAlbumData['current'];
+				if(current) {
+					const trackNum = current.track_number;
+					if(typeof trackNum === 'number') {
+						item.trackNumber = trackNum;
+					}
 				}
 			}
 		}
