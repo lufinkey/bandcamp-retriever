@@ -1757,7 +1757,7 @@ class BandcampParser {
 				const item = {
 					type: itemJson.item_type,
 					url: itemJson.item_url,
-					name: ititemJsonem.item_title,
+					name: itemJson.item_title,
 					artistName: itemJson.band_name,
 					artistURL: itemJson.band_url
 				};
