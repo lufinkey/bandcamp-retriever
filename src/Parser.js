@@ -148,6 +148,22 @@ class BandcampParser {
 
 
 
+	formatDate(dateString) {
+		if(typeof dateString === 'string') {
+			const date = new Date(dateString);
+			if(date instanceof Date && !Number.isNaN(date.getTime())) {
+				dateString = dateAdded.toISOString();
+				const suffix = ".000Z";
+				if(dateString.endsWith(suffix)) {
+					dateString = dateString.substring(0,dateString.length-suffix.length);
+				}
+			}
+		}
+		return dateString;
+	}
+
+
+
 	parseSearchResultsData(url, data) {
 		const dataString = data.toString();
 		if(!dataString) {
@@ -1409,7 +1425,7 @@ class BandcampParser {
 						itemNode.token = `${Math.floor(date.getTime() / 1000)}:${trAlbumData.item_id}:${trAlbumData.item_type[0]}::`;
 					}
 					if(!itemNode.dateAdded) {
-						itemNode.dateAdded = date.toISOString();
+						itemNode.dateAdded = this.formatDate(date.toISOString());
 					}
 				}
 			}
@@ -1450,12 +1466,7 @@ class BandcampParser {
 				token: itemData.token
 			};
 			if(itemData.date_followed) {
-				const dateFollowed = new Date(itemData.date_followed);
-				if(dateFollowed instanceof Date && !Number.isNaN(dateFollowed.getTime())) {
-					itemNode.dateFollowed = dateFollowed.toISOString();
-				} else {
-					itemNode.dateFollowed = itemData.date_followed;
-				}
+				itemNode.dateFollowed = this.formatDate(itemData.date_followed);
 			}
 			return itemNode;
 		});
@@ -1486,12 +1497,7 @@ class BandcampParser {
 				token: itemData.token
 			};
 			if(itemData.date_followed) {
-				const dateFollowed = new Date(itemData.date_followed);
-				if(dateFollowed instanceof Date && !Number.isNaN(dateFollowed.getTime())) {
-					itemNode.dateFollowed = dateFollowed.toISOString();
-				} else {
-					itemNode.dateFollowed = itemData.date_followed;
-				}
+				itemNode.dateFollowed = this.formatDate(itemData.date_followed);
 			}
 			return itemNode;
 		});
@@ -1584,7 +1590,7 @@ class BandcampParser {
 					if(!Number.isNaN(tokenTimestamp)) {
 						const dateAdded = new Date(tokenTimestamp * 1000);
 						if(dateAdded instanceof Date && !Number.isNaN(dateAdded.getTime())) {
-							itemNode.dateAdded = dateAdded.toISOString();
+							itemNode.dateAdded = this.formatDate(dateAdded.toISOString());
 						}
 					}
 				}
@@ -1780,12 +1786,7 @@ class BandcampParser {
 					itemNode.itemId = ''+itemJson.item_id;
 				}
 				if(typeof itemJson.added === 'string') {
-					const dateAdded = new Date(itemJson.added);
-					if(dateAdded instanceof Date && !Number.isNaN(dateAdded.getTime())) {
-						itemNode.dateAdded = dateAdded.toISOString();
-					} else {
-						itemNode.dateAdded = itemJson.added;
-					}
+					itemNode.dateAdded = this.formatDate(itemJson.added);
 				}
 				return itemNode;
 			})
