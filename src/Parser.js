@@ -1145,23 +1145,15 @@ class BandcampParser {
 	parseIdentitiesFromPage($) {
 		const homePageDataJson = $('#pagedata').attr('data-blob');
 		if(!homePageDataJson) {
-			return null;
+			throw new Error("could not get page data to scrape identities");
 		}
-		let pageData;
-		try {
-			pageData = JSON.parse(homePageDataJson);
-		} catch(error) {
-			return null;
-		}
-		if(!pageData) {
-			return null;
-		}
+		const pageData = JSON.parse(homePageDataJson);
 		return this.parseIdentitiesFromJson(pageData);
 	}
 
 	parseIdentitiesFromJson(pageData) {
 		if(!pageData.identities) {
-			return null;
+			throw new Error("could not get identities from page data");
 		}
 		const identities = {};
 		// parse fan identity
@@ -1199,14 +1191,12 @@ class BandcampParser {
 
 
 	parseFanHtmlData(url, data, collectionSummaryData) {
-		if(!data) {
-			return null;
-		}
-		const dataString = data.toString();
+		const dataString = data ? data.toString() : null;
 		if(!dataString) {
-			return null;
+			throw new Error("Could not get data for fan");
 		}
-		const collectionSummary = collectionSummaryData ? JSON.parse(collectionSummaryData) : null;
+		const csDataString = collectionSummaryData ? collectionSummaryData.toString() : null;
+		const collectionSummary = csDataString ? JSON.parse(csDataString) : null;
 		const $ = cheerio.load(dataString);
 		return this.parseFanHtml(url, $, collectionSummary);
 	}
@@ -1693,9 +1683,13 @@ class BandcampParser {
 
 	parseFanCollectionItemsErrorJson(res, data) {
 		if(res.statusCode < 200 || res.statusCode >= 300) {
+			const dataString = data ? data.toString() : null;
+			if(!dataString) {
+				throw new Error(res.statusMessage);
+			}
 			let resJson = null
 			try {
-				resJson = JSON.parse(data);
+				resJson = JSON.parse(dataString);
 			} catch(error) {
 				throw new Error(res.statusMessage);
 			}
