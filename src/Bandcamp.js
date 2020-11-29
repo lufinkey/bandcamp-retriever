@@ -162,7 +162,6 @@ class Bandcamp {
 				}
 			}
 		}
-		console.log("fetched item:\n", item, "\n\n");
 		return item;
 	}
 

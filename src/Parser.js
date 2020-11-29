@@ -150,6 +150,9 @@ class BandcampParser {
 
 	formatDate(dateString) {
 		if(typeof dateString === 'string') {
+			if(!dateString) {
+				return null;
+			}
 			const date = new Date(dateString);
 			if(date instanceof Date && !Number.isNaN(date.getTime())) {
 				dateString = date.toISOString();
@@ -208,7 +211,7 @@ class BandcampParser {
 					return (tags.length > 1) ? tags.split(',') : [];
 				})(),
 				genre: resultItemHtml.find('.genre').text().trim().replace(/^genre:/, '').trim().replace(/\s{2,}/g, ' ') || undefined,
-				releaseDate: resultItemHtml.find('.released').text().trim().replace(/^released /, '').trim() || undefined
+				releaseDate: this.formatDate(resultItemHtml.find('.released').text().trim().replace(/^released /, '').trim() || undefined)
 			};
 
 			// parse type-specific fields
@@ -537,6 +540,9 @@ class BandcampParser {
 				releaseDate = releasedLine.substring(releasedLinePrefix.length).trim();
 			}
 		}
+		if(releaseDate) {
+			releaseDate = this.formatDate(releaseDate);
+		}
 
 		// get description
 		let description = null;
@@ -588,10 +594,10 @@ class BandcampParser {
 		}
 
 		// if item is a single, set album name / url as self
-		/*if((subAlbumTag == null || subAlbumTag.index() === -1) && (fromAlbumTag == null || fromAlbumTag.index() === -1) && albumName == null && albumURL == null) {
+		if(type === 'track' && (subAlbumTag == null || subAlbumTag.index() === -1) && (fromAlbumTag == null || fromAlbumTag.index() === -1) && albumName == null && albumURL == null) {
 			item.albumName = itemName;
 			item.albumURL = itemURL;
-		}*/
+		}
 
 		// add images
 		const tralbumArt = $('#tralbumArt');
@@ -686,6 +692,8 @@ class BandcampParser {
 			for(let i=0; i<trackHtmls.length || i<ldTracks.length || i<trTracks.length; i++) {
 				const track = {
 					type: 'track',
+					albumName: item.name,
+					albumURL: item.url,
 					artistName: item.artistName,
 					artistURL: item.artistURL,
 					trackNumber: (i + 1)
@@ -963,7 +971,7 @@ class BandcampParser {
 					artistName: album.artist || album.band_name || basicAlbumInfo.artistName || albumsArtistName,
 					artistURL: artistURL,
 					images: basicAlbumInfo ? basicAlbumInfo.images : [],
-					releaseDate: album.release_date
+					releaseDate: this.formatDate(album.release_date)
 				};
 			});
 		}
