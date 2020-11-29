@@ -120,6 +120,7 @@ class Bandcamp {
 			options.type = this._parser.parseType(url);
 		}
 		// perform request
+		const isBandcampDomain = this._parser.isUrlBandcampDomain(url);
 		const { res, data } = await this.sendHttpRequest(url);
 		if(!data) {
 			throw new Error("Unable to get data from url");
