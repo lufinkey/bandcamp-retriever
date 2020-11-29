@@ -230,6 +230,16 @@ class Bandcamp {
 	async getMyIdentities() {
 		const url = 'https://bandcamp.com/';
 		const { res, data } = await this.sendHttpRequest(url);
+		if(res.statusCode < 200 || res.statusCode >= 300) {
+			throw new Error(res.statusMessage);
+		}
+		if(!data) {
+			throw new Error("Unable to get identity data");
+		}
+		const dataString = data.toString();
+		if(!dataString) {
+			throw new Error("Unable to get identity data");
+		}
 		// parse response
 		const $ = cheerio.load(dataString);
 		return this._parser.parseIdentitiesFromPage($);
