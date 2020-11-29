@@ -1003,7 +1003,7 @@ class BandcampParser {
 			}
 			item.artist = this.parseArtistInfo(url, $);
 			// if item is a single, and we were requesting an album, mutate into an album
-			if(item.type == 'track' && type == 'album' && !item.albumName && !item.albumURL) {
+			if(item.type == 'track' && type == 'album' && ((!item.albumName && !item.albumURL) || (item.url && item.albumURL === item.url))) {
 				const track = item;
 				item = {
 					type: 'album',
