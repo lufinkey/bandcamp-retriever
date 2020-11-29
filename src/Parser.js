@@ -1711,9 +1711,13 @@ class BandcampParser {
 	parseFanCollectionItemsJsonData(res, data) {
 		// check response code
 		if(res.statusCode < 200 || res.statusCode >= 300) {
+			const dataString = data ? data.toString() : null;
+			if(!dataString) {
+				throw new Error(res.statusMessage);
+			}
 			let resJson = null
 			try {
-				resJson = JSON.parse(data);
+				resJson = JSON.parse(dataString);
 			} catch(error) {
 				throw new Error(res.statusMessage);
 			}
@@ -1723,7 +1727,11 @@ class BandcampParser {
 			throw new Error(res.statusMessage);
 		}
 		// parse json
-		const json = JSON.parse(data);
+		const dataString = data ? data.toString() : null;
+		if(!dataString) {
+			throw new Error("Missing data for fan collection items");
+		}
+		const json = JSON.parse(dataString);
 		// check for error
 		if(json.error === true) {
 			if(json.error_message) {
