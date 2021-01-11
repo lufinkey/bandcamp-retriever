@@ -4,7 +4,7 @@ const Bandcamp = require('./src/Bandcamp');
 (async () => {
 	const bandcamp = new Bandcamp();
 
-	/*const paidAlbumResult = await bandcamp.getAlbum('https://music.dirtwire.net/album/atlas-ep');
+	const paidAlbumResult = await bandcamp.getAlbum('https://music.dirtwire.net/album/atlas-ep');
 	console.log("paid album:");
 	console.log(paidAlbumResult);
 	console.log("\n\n");
@@ -56,7 +56,7 @@ const Bandcamp = require('./src/Bandcamp');
 	});
 	console.log("getFanWishlistItems lufinkey:");
 	console.log(JSON.stringify(wishlist,null,'\t'));
-	console.log("\n\n");*/
+	console.log("\n\n");
 
 	console.log("slugify:");
 	const slugTests = {
