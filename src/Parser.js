@@ -347,17 +347,12 @@ class BandcampParser {
 		// determine if track or album
 		let type = null;
 		if(ldJson) {
-			let ldTypes = ldJson['@type'];
-			if(typeof ldTypes === 'string') {
-				ldTypes = [ ldTypes ];
+			let ldType = ldJson['@type'];
+			if(ldType === 'MusicAlbum' || ldType === 'album' || ldType === 'Album') {
+				type = 'album';
 			}
-			if(ldTypes && ldTypes instanceof Array) {
-				if(ldTypes.includes('MusicAlbum') || ldTypes.includes('album') || ldTypes.includes('Album')) {
-					type = 'album';
-				}
-				else if(ldTypes.includes('MusicRecording') || ldTypes.includes('track') || ldTypes.includes('Track')) {
-					type = 'track';
-				}
+			else if(ldType === 'MusicRecording' || ldType === 'track' || ldType === 'Track') {
+				type = 'track';
 			}
 		}
 		if(trAlbumData) {
@@ -739,7 +734,7 @@ class BandcampParser {
 						if(typeof ldTrackURL === 'string' && ldTrackURL) {
 							track.url = this.cleanUpURL(UrlUtils.resolve(url, ldTrackURL));
 						} else {
-							const ldTrackId = ldTrackId['@id'];
+							const ldTrackId = ldTrackItem['@id'];
 							if(typeof ldTrackId === 'string' && ldTrackId.startsWith('http')) {
 								track.url = this.cleanUpURL(ldTrackId);
 							}
