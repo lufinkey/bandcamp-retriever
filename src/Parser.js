@@ -104,6 +104,12 @@ class BandcampParser {
 
 
 	cleanUpURL(url) {
+		if(url === undefined) {
+			return undefined;
+		}
+		if(url === null) {
+			return null;
+		}
 		const urlParts = UrlUtils.parse(url);
 		if(urlParts.hash) {
 			urlParts.hash = "";
@@ -204,7 +210,7 @@ class BandcampParser {
 			const item = {
 				type: type,
 				name: resultItemHtml.find('.heading').text().trim(),
-				url: resultItemHtml.find('.itemurl').text().trim(),
+				url: this.cleanUpURL(resultItemHtml.find('.itemurl').text().trim()),
 				imageURL: resultItemHtml.find('.art img').attr('src') || undefined,
 				tags: (() => {
 					let tags = resultItemHtml.find('.tags').text().trim().replace(/^tags:/, '').trim().replace(/\s/g, '');
@@ -222,11 +228,7 @@ class BandcampParser {
 				if(artistName) {
 					artistName = artistName.substring('by '.length).trim();
 					item.artistName = artistName;
-					let artistURL = UrlUtils.resolve(item.url, '/');
-					if(artistURL.endsWith('/')) {
-						artistURL = artistURL.substring(0, artistURL.length-1);
-					}
-					item.artistURL = artistURL;
+					item.artistURL = this.cleanUpURL(UrlUtils.resolve(item.url, '/'));
 				}
 			}
 			if(item.type === 'track') {
@@ -237,7 +239,7 @@ class BandcampParser {
 					albumName = albumName.substring('from '.length).trim();
 					item.albumName = albumName;
 					if(item.artistURL) {
-						item.albumURL = UrlUtils.resolve(item.artistURL, '/album/'+this.slugify(albumName));
+						item.albumURL = this.cleanUpURL(UrlUtils.resolve(item.artistURL, '/album/'+this.slugify(albumName)));
 					}
 				}
 				else {
@@ -256,11 +258,7 @@ class BandcampParser {
 				if(artistName) {
 					artistName = artistName.substring('by '.length).trim();
 					item.artistName = artistName;
-					let artistURL = UrlUtils.resolve(item.url, '/');
-					if(artistURL.endsWith('/')) {
-						artistURL = artistURL.substring(0, artistURL.length-1);
-					}
-					item.artistURL = artistURL;
+					item.artistURL = this.cleanUpURL(UrlUtils.resolve(item.url, '/'));
 				}
 				item.numTracks = (() => {
 					let info = resultItemHtml.find('.length').text().trim().split(',');
@@ -900,7 +898,7 @@ class BandcampParser {
 
 		return {
 			type: (isLabel) ? 'label' : 'artist',
-			url: UrlUtils.resolve(url, '/'),
+			url: this.cleanUpURL(UrlUtils.resolve(url, '/')),
 			name: bandNameLocation.find('.title').text().trim(),
 			location: bandNameLocation.find('.location').text().trim(),
 			description: bioContainer.find('#bio-text').text().trim(),
@@ -934,7 +932,8 @@ class BandcampParser {
 		const musicGrid = $('.music-grid');
 		musicGrid.children('li').each((index, albumHtml) => {
 			albumHtml = $(albumHtml);
-			const itemURL = albumHtml.find('a').attr('href');
+			let itemURL = albumHtml.find('a').attr('href');
+			itemURL = (itemURL ? this.cleanUpURL(UrlUtils.resolve(url,itemURL)) : undefined);
 			const albumArtImage = albumHtml.find('.art img');
 			const albumArtURL = (albumArtImage.index() !== -1) ? (albumArtImage.attr('data-original') || albumArtImage.attr('src')) : undefined;
 			let titleHtml = albumHtml.find('.title');
@@ -943,9 +942,10 @@ class BandcampParser {
 			const artistNameText = ((artistNameHtml.index() !== -1) ? artistNameHtml.text().trim() : albumsArtistName);
 			basicAlbumInfos.push({
 				id: albumHtml.attr('data-item-id').replace(/^(album|track)-/, ''),
-				url: (itemURL ? UrlUtils.resolve(url,itemURL) : undefined),
+				url: itemURL,
 				name: titleText,
 				artistName: artistNameText,
+				artistURL: itemURL ? this.cleanUpURL(UrlUtils.resolve(itemURL, '/')) : undefined,
 				images: (albumArtURL) ? [
 					{
 						url: albumArtURL,
@@ -971,14 +971,13 @@ class BandcampParser {
 					basicAlbumInfos.splice(matchIndex, 1);
 				}
 				let itemURL = (basicAlbumInfo.url || album.page_url);
-				itemURL = itemURL ? UrlUtils.resolve(url, itemURL) : undefined;
-				const artistURL = itemURL ? UrlUtils.resolve(itemURL, '/') : undefined;
+				itemURL = itemURL ? this.cleanUpURL(UrlUtils.resolve(url, itemURL)) : undefined;
 				return {
 					type: album.type,
 					name: album.title || basicAlbumInfo.name,
 					url: itemURL,
 					artistName: album.artist || album.band_name || basicAlbumInfo.artistName || albumsArtistName,
-					artistURL: artistURL,
+					artistURL: basicAlbumInfo.artistURL,
 					images: basicAlbumInfo ? basicAlbumInfo.images : [],
 					releaseDate: this.formatDate(album.release_date)
 				};
