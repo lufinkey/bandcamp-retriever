@@ -45,9 +45,11 @@ const Bandcamp = require('./src/Bandcamp');
 	console.log("\n\n");
 
 	const fan = await bandcamp.getFan("https://bandcamp.com/lufinkey");
-	console.log(JSON.stringify(fan.wishlist,null,'\t'));
 	console.log("getFan lufinkey:");
 	console.log(fan);
+	console.log("\n\n");
+	console.log("getFan lufinkey wishlist:");
+	console.log(JSON.stringify(fan.wishlist,null,'\t'));
 	console.log("\n\n");
 
 	const wishlist = await bandcamp.getFanWishlistItems(fan.url, fan.id, {
