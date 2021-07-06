@@ -587,7 +587,7 @@ class BandcampParser {
 		}
 
 		// if item is a single, set album name / url as self
-		if(type === 'track' && (subAlbumTag == null || subAlbumTag.index() === -1) && (fromAlbumTag == null || fromAlbumTag.index() === -1) && albumName == null && albumURL == null) {
+		if(type === 'track' && (subAlbumTag == null || subAlbumTag.index() === -1) && (fromAlbumTag == null || fromAlbumTag.index() === -1) && (albumName == null || albumName === item.name) && albumURL == null) {
 			item.albumName = itemName;
 			item.albumURL = itemURL;
 		}

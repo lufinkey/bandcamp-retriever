@@ -4,6 +4,11 @@ const Bandcamp = require('./src/Bandcamp');
 (async () => {
 	const bandcamp = new Bandcamp();
 
+	const wapTrack = await bandcamp.getTrack('https://jaydiggs.bandcamp.com/track/w-a-p-funk');
+	console.log("single track:");
+	console.log(wapTrack);
+	console.log("\n\n");
+
 	const paidAlbumResult = await bandcamp.getAlbum('https://music.dirtwire.net/album/atlas-ep');
 	console.log("paid album:");
 	console.log(paidAlbumResult);
