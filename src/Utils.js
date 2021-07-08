@@ -32,7 +32,7 @@ const sendHttpRequest = (url, options={}) => {
 			reqData.method = 'GET';
 		}
 		if(options.headers) {
-			reqData.headers = {...options.headers};
+			reqData.headers = { ...reqData.headers, ...options.headers };
 		}
 		
 		// create request

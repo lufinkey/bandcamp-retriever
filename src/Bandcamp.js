@@ -319,6 +319,110 @@ class Bandcamp {
 			'https://bandcamp.com/api/fancollection/1/hidden_items',
 			fanURL, fanURL, fanId, { olderThanToken, count });
 	}
+
+
+	
+	async _performArtistFollowAction(artistURL, action) {
+		artistURL = this._parser.cleanUpURL(artistURL);
+		const isBandcampDomain = this._parser.isUrlBandcampDomain(artistURL);
+		let fanId = null;
+		if(!isBandcampDomain) {
+			// get fan ID from homepage
+			const { fan } = await this.getMyIdentities();
+			if(!fan) {
+				throw new Error("Could not find current user's fan identity");
+			}
+			fanId = fan.id;
+		}
+		// get data from artist url
+		const { res, data } = await this.sendHttpRequest(artistURL);
+		if(!data) {
+			throw new Error("Unable to get data from artist url");
+		}
+		const dataString = data.toString();
+		if(!dataString) {
+			throw new Error("Unable to get data from artist url");
+		}
+		// parse response
+		const $ = cheerio.load(dataString);
+		const artist = this._parser.parseItemFromURL(url, 'artist', $);
+		if(artist == null) {
+			if(res.statusCode >= 200 && res.statusCode < 300) {
+				throw new Error("Failed to parse artist page");
+			} else {
+				throw new Error(res.statusCode+": "+res.statusMessage);
+			}
+		}
+		const bandId = artist.id;
+		// parse fan identity
+		if(isBandcampDomain) {
+			const { fan } = this._parser.parseIdentitiesFromPage($);
+			if(!fan) {
+				throw new Error("Could not find current user's fan identity on artist page");
+			}
+			fanId = fan.id;
+		}
+		// ensure fanId is set
+		if(!fanId) {
+			throw new Error("couldn't parse fan ID");
+		}
+		// ensure bandId is set
+		if(!bandId) {
+			throw new Error("couldn't parse band ID");
+		}
+		// parse ref_token
+		const refToken = this._parser.parseReferrerToken($);
+		if(!refToken) {
+			throw new Error("couldn't parse ref token");
+		}
+		// send post request
+		const reqBody = QueryString.stringify({
+			fan_id: fanId,
+			band_id: bandId,
+			ref_token: refToken,
+			action: action
+		});
+		const headers = {
+			'Content-Length': reqBody.length,
+			'Content-Type': 'application/x-www-form-urlencoded',
+			'Referer': `${artistURL}/`,
+			'Origin': artistURL,
+			'Sec-Fetch-Dest': 'empty',
+			'Sec-Fetch-Mode': 'cors',
+			'X-Requested-With': 'XMLHttpRequest'
+		}
+		if(isBandcampDomain) {
+			const { res, data } = await this.sendHttpRequest(`${artistURL}/fan_follow_band_cb`, {
+				headers: {
+					...headers,
+					'Sec-Fetch-Site': 'same-origin'
+				},
+				body: reqBody
+			});
+			if(res.statusCode < 200 || res.statusCode >= 300) {
+				throw new Error(res.statusCode+': '+res.statusMessage);
+			}
+		} else {
+			const { res, data } = await this.sendHttpRequest('https://bandcamp.com/fan_follow_band_cb', {
+				headers: {
+					...headers,
+					'Sec-Fetch-Site': 'cross-site'
+				},
+				body: reqBody
+			});
+			if(res.statusCode < 200 || res.statusCode >= 300) {
+				throw new Error(res.statusCode+': '+res.statusMessage);
+			}
+		}
+	}
+
+	followArtist(artistURL) {
+		return this._performArtistFollowAction(artistURL, 'follow');
+	}
+
+	unfollowArtist(artistURL) {
+		return this._performArtistFollowAction(artistURL, 'unfollow');
+	}
 }
 
 

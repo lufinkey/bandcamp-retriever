@@ -850,6 +850,9 @@ class BandcampParser {
 
 
 	parseArtistInfo(url, $) {
+		// band_id
+		const band_id = $('#contact-tracker-data[data-band-id]').attr('data-band-id') || undefined;
+
 		// bio
 		const bioContainer = $('#bio-container');
 		if(bioContainer.index() === -1) {
@@ -897,6 +900,7 @@ class BandcampParser {
 		}
 
 		return {
+			id: band_id,
 			type: (isLabel) ? 'label' : 'artist',
 			url: this.cleanUpURL(UrlUtils.resolve(url, '/')),
 			name: bandNameLocation.find('.title').text().trim(),
@@ -1720,8 +1724,6 @@ class BandcampParser {
 			}
 			throw new Error(res.statusMessage);
 		}
-
-		const resJson = JSON.parse()
 	}
 
 	parseFanCollectionItemsJsonData(res, data) {
@@ -1815,6 +1817,18 @@ class BandcampParser {
 				return itemNode;
 			})
 		};
+	}
+
+
+	parseReferrerToken($) {
+		let referrerToken = $('script[data-referrer-token]').attr('data-referrer-token').trim();
+		if(referrerToken.startsWith('"')) {
+			referrerToken = referrerToken.substring(1);
+		}
+		if(referrerToken.endsWith('"')) {
+			referrerToken = referrerToken.substring(0, referrerToken.length - 1);
+		}
+		return referrerToken;
 	}
 }
 
