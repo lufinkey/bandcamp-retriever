@@ -258,20 +258,8 @@ class Bandcamp {
 		}
 
 		// make sure fanId is an integer
-		if(typeof fanId === 'string') {
-			let fanIdAllDigits = true;
-			const digits = ['0','1','2','3','4','5','6','7','8','9'];
-			for(let i=0; i<fanId.length; i++) {
-				if(digits.indexOf(fanId[i]) === -1) {
-					fanIdAllDigits = false;
-					break;
-				}
-			}
-			if(fanIdAllDigits) {
-				fanId = Number.parseInt(fanId);
-			}
-		}
-
+		fanId = this._parser.convertToNumberIfAble(fanId);
+		// build body
 		const body = {
 			fan_id: fanId
 		};
@@ -407,18 +395,22 @@ class Bandcamp {
 		if(!bandId) {
 			throw new Error("couldn't parse band ID");
 		}
-		// parse ref_token
-		const refToken = this._parser.parseReferrerToken($);
-		if(!refToken) {
-			throw new Error("couldn't parse ref token");
-		}
-		// send post request
-		const reqBody = QueryString.stringify({
+		// create post body object
+		const reqBodyObj = {
 			fan_id: fanId,
 			band_id: bandId,
-			ref_token: refToken,
 			action: action
-		});
+		};
+		// parse ref_token
+		const refToken = this._parser.parseReferrerToken($);
+		if(action === 'follow') {
+			if(!refToken) {
+				throw new Error("couldn't parse ref token");
+			}
+			reqBodyObj.ref_token = refToken;
+		}
+		// send post request
+		const reqBody = QueryString.stringify(reqBodyObj);
 		const headers = {
 			'Content-Length': reqBody.length,
 			'Content-Type': 'application/x-www-form-urlencoded',
@@ -428,6 +420,7 @@ class Bandcamp {
 			'Sec-Fetch-Mode': 'cors',
 			'X-Requested-With': 'XMLHttpRequest'
 		}
+		let returnedData = undefined;
 		if(isBandcampDomain) {
 			const { res, data } = await this.sendHttpRequest(`${artistURL}/fan_follow_band_cb`, {
 				headers: {
@@ -439,6 +432,7 @@ class Bandcamp {
 			if(res.statusCode < 200 || res.statusCode >= 300) {
 				throw new Error(res.statusCode+': '+res.statusMessage);
 			}
+			returnedData = data;
 		} else {
 			const { res, data } = await this.sendHttpRequest('https://bandcamp.com/fan_follow_band_cb', {
 				headers: {
@@ -450,15 +444,99 @@ class Bandcamp {
 			if(res.statusCode < 200 || res.statusCode >= 300) {
 				throw new Error(res.statusCode+': '+res.statusMessage);
 			}
+			returnedData = data;
 		}
+		// return result json
+		const retDataString = returnedData.toString();
+		const result = JSON.parse(retDataString);
+		if(typeof result.ok === 'boolean' && !result.ok) {
+			if(result.error_message) {
+				throw new Error(result.error_message);
+			} else {
+				throw new Error("Artist "+action+" request failed:\n"+JSON.stringify(result,null,'\t'));
+			}
+		}
+		return result;
 	}
 
-	followArtist(artistURL) {
-		return this._performArtistFollowAction(artistURL, 'follow');
+	async followArtist(artistURL) {
+		return await this._performArtistFollowAction(artistURL, 'follow');
 	}
 
-	unfollowArtist(artistURL) {
-		return this._performArtistFollowAction(artistURL, 'unfollow');
+	async unfollowArtist(artistURL) {
+		return await this._performArtistFollowAction(artistURL, 'unfollow');
+	}
+
+
+
+	async _performFanFollowAction(fanURL, action) {
+		// get data from fan url
+		let { res, data } = await this.sendHttpRequest(fanURL);
+		if(!data) {
+			throw new Error("Unable to get data from fan url");
+		}
+		const dataString = data.toString();
+		if(!dataString) {
+			throw new Error("Unable to get data from fan url");
+		}
+		// parse response
+		const $ = cheerio.load(dataString);
+		const pageData = JSON.parse($('#pagedata').attr('data-blob'));
+		const myFanId = this._parser.parseIdentitiesFromJson(pageData).fan.id;
+		if(!myFanId) {
+			throw new Error("could not parse current fan id");
+		}
+		const targetFanId = pageData.fan_data.fan_id;
+		if(!targetFanId) {
+			throw new Error("could not parse target fan id");
+		}
+		const crumbsData = JSON.parse($('#js-crumbs-data').attr('data-crumbs'));
+		// create post request
+		const reqBodyObj = {
+			fan_id: myFanId,
+			follow_id: targetFanId,
+			action: action,
+			crumb: crumbsData.fan_follow_cb
+		};
+		// send post request
+		const reqBody = QueryString.stringify(reqBodyObj);
+		const reqResult = await this.sendHttpRequest('https://bandcamp.com/fan_follow_cb', {
+			headers: {
+				'Content-Length': reqBody.length,
+				'Content-Type': 'application/x-www-form-urlencoded',
+				'Referer': `${fanURL}/`,
+				'Origin': 'https://bandcamp.com',
+				'Sec-Fetch-Dest': 'empty',
+				'Sec-Fetch-Mode': 'cors',
+				'Sec-Fetch-Site': 'same-origin',
+				'X-Requested-With': 'XMLHttpRequest'
+			},
+			body: reqBody
+		});
+		res = reqResult.res;
+		data = reqResult.data;
+		if(res.statusCode < 200 || res.statusCode >= 300) {
+			throw new Error(res.statusCode+': '+res.statusMessage);
+		}
+		// return result json
+		const retDataString = data.toString();
+		const result = JSON.parse(retDataString);
+		if(typeof result.ok === 'boolean' && !result.ok) {
+			if(result.error_message) {
+				throw new Error(result.error_message);
+			} else {
+				throw new Error("Artist "+action+" request failed:\n"+JSON.stringify(result,null,'\t'));
+			}
+		}
+		return result;
+	}
+
+	async followFan(fanURL) {
+		return await this._performFanFollowAction(fanURL, 'follow');
+	}
+
+	async unfollowFan(fanURL) {
+		return await this._performFanFollowAction(fanURL, 'unfollow');
 	}
 }
 

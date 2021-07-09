@@ -182,6 +182,23 @@ class BandcampParser {
 	}
 
 
+	convertToNumberIfAble(val) {
+		if(typeof val === 'string') {
+			let allDigits = true;
+			const digits = ['0','1','2','3','4','5','6','7','8','9'];
+			for(let i=0; i<val.length; i++) {
+				if(digits.indexOf(val[i]) === -1) {
+					allDigits = false;
+					break;
+				}
+			}
+			if(allDigits) {
+				val = Number.parseInt(val);
+			}
+		}
+		return val;
+	}
+
 
 	formatDate(dateString) {
 		if(typeof dateString === 'string') {
