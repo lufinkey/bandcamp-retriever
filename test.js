@@ -65,6 +65,15 @@ const Bandcamp = require('./src/Bandcamp');
 	console.log(JSON.stringify(wishlist,null,'\t'));
 	console.log("\n\n");
 
+	const johnFan = await bandcamp.getFan("https://bandcamp.com/johnmay");
+	const followers = await bandcamp.getFanFollowers(johnFan.url, johnFan.id, {
+		olderThanToken: johnFan.followers.lastToken,
+		count: johnFan.followers.batchSize
+	});
+	console.log("getFanFollowers John May:");
+	console.log(JSON.stringify(followers,null,'\t'));
+	console.log("\n\n");
+
 	console.log("slugify:");
 	const slugTests = {
 		'&': '-',

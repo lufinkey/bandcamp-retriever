@@ -152,6 +152,35 @@ class BandcampParser {
 		];
 	}
 
+	artistURLHintsToURL(url_hints) {
+		let url = undefined;
+		if(url_hints) {
+			if(url_hints.custom_domain) {
+				url = this.cleanUpURL(`https://${url_hints.custom_domain}`);
+			} else if(url_hints.subdomain) {
+				url = this.cleanUpURL(`https://${url_hints.subdomain}.bandcamp.com`);
+			}
+		}
+		if(url) {
+			url = this.cleanUpURL(url);
+		}
+		return url;
+	}
+
+	itemURLHintsToURL(url_hints) {
+		let url = this.artistURLHintsToURL(url_hints);
+		if(!url) {
+			return url;
+		}
+		if(url_hints.item_type === 't' && url_hints.slug) {
+			return this.cleanUpURL(UrlUtils.resolve(url, `/track/${url_hints.slug}`));
+		}
+		else if(url_hints.item_type === 'a' && url_hints.slug) {
+			return this.cleanUpURL(UrlUtils.resolve(url, `/album/${url_hints.slug}`));
+		}
+		return undefined;
+	}
+
 
 
 	formatDate(dateString) {
@@ -1463,17 +1492,14 @@ class BandcampParser {
 			// build basic item data
 			let item = {
 				type: 'artist',
+				url: this.artistURLHintsToURL(itemData.url_hints),
 				id: itemData.band_id,
 				name: itemData.name,
 				location: itemData.location
-			}
-			// add item url
-			if(itemData.url_hints) {
-				if(itemData.url_hints.custom_domain) {
-					item.url = this.cleanUpURL(`https://${itemData.url_hints.custom_domain}`);
-				} else if(itemData.url_hints.subdomain) {
-					item.url = this.cleanUpURL(`https://${itemData.url_hints.subdomain}.bandcamp.com`);
-				}
+			};
+			// ensure item url
+			if(!item.url) {
+				throw new Error("could not parse item URL");
 			}
 			// add images
 			if(itemData.image_id) {
@@ -1525,9 +1551,14 @@ class BandcampParser {
 
 
 
+	parseFanTabItemCount($, sectionSlug) {
+		return Number.parseInt($(`#grid-tabs li[data-tab="${sectionSlug}"] .count`).text().trim());
+	}
+
+
 	parseFanCollectionHtml($, sectionSlug='collection') {
 		// get count
-		const count = Number.parseInt($(`#grid-tabs li[data-tab="${sectionSlug}"] .count`).text().trim());
+		const count = this.parseFanTabItemCount($, sectionSlug);
 		// get section items html
 		const itemsWrapperHtml = $(`#${sectionSlug}-items`);
 		// check if we have the section or not
@@ -1580,8 +1611,8 @@ class BandcampParser {
 					item.artistURL = this.cleanUpURL(UrlUtils.resolve(item.url, '/'));
 				}
 				// add slug URL if url is missing
-				if(!item.url && item.name && (itemType === 'track' || itemType === 'album')) {
-					item.url = this.cleanUpURL(`https://bandcamp.com/${itemType}/${this.slugify(item.name)}`);
+				if(!item.url && item.name && (itemType === 'track' || itemType === 'album') && item.artistURL) {
+					item.url = this.cleanUpURL(UrlUtils.resolve(item.artistURL, `/${itemType}/${this.slugify(item.name)}`));
 				}
 				// add images
 				const imageURL = html.find('img.collection-item-art').attr('src');
@@ -1620,7 +1651,6 @@ class BandcampParser {
 			section.items = items;
 		}
 		// parse count
-		
 		if(!Number.isNaN(count)) {
 			section.itemCount = count;
 		}
@@ -1644,7 +1674,6 @@ class BandcampParser {
 			throw new Error("invalid bandcamp fan URL");
 		}
 		fan.url = this.cleanUpURL('https://bandcamp.com/'+username);
-		fan.username = username;
 
 		// parse fan info html
 		let images = [];
@@ -1687,7 +1716,6 @@ class BandcampParser {
 		if(pageData) {
 			// parse fan data
 			fan = this.parseFanPageDataFanJson(pageData.fan_data, fan);
-
 			// build fan media sections
 			const itemCache = pageData.item_cache;
 			const trackLists = pageData.tracklists || {};
@@ -1699,7 +1727,7 @@ class BandcampParser {
 			fan.followingArtists = this.parseFanPageDataBandsSectionJson(pageData.following_bands_data, itemCache.following_bands);
 			// build fan sections
 			fan.followingFans = this.parseFanPageDataFansSectionJson(pageData.following_fans_data, itemCache.following_fans);
-			fan.followers = this.parseFanPageDataFansSectionJson(pageData.followers_data, itemCache.followers);
+			fan.followers = this.parseFanPageDataFansSectionJson(pageData.followers_data, itemCache.followers, fan.followers);
 		}
 		
 		return fan;
@@ -1708,25 +1736,6 @@ class BandcampParser {
 
 
 	parseFanCollectionItemsErrorJson(res, data) {
-		if(res.statusCode < 200 || res.statusCode >= 300) {
-			const dataString = data ? data.toString() : null;
-			if(!dataString) {
-				throw new Error(res.statusMessage);
-			}
-			let resJson = null
-			try {
-				resJson = JSON.parse(dataString);
-			} catch(error) {
-				throw new Error(res.statusMessage);
-			}
-			if(resJson.error_message) {
-				throw new Error(resJson.error_message);
-			}
-			throw new Error(res.statusMessage);
-		}
-	}
-
-	parseFanCollectionItemsJsonData(res, data) {
 		// check response code
 		if(res.statusCode < 200 || res.statusCode >= 300) {
 			const dataString = data ? data.toString() : null;
@@ -1758,6 +1767,17 @@ class BandcampParser {
 				throw new Error("Bad request");
 			}
 		}
+	}
+
+	parseFanCollectionItemsJsonData(res, data) {
+		// check for errors
+		this.parseFanCollectionItemsErrorJson(res, data);
+		// parse json
+		const dataString = data ? data.toString() : null;
+		if(!dataString) {
+			throw new Error("Missing data for fan collection items");
+		}
+		const json = JSON.parse(dataString);
 		// return items
 		return {
 			hasMore: json.more_available,
@@ -1815,6 +1835,76 @@ class BandcampParser {
 					itemNode.dateAdded = this.formatDate(itemJson.added);
 				}
 				return itemNode;
+			})
+		};
+	}
+
+	parseFanCollectionArtistsJsonData(res, data) {
+		// check for errors
+		this.parseFanCollectionItemsErrorJson(res, data);
+		// parse json
+		const dataString = data ? data.toString() : null;
+		if(!dataString) {
+			throw new Error("Missing data for fan collection items");
+		}
+		const json = JSON.parse(dataString);
+		// return items
+		return {
+			hasMore: json.more_available,
+			lastToken: json.last_token,
+			items: (json.followeers || json.items || []).map((itemJson) => {
+				const url = this.artistURLHintsToURL(itemJson.url_hints);
+				if(!url) {
+					throw new Error("unable to find url for item");
+				}
+				return {
+					itemId: itemJson.band_id ? (''+itemJson.band_id) : undefined,
+					token: itemJson.token,
+					dateFollowed: this.formatDate(itemJson.date_followed),
+					item: {
+						id: itemJson.band_id,
+						type: 'artist',
+						url: url,
+						name: itemJson.name,
+						location: itemJson.location,
+						images: this.createImagesFromImageId(this.padImageId(itemJson.image_id))
+					}
+				};
+			})
+		};
+	}
+
+	parseFanCollectionFansJsonData(res, data) {
+		// check for errors
+		this.parseFanCollectionItemsErrorJson(res, data);
+		// parse json
+		const dataString = data ? data.toString() : null;
+		if(!dataString) {
+			throw new Error("Missing data for fan collection items");
+		}
+		const json = JSON.parse(dataString);
+		// return items
+		return {
+			hasMore: json.more_available,
+			lastToken: json.last_token,
+			items: (json.followeers || json.items || []).map((itemJson) => {
+				const url = itemJson.trackpipe_url;
+				if(!url) {
+					throw new Error("unable to find url for item");
+				}
+				return {
+					itemId: itemJson.fan_id ? (''+itemJson.fan_id) : undefined,
+					token: itemJson.token,
+					dateFollowed: this.formatDate(itemJson.date_followed),
+					item: {
+						id: itemJson.fan_id,
+						type: 'fan',
+						url: url,
+						name: itemJson.name,
+						location: itemJson.location,
+						images: this.createImagesFromImageId(this.padImageId(itemJson.image_id))
+					}
+				};
 			})
 		};
 	}

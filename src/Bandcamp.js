@@ -248,15 +248,16 @@ class Bandcamp {
 
 
 
-	async _getFanSectionItems(apiURL, referrer, fanURL, fanId, { olderThanToken, count }) {
+	async _getFanSectionItems(apiURL, referrer, fanURL, fanId, { olderThanToken, count }, resultParser) {
 		if(!fanURL || !fanId || !olderThanToken) {
-			throw new Error("missing required parameters for getFanCollectionItems");
+			throw new Error("missing required parameters for _getFanSectionItems");
 		}
 		if(!this._auth.session) {
 			// go to fan page first to acquire cookies
 			await this.getFan(fanURL);
 		}
 
+		// make sure fanId is an integer
 		if(typeof fanId === 'string') {
 			let fanIdAllDigits = true;
 			const digits = ['0','1','2','3','4','5','6','7','8','9'];
@@ -299,29 +300,65 @@ class Bandcamp {
 				'X-Requested-With': 'XMLHttpRequest'
 			}
 		});
-		return this._parser.parseFanCollectionItemsJsonData(res,data);
+		return resultParser(res, data);
 	}
 
 	async getFanCollectionItems(fanURL, fanId, { olderThanToken, count }) {
 		return await this._getFanSectionItems(
 			'https://bandcamp.com/api/fancollection/1/collection_items',
-			fanURL, fanURL, fanId, { olderThanToken, count });
+			fanURL, fanURL, fanId, { olderThanToken, count },
+			(res, data) => {
+				return this._parser.parseFanCollectionItemsJsonData(res,data);
+			});
 	}
 
 	async getFanWishlistItems(fanURL, fanId, { olderThanToken, count }) {
 		return await this._getFanSectionItems(
 			'https://bandcamp.com/api/fancollection/1/wishlist_items',
-			fanURL+'/wishlist', fanURL, fanId, { olderThanToken, count });
+			fanURL+'/wishlist', fanURL, fanId, { olderThanToken, count },
+			(res, data) => {
+				return this._parser.parseFanCollectionItemsJsonData(res,data);
+			});
 	}
 
 	async getFanHiddenItems(fanURL, fanId, { olderThanToken, count }) {
 		return await this._getFanSectionItems(
 			'https://bandcamp.com/api/fancollection/1/hidden_items',
-			fanURL, fanURL, fanId, { olderThanToken, count });
+			fanURL, fanURL, fanId, { olderThanToken, count },
+			(res, data) => {
+				return this._parser.parseFanCollectionItemsJsonData(res,data);
+			});
+	}
+
+	async getFanFollowingArtists(fanURL, fanId, { olderThanToken, count }) {
+		return await this._getFanSectionItems(
+			'https://bandcamp.com/api/fancollection/1/following_bands',
+			fanURL+'/following/artists_and_labels', fanURL, fanId, { olderThanToken, count },
+			(res, data) => {
+				return this._parser.parseFanCollectionArtistsJsonData(res,data);
+			});
+	}
+
+	async getFanFollowingFans(fanURL, fanId, { olderThanToken, count }) {
+		return await this._getFanSectionItems(
+			'https://bandcamp.com/api/fancollection/1/following_fans',
+			fanURL+'/following/fans', fanURL, fanId, { olderThanToken, count },
+			(res, data) => {
+				return this._parser.parseFanCollectionFansJsonData(res,data);
+			});
+	}
+
+	async getFanFollowers(fanURL, fanId, { olderThanToken, count }) {
+		return await this._getFanSectionItems(
+			'https://bandcamp.com/api/fancollection/1/followers',
+			fanURL+'/followers', fanURL, fanId, { olderThanToken, count },
+			(res, data) => {
+				return this._parser.parseFanCollectionFansJsonData(res,data);
+			});
 	}
 
 
-	
+
 	async _performArtistFollowAction(artistURL, action) {
 		artistURL = this._parser.cleanUpURL(artistURL);
 		const isBandcampDomain = this._parser.isUrlBandcampDomain(artistURL);
