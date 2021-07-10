@@ -818,5 +818,4 @@ Bandcamp.Auth = BandcampAuth;
 Bandcamp.Session = BandcampSession;
 Bandcamp.Parser = BandcampParser;
 
-
 module.exports = Bandcamp;
