@@ -12,6 +12,9 @@ class Bandcamp {
 	constructor(options={}) {
 		this._auth = new BandcampAuth(options.auth || {});
 		this._parser = new BandcampParser();
+		this._fan = null;
+		this._fanLoadNode = null;
+		this._fanPromise = null;
 	}
 
 	slugify(str) {
@@ -21,10 +24,12 @@ class Bandcamp {
 
 
 	loginWithCookies(cookies) {
+		this._clearFanData();
 		return this._auth.loginWithCookies(cookies);
 	}
 
 	loginWithSession(session) {
+		this._clearFanData();
 		return this._auth.loginWithSession(session);
 	}
 
@@ -33,6 +38,7 @@ class Bandcamp {
 	}
 
 	logout() {
+		this._clearFanData();
 		this._auth.logout();
 	}
 
@@ -49,6 +55,15 @@ class Bandcamp {
 			}
 			this._auth.updateSessionCookies(setCookiesHeaders);
 		}
+	}
+
+	_clearFanData() {
+		this._fan = null;
+		if(this._fanLoadNode != null) {
+			this._fanLoadNode.cancelled = true;
+		}
+		this._fanLoadNode = null;
+		this._fanPromise = null;
 	}
 
 
@@ -95,6 +110,40 @@ class Bandcamp {
 		}
 		// return result
 		return { res, data };
+	}
+
+
+
+	async _getCurrentFanInfo() {
+		if(!this._auth.isLoggedIn) {
+			return null;
+		}
+		if(this._fan) {
+			return this._fan;
+		}
+		if(this._fanPromise != null) {
+			return await this._fanPromise;
+		}
+		const loadNode = {cancelled: false};
+		this._fanLoadNode = loadNode;
+		this._fanPromise = (async () => {
+			const { fan } = await this.getMyIdentities();
+			if(loadNode.cancelled) {
+				return null;
+			}
+			const fanInfo = {
+				id: fan.id,
+				url: fan.url,
+				name: fan.name
+			};
+			this._fan = fanInfo;
+			this._fanPromise = null;
+			return fanInfo;
+		})();
+		this._fanPromise.catch((error) => {
+			this._fanPromise = null;
+		});
+		return await this._fanPromise;
 	}
 
 
@@ -278,7 +327,6 @@ class Bandcamp {
 			method: 'POST',
 			body: jsonBody,
 			headers: {
-				'Content-Type': 'application/x-www-form-urlencoded', // Bandcamp doesn't set the content type on the request code, so it's not application/json
 				'Content-Length': jsonBody.length,
 				'Origin': 'https://bandcamp.com',
 				'Referer': referrer,
@@ -348,17 +396,12 @@ class Bandcamp {
 
 
 	async _performArtistFollowAction(artistURL, action) {
-		artistURL = this._parser.cleanUpURL(artistURL);
-		const isBandcampDomain = this._parser.isUrlBandcampDomain(artistURL);
-		let fanId = null;
-		if(!isBandcampDomain) {
-			// get fan ID from homepage
-			const { fan } = await this.getMyIdentities();
-			if(!fan) {
-				throw new Error("Could not find current user's fan identity");
-			}
-			fanId = fan.id;
+		if(!this._auth.isLoggedIn) {
+			throw new Error("not logged in");
 		}
+		artistURL = this._parser.cleanUpURL(artistURL);
+		const fanInfo = await this._getCurrentFanInfo();
+		const isBandcampDomain = this._parser.isUrlBandcampDomain(artistURL);
 		// get data from artist url
 		let { res, data } = await this.sendHttpRequest(artistURL);
 		if(!data) {
@@ -379,16 +422,8 @@ class Bandcamp {
 			}
 		}
 		const bandId = artist.id;
-		// parse fan identity
-		if(isBandcampDomain) {
-			const { fan } = this._parser.parseIdentitiesFromPage($);
-			if(!fan) {
-				throw new Error("Could not find current user's fan identity on artist page");
-			}
-			fanId = fan.id;
-		}
 		// ensure fanId is set
-		if(!fanId) {
+		if(!fanInfo.id) {
 			throw new Error("couldn't parse fan ID");
 		}
 		// ensure bandId is set
@@ -397,7 +432,7 @@ class Bandcamp {
 		}
 		// create post body object
 		const reqBodyObj = {
-			fan_id: fanId,
+			fan_id: fanInfo.id,
 			band_id: bandId,
 			action: action
 		};
@@ -429,6 +464,7 @@ class Bandcamp {
 			headers['Sec-Fetch-Site'] = 'cross-site';
 		}
 		const reqResult = await this.sendHttpRequest(apiURL, {
+			method: 'POST',
 			headers: headers,
 			body: reqBody
 		});
@@ -461,7 +497,11 @@ class Bandcamp {
 
 
 	async _performFanFollowAction(fanURL, action) {
+		if(!this._auth.isLoggedIn) {
+			throw new Error("not logged in");
+		}
 		fanURL = this._parser.cleanUpURL(fanURL);
+		const fanInfo = await this._getCurrentFanInfo();
 		// get data from fan url
 		let { res, data } = await this.sendHttpRequest(fanURL);
 		if(!data) {
@@ -474,18 +514,19 @@ class Bandcamp {
 		// parse response
 		const $ = cheerio.load(dataString);
 		const pageData = JSON.parse($('#pagedata').attr('data-blob'));
-		const myFanId = this._parser.parseIdentitiesFromJson(pageData).fan.id;
-		if(!myFanId) {
+		const targetFanId = pageData.fan_data.fan_id;
+		const crumbsData = JSON.parse($('#js-crumbs-data').attr('data-crumbs'));
+		// ensure current fan ID
+		if(!fanInfo.id) {
 			throw new Error("could not parse current fan id");
 		}
-		const targetFanId = pageData.fan_data.fan_id;
+		// ensure target fan ID
 		if(!targetFanId) {
 			throw new Error("could not parse target fan id");
 		}
-		const crumbsData = JSON.parse($('#js-crumbs-data').attr('data-crumbs'));
 		// create post request
 		const reqBodyObj = {
-			fan_id: myFanId,
+			fan_id: fanInfo.id,
 			follow_id: targetFanId,
 			action: action,
 			crumb: crumbsData.fan_follow_cb
@@ -493,6 +534,7 @@ class Bandcamp {
 		// send post request
 		const reqBody = QueryString.stringify(reqBodyObj);
 		const reqResult = await this.sendHttpRequest('https://bandcamp.com/fan_follow_cb', {
+			method: 'POST',
 			headers: {
 				'Content-Length': reqBody.length,
 				'Content-Type': 'application/x-www-form-urlencoded',
@@ -534,18 +576,13 @@ class Bandcamp {
 
 
 	async _performWishlistItemAction(itemURL, action) {
+		if(!this._auth.isLoggedIn) {
+			throw new Error("not logged in");
+		}
 		itemURL = this._parser.cleanUpURL(itemURL);
+		const fanInfo = await this._getCurrentFanInfo();
 		const callbackName = `${action}_item_cb`;
 		const isBandcampDomain = this._parser.isUrlBandcampDomain(itemURL);
-		let fanId = null;
-		if(!isBandcampDomain) {
-			// get fan ID from homepage
-			const { fan } = await this.getMyIdentities();
-			if(!fan) {
-				throw new Error("Could not find current user's fan identity");
-			}
-			fanId = fan.id;
-		}
 		// perform request to get item
 		let { res, data } = await this.sendHttpRequest(itemURL);
 		if(!data) {
@@ -566,16 +603,8 @@ class Bandcamp {
 			}
 		}
 		const bandId = item.artist.id;
-		// parse fan identity if needed
-		if(isBandcampDomain) {
-			const { fan } = this._parser.parseIdentitiesFromPage($);
-			if(!fan) {
-				throw new Error("Could not find current user's fan identity on artist page");
-			}
-			fanId = fan.id;
-		}
 		// ensure fan ID is set
-		if(!fanId) {
+		if(!fanInfo.id) {
 			throw new Error("Could not parse fan ID");
 		}
 		// ensure item ID is set
@@ -592,7 +621,7 @@ class Bandcamp {
 		}
 		// create post body object
 		const reqBodyObj = {
-			fan_id: fanId,
+			fan_id: fanInfo.id,
 			band_id: bandId,
 			item_id: item.id,
 			item_type: item.type
@@ -622,7 +651,7 @@ class Bandcamp {
 			'Sec-Fetch-Dest': 'empty',
 			'Sec-Fetch-Mode': 'cors',
 			'X-Requested-With': 'XMLHttpRequest'
-		}
+		};
 		let apiURL = undefined;
 		if(isBandcampDomain) {
 			apiURL = UrlUtls.resolve(itemURL, `/${callbackName}`);
@@ -632,6 +661,7 @@ class Bandcamp {
 			headers['Sec-Fetch-Site'] = 'cross-site';
 		}
 		const reqResult = await this.sendHttpRequest(apiURL, {
+			method: 'POST',
 			headers: headers,
 			body: reqBody
 		});
@@ -659,6 +689,127 @@ class Bandcamp {
 
 	async unwishlistItem(itemURL) {
 		return await this._performWishlistItemAction(itemURL, 'uncollect');
+	}
+
+
+
+	async _performCollectionHideAction(itemURL, action) {
+		if(!this._auth.isLoggedIn) {
+			throw new Error("not logged in");
+		}
+		const apiEndpoint = 'api/collectionowner/1/hide_unhide_item';
+		const fanInfo = await this._getCurrentFanInfo();
+		// ensure fan URL is set
+		if(!fanInfo.url) {
+			throw new Error("Could not parse fan URL");
+		}
+		// perform both requests simultaneously
+		const [ item, { crumb } ] = await Promise.all([
+			// item request
+			(async () => {
+				// perform request to get item
+				const { res, data } = await this.sendHttpRequest(itemURL);
+				if(!data) {
+					throw new Error("Unable to get data from item URL");
+				}
+				const dataString = data.toString();
+				if(!dataString) {
+					throw new Error("Unable to get data from item URL");
+				}
+				// parse response
+				const $ = cheerio.load(dataString);
+				const item = this._parser.parseItemFromURL(url, options.type, $);
+				if(item == null) {
+					if(res.statusCode >= 200 && res.statusCode < 300) {
+						throw new Error("Failed to parse item");
+					} else {
+						throw new Error(res.statusCode+": "+res.statusMessage);
+					}
+				}
+				return item;
+			})(),
+			// fan-page request
+			(async () => {
+				// perform request to get fan crumb data
+				const { res, data } = await this.sendHttpRequest(fanInfo.url);
+				if(!data) {
+					throw new Error("Unable to get data from item URL");
+				}
+				const dataString = data.toString();
+				if(!dataString) {
+					throw new Error("Unable to get data from item URL");
+				}
+				// parse response
+				const $ = cheerio.load(dataString);
+				const crumbsData = JSON.parse($('#js-crumbs-data').attr('data-crumbs'));
+				if(!crumbsData || !crumbsData[apiEndpoint]) {
+					if(res.statusCode >= 200 && res.statusCode < 300) {
+						throw new Error("Failed to parse crumb data");
+					} else {
+						throw new Error(res.statusCode+": "+res.statusMessage);
+					}
+				}
+				return {
+					crumb: crumbsData[apiEndpoint]
+				};
+			})()
+		]);
+		// ensure fan ID is set
+		if(!fanInfo.id) {
+			throw new Error("Could not parse fan ID");
+		}
+		// ensure item ID is set
+		if(!item.id) {
+			throw new Error("Could not parse item ID");
+		}
+		// ensure item type is set
+		if(!item.type) {
+			throw new Error("Could not parse item type");
+		}
+		// send post request
+		const reqBody = JSON.stringify({
+			fan_id: this._parser.convertToNumberIfAble(fanInfo.id),
+			item_type: item.type,
+			item_id: this._parser.convertToNumberIfAble(item.id),
+			action: action,
+			//collection_index: (action === 'unhide') ? 0 : null // TODO determine if we actually need this parameter
+			crumb: crumb
+		});
+		const { res, data } = await this.sendHttpRequest(`https://bandcamp.com/${apiEndpoint}`, {
+			method: 'POST',
+			headers: {
+				'Content-Length': reqBody.length,
+				'Origin': this._parser.cleanUpURL(UrlUtils.resolve(itemURL, '/')),
+				'Referer': `${fanInfo.url}/`,
+				'Sec-Fetch-Dest': 'empty',
+				'Sec-Fetch-Mode': 'cors',
+				'Sec-Fetch-Site': 'same-origin',
+				'X-Requested-With': 'XMLHttpRequest'
+			},
+			body: reqBody
+		});
+		// parse response
+		if(res.statusCode < 200 || res.statusCode >= 300) {
+			throw new Error(res.statusCode+': '+res.statusMessage);
+		}
+		const dataString = data.toString();
+		const result = JSON.parse(dataString);
+		if(typeof result.ok === 'boolean' && !result.ok) {
+			if(result.error_message) {
+				throw new Error(result.error_message);
+			} else {
+				throw new Error("Item "+action+" request failed:\n"+JSON.stringify(result,null,'\t'));
+			}
+		}
+		return result;
+	}
+
+	async hideCollectionItem(itemURL) {
+		return await this._performCollectionHideAction(itemURL, 'hide');
+	}
+
+	async unhideCollectionItem(itemURL) {
+		return await this._performCollectionHideAction(itemURL, 'unhide');
 	}
 }
 
