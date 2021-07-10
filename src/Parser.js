@@ -616,6 +616,15 @@ class BandcampParser {
 			releaseDate: releaseDate
 		};
 
+		// add id if available
+		let bcPageProps = $('meta[name="bc-page-properties"]').attr('content');
+		if(bcPageProps) {
+			bcPageProps = JSON.parse(bcPageProps);
+		}
+		if(bcPageProps && bcPageProps.item_id) {
+			item.id = ''+bcPageProps.item_id;
+		}
+
 		// apply artist name / url
 		if(artistName) {
 			item.artistName = artistName;
@@ -797,7 +806,7 @@ class BandcampParser {
 					}
 					const trTrackId = trTrack['id'];
 					if(trTrackId) {
-						track.id = trTrackId;
+						track.id = ''+trTrackId;
 					}
 					const trTrackTitle = trTrack['title'];
 					if(typeof trTrackTitle === 'string' && trTrackTitle) {
