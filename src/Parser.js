@@ -79,6 +79,9 @@ class BandcampParser {
 			if(url.pathname === '/' || url.pathname === '/music' || url.pathname === '/releases') {
 				return 'artist';
 			}
+			if(url.pathname === '/artists') {
+				return 'label';
+			}
 			else if(url.pathname.startsWith('/album/')) {
 				return 'album';
 			}
@@ -1143,37 +1146,6 @@ class BandcampParser {
 
 
 
-	parseStreamFiles(data) {
-		const dataString = data.toString();
-		if(!dataString) {
-			return null;
-		}
-		if(dataString === 'oops') {
-			throw new Error("request misformatted, got an oops");
-		}
-		const regex = /OwnerStreaming\.init\(.*\);/g;
-		const matches = dataString.match(regex);
-		if(!matches || matches.length === 0) {
-			return null;
-		}
-		let match = matches[0];
-		const prefix = 'OwnerStreaming.init(';
-		if(match.startsWith(prefix)) {
-			match = match.substring(prefix.length);
-		}
-		const suffix = ');';
-		if(match.endsWith(suffix)) {
-			match = match.substring(0, match.length-suffix.length);
-		}
-		try {
-			return JSON.parse(match);
-		} catch(error) {
-			return null;
-		}
-	}
-
-
-
 	parseCDUILink($) {
 		let scriptTags = [];
 		$('script').each((index, tag) => {
@@ -1189,6 +1161,27 @@ class BandcampParser {
 		return scriptTags[0].attr('src');
 	}
 
+	parseStreamFilesFromCDUI(data) {
+		const regex = /OwnerStreaming\.init\(.*\);/g;
+		const matches = data.match(regex);
+		if(!matches || matches.length === 0) {
+			return null;
+		}
+		let match = matches[0];
+		const prefix = 'OwnerStreaming.init(';
+		if(match.startsWith(prefix)) {
+			match = match.substring(prefix.length);
+		}
+		const suffix = ');';
+		if(match.endsWith(suffix)) {
+			match = match.substring(0, match.length-suffix.length).trim();
+		}
+		try {
+			return JSON.parse(match);
+		} catch(error) {
+			return null;
+		}
+	}
 
 	attachStreamsToTracks(tracks, streams) {
 		if(typeof streams !== 'object') {
@@ -1231,6 +1224,29 @@ class BandcampParser {
 			i++;
 		}
 	}
+
+	parseFanControlsFromCDUI(data) {
+		const regex = /FanControls\.init\(\{.*\}\);/g;
+		const matches = data.match(regex);
+		if(!matches || matches.length === 0) {
+			return null;
+		}
+		let match = matches[0];
+		const prefix = 'FanControls.init(';
+		if(match.startsWith(prefix)) {
+			match = match.substring(prefix.length);
+		}
+		const suffix = ');';
+		if(match.endsWith(suffix)) {
+			match = match.substring(0, match.length-suffix.length);
+		}
+		try {
+			return JSON.parse(`[${match}]`)[0];
+		} catch(error) {
+			return null;
+		}
+	}
+
 
 
 	parseIdentitiesFromPage($) {
@@ -1776,6 +1792,8 @@ class BandcampParser {
 			}
 			if(resJson.error_message) {
 				throw new Error(resJson.error_message);
+			} else if(typeof resJson.error === 'string') {
+				throw new Error(resJson.error);
 			}
 			throw new Error(res.statusMessage);
 		}
@@ -1936,6 +1954,22 @@ class BandcampParser {
 	}
 
 
+	parseFollowActionError(res, json, action) {
+		if(res.statusCode < 200 || res.statusCode >= 300) {
+			throw new Error(res.statusCode+': '+res.statusMessage);
+		}
+		if(json.ok === false) {
+			if(json.error_message) {
+				throw new Error(json.error_message);
+			} else if(typeof json.error === 'string') {
+				throw new Error(json.error);
+			} else {
+				throw new Error(action+" request failed:\n"+JSON.stringify(json,null,'\t'));
+			}
+		}
+	}
+
+
 	parseReferrerToken($) {
 		let referrerToken = $('script[data-referrer-token]').attr('data-referrer-token').trim();
 		if(referrerToken.startsWith('"')) {
@@ -1945,6 +1979,22 @@ class BandcampParser {
 			referrerToken = referrerToken.substring(0, referrerToken.length - 1);
 		}
 		return referrerToken;
+	}
+
+	parsePageData($) {
+		const pageData = $('#pagedata').attr('data-blob');
+		if(!pageData) {
+			return null;
+		}
+		return JSON.parse(pageData);
+	}
+
+	parseCrumbs($) {
+		const crumbData = $('#js-crumbs-data').attr('data-crumbs');
+		if(!crumbData) {
+			return null;
+		}
+		return JSON.parse(crumbData);
 	}
 }
 
