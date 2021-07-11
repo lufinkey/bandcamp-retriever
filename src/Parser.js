@@ -1964,7 +1964,7 @@ class BandcampParser {
 			} else if(typeof json.error === 'string') {
 				throw new Error(json.error);
 			} else {
-				throw new Error(action+" request failed:\n"+JSON.stringify(json,null,'\t'));
+				throw new Error(action+" request failed: "+JSON.stringify(json));
 			}
 		}
 	}
