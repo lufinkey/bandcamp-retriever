@@ -8,7 +8,7 @@ const BandcampSession = require('./Session');
 const BandcampParser = require('./Parser');
 
 
-const CRUMB_VALID_TIME = 10 * 60 * 1000;
+const CRUMB_VALID_TIME = 5 * 60 * 1000;
 
 
 class Bandcamp {
