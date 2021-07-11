@@ -627,7 +627,7 @@ class Bandcamp {
 			body: reqBody
 		});
 		// parse response
-		dataString = data ? data.toString() : null;
+		const dataString = data ? data.toString() : null;
 		const result = dataString ? JSON.parse(dataString) : null;
 		this._parser.parseFollowActionError(res, result, action);
 		return result;
@@ -735,7 +735,7 @@ class Bandcamp {
 			body: reqBody
 		});
 		// parse response
-		dataString = data ? data.toString() : null;
+		const dataString = data ? data.toString() : null;
 		const result = dataString ? JSON.parse(dataString) : null;
 		this._parser.parseFollowActionError(res, result, action);
 		return result;
@@ -828,7 +828,7 @@ class Bandcamp {
 			body: reqBody
 		});
 		// parse response
-		dataString = data ? data.toString() : null;
+		const dataString = data ? data.toString() : null;
 		const result = dataString ? JSON.parse(dataString) : null;
 		this._parser.parseFollowActionError(res, result, action);
 		return result;
@@ -1009,7 +1009,7 @@ class Bandcamp {
 				body: reqBody
 			});
 			// parse response
-			dataString = data ? data.toString() : null;
+			const dataString = data ? data.toString() : null;
 			const result = dataString ? JSON.parse(dataString) : null;
 			this._parser.parseFollowActionError(res, result, action);
 			return result;
