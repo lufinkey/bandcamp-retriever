@@ -2,14 +2,23 @@
   "name": "bandcamp-api",
   "version": "1.0.0",
   "description": "An unofficial API for bandcamp",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
-    "test": "node test.js"
+    "test": "node test/test.js",
+    "build": "npm run build-ts",
+    "build-ts": "npx tsc",
+    "preinstall": "npm run build"
   },
   "author": "Luis Finke (luisfinke@gmail.com)",
-  "license": "ISC",
+  "license": "Zlib",
   "dependencies": {
-    "cheerio": "^1.0.0-rc.5",
+    "cheerio": "^1.0.0-rc.10",
     "tough-cookie": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^16.3.2",
+    "@types/tough-cookie": "^4.0.1",
+    "typescript": "^4.3.5"
   }
 }

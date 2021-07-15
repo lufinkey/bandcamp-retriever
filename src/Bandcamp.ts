@@ -1,18 +1,60 @@
 
-const QueryString = require('querystring');
-const UrlUtils = require('url');
-const cheerio = require('cheerio');
-const { sendHttpRequest } = require('./Utils');
-const BandcampAuth = require('./Auth');
-const BandcampSession = require('./Session');
-const BandcampParser = require('./Parser');
+import BandcampAuth, { BandcampAuthOptions } from './Auth';
+import BandcampSession from './Session';
+import BandcampParser from './Parser';
+import {
+	BandcampTrack,
+	BandcampAlbum,
+	BandcampArtist,
+	BandcampFan$APICollectionPage,
+	BandcampFan$APIFollowedArtistPage,
+	BandcampFan$APIWishlistPage,
+	BandcampSearchResultsList } from './types';
+import {
+	sendHttpRequest,
+	HttpResponse,
+	SendHttpRequestOptions } from './Utils';
+import QueryString from 'querystring';
+import UrlUtils from 'url';
+import cheerio from 'cheerio';
+import tough from 'tough-cookie';
 
 
 const CRUMB_VALID_TIME = 5 * 60 * 1000;
 
 
-class Bandcamp {
-	constructor(options={}) {
+type BandcampOptions = {
+	auth?: BandcampAuthOptions
+}
+
+type LoadNode = {
+	cancelled: boolean
+};
+
+type FanInfo = {
+	id: string
+	url: string
+	name: string
+}
+
+
+export default class Bandcamp {
+	static Auth = BandcampAuth
+	static Session = BandcampSession;
+	static Parser = BandcampParser;
+
+	_auth: BandcampAuth
+	_parser: BandcampParser
+
+	_fan: FanInfo | null
+	_fanLoadNode: LoadNode | null
+	_fanPromise: Promise<FanInfo | null> | null
+	_fanCrumbs: {[key: string]: string} | null
+	_fanCrumbsFetchDate: Date | null
+	_fanCrumbsLoadNode: LoadNode | null
+	_fanCrumbsPromise: Promise<{[key: string]: string} | null> | null
+
+	constructor(options: BandcampOptions = {}) {
 		this._auth = new BandcampAuth(options.auth || {});
 		this._parser = new BandcampParser();
 
@@ -26,23 +68,23 @@ class Bandcamp {
 		this._fanCrumbsPromise = null;
 	}
 
-	slugify(str) {
+	slugify(str: string): string {
 		return this._parser.slugify(str);
 	}
 
 
 
-	loginWithCookies(cookies) {
+	loginWithCookies(cookies: (string | tough.Cookie)[]) {
 		this._clearFanData();
 		return this._auth.loginWithCookies(cookies);
 	}
 
-	loginWithSession(session) {
+	loginWithSession(session: BandcampSession) {
 		this._clearFanData();
 		return this._auth.loginWithSession(session);
 	}
 
-	updateSessionCookies(cookies) {
+	updateSessionCookies(cookies: (string | tough.Cookie)[]) {
 		this._auth.updateSessionCookies(cookies);
 	}
 
@@ -51,11 +93,11 @@ class Bandcamp {
 		this._auth.logout();
 	}
 
-	get session() {
+	get session(): BandcampSession | null {
 		return this._auth.session;
 	}
 
-	_updateSessionFromResponse(res) {
+	_updateSessionFromResponse(res: HttpResponse) {
 		const headers = this._parser.parseResponseHeaders(res);
 		let setCookiesHeaders = headers["Set-Cookie"];
 		if(setCookiesHeaders) {
@@ -68,14 +110,17 @@ class Bandcamp {
 
 
 
-	async sendHttpRequest(url, options={}) {
+	async sendHttpRequest(url: string, options: SendHttpRequestOptions = {}): Promise<{res: HttpResponse, data: Buffer}> {
 		// add auth headers
 		const isBandcampDomain = this._parser.isUrlBandcampDomain(url);
-		const refererURL = (options.headers ? options.headers['Referer'] : null);
+		let refererURL = (options.headers ? options.headers['Referer'] : null);
+		if(refererURL instanceof Array) {
+			refererURL = refererURL[0];
+		}
 		let headers = {};
 		if(isBandcampDomain) {
 			let sameSiteReferrer = true;
-			if(refererURL) {
+			if(typeof refererURL === 'string' && refererURL) {
 				const refererIsBandcampDomain = this._parser.isUrlBandcampDomain(refererURL);
 				if(!refererIsBandcampDomain) {
 					sameSiteReferrer = false;
@@ -132,7 +177,7 @@ class Bandcamp {
 		this._fanCrumbsPromise = null;
 	}
 
-	async _getCurrentFanInfo() {
+	async _getCurrentFanInfo(): Promise<FanInfo | null> {
 		if(!this._auth.isLoggedIn) {
 			return null;
 		}
@@ -144,10 +189,14 @@ class Bandcamp {
 		}
 		const loadNode = {cancelled: false};
 		this._fanLoadNode = loadNode;
-		this._fanPromise = (async () => {
+		this._fanPromise = (async (): Promise<FanInfo | null> => {
 			// get identities
 			const { fan } = await this.getMyIdentities();
 			if(loadNode.cancelled) {
+				return null;
+			}
+			if(!fan) {
+				this._fanPromise = null;
 				return null;
 			}
 			const fanInfo = {
@@ -173,7 +222,7 @@ class Bandcamp {
 		return ((new Date()).getTime() - this._fanCrumbsFetchDate.getTime()) < CRUMB_VALID_TIME;
 	}
 
-	async _getCurrentFanPageCrumbs() {
+	async _getCurrentFanPageCrumbs(): Promise<{[key: string]: string} | null> {
 		const fanInfo = await this._getCurrentFanInfo();
 		if(!fanInfo) {
 			return null;
@@ -187,7 +236,7 @@ class Bandcamp {
 		const loadNode = {cancelled: false};
 		this._fanCrumbsLoadNode = loadNode;
 		const startFetchDate = new Date();
-		this._fanCrumbsPromise = (async () => {
+		this._fanCrumbsPromise = (async (): Promise<{[key: string]: string} | null> => {
 			// get fan page data
 			const { res, data } = await this.sendHttpRequest(fanInfo.url);
 			if(loadNode.cancelled) {
@@ -221,7 +270,7 @@ class Bandcamp {
 
 
 
-	async search(query, options={}) {
+	async search(query: string, options: {[key: string]: any} = {}): Promise<BandcampSearchResultsList> {
 		// create and send request
 		const params = {
 			...options,
@@ -237,7 +286,8 @@ class Bandcamp {
 		return searchResults;
 	}
 
-	async getItemFromURL(url, options={}) {
+	async getItemFromURL(url: string, options: {[key: string]: any} = {}) {
+		options = {...options};
 		if(!options.type) {
 			options.type = this._parser.parseType(url);
 		}
@@ -264,22 +314,24 @@ class Bandcamp {
 		// if we're logged in and missing some audio streams,
 		//  and if the link isn't a bandcamp subdomain
 		//  then fetch the missing audio files
+		const itemAsTrack = item as BandcampTrack;
+		const itemAsAlbum = item as BandcampAlbum;
 		if(this._auth.isLoggedIn && !isBandcampDomain
 		   && (item.type === 'track'
-		    || (item.type === 'album' && item.tracks && item.tracks.length > 0))) {
+		    || (item.type === 'album' && itemAsAlbum.tracks && itemAsAlbum.tracks.length > 0))) {
 			let missingAudioSources = false;
-			if((item.type == 'track' && (!item.audioSources || item.audioSources.length === 0))
-			   || (item.type === 'album' && item.tracks && item.tracks.find((track) => (!track.audioSources || track.audioSources.length === 0)))) {
+			if((item.type === 'track' && (!itemAsTrack.audioSources || itemAsTrack.audioSources.length === 0))
+			   || (item.type === 'album' && itemAsAlbum.tracks && itemAsAlbum.tracks.find((track) => (!track.audioSources || track.audioSources.length === 0)))) {
 				missingAudioSources = true;
 			}
 			if(missingAudioSources) {
 				const cdUIURL = this._parser.parseCDUILink($);
-				const streams = await this._fetchItemStreamsFromCDUI(cdUIURL, url);
+				const streams = cdUIURL ? (await this._fetchItemStreamsFromCDUI(cdUIURL, url)) : null;
 				if(streams) {
 					if(item.type === 'track') {
 						this._parser.attachStreamsToTracks([item], streams);
-					} else if(item.type === 'album' && item.tracks) {
-						this._parser.attachStreamsToTracks(item.tracks, streams);
+					} else if(item.type === 'album' && itemAsAlbum.tracks) {
+						this._parser.attachStreamsToTracks(itemAsAlbum.tracks, streams);
 					}
 				}
 			}
@@ -287,7 +339,7 @@ class Bandcamp {
 		return item;
 	}
 
-	async _fetchCDUIData(cduiLink, refererURL) {
+	async _fetchCDUIData(cduiLink: string, refererURL: string) {
 		const { res, data } = await this.sendHttpRequest(cduiLink, {
 			headers: {
 				'Pragma': 'no-cache',
@@ -313,24 +365,27 @@ class Bandcamp {
 		return dataString;
 	}
 
-	async _fetchItemStreamsFromCDUI(cduiLink, refererURL) {
+	async _fetchItemStreamsFromCDUI(cduiLink: string, refererURL: string) {
 		const cduiData = await this._fetchCDUIData(cduiLink, refererURL);
 		return this._parser.parseStreamFilesFromCDUI(cduiData);
 	}
 
-	async getTrack(trackURL, options={}) {
-		return await this.getItemFromURL(trackURL, {type:'track',...options});
+	async getTrack(trackURL: string, options: {[key: string]: any} ={ }): Promise<BandcampTrack> {
+		return await this.getItemFromURL(trackURL, {type:'track',...options})
+			.then((item) => (item as BandcampTrack));
 	}
 
-	async getAlbum(albumURL, options={}) {
-		return await this.getItemFromURL(albumURL, {type:'album',...options});
+	async getAlbum(albumURL: string, options: {[key: string]: any} = {}): Promise<BandcampAlbum> {
+		return await this.getItemFromURL(albumURL, {type:'album',...options})
+			.then((item) => (item as BandcampAlbum));
 	}
 
-	async getArtist(artistURL, options={}) {
-		return await this.getItemFromURL(UrlUtils.resolve(artistURL,'/music'), {type:'artist',...options});
+	async getArtist(artistURL: string, options: {[key: string]: any} = {}) {
+		return await this.getItemFromURL(UrlUtils.resolve(artistURL,'/music'), {type:'artist',...options})
+			.then((item) => (item as BandcampArtist));
 	}
 
-	async getFan(fanURL, options={}) {
+	async getFan(fanURL: string, options: {[key: string]: any} = {}) {
 		// load fan page
 		const { res, data } = await this.sendHttpRequest(fanURL);
 		if(res.statusCode < 200 || res.statusCode >= 300) {
@@ -357,7 +412,7 @@ class Bandcamp {
 		if(!dataWl) {
 			throw new Error("Unable to get wishlist data from url");
 		}
-		const fan2 = await this._parser.parseFanHtmlData(wishlistURL, dataWl);
+		const fan2 = await this._parser.parseFanHtmlData(wishlistURL, dataWl, dataCs);
 		if(fan2.wishlist) {
 			fan.wishlist = fan2.wishlist;
 		}
@@ -385,7 +440,16 @@ class Bandcamp {
 
 
 
-	async _getFanSectionItems(apiURL, referrer, fanURL, fanId, { olderThanToken, count }, resultParser) {
+	async _getFanSectionItems<T>(
+		apiURL: string,
+		referrer: string,
+		fanURL: string,
+		fanId: string | number,
+		{ olderThanToken, count }: {
+			olderThanToken?: string | null,
+			count: number
+		},
+		resultParser: (res: HttpResponse, data: Buffer) => T): Promise<T> {
 		if(!fanURL || !fanId || !olderThanToken) {
 			throw new Error("missing required parameters for _getFanSectionItems");
 		}
@@ -397,19 +461,15 @@ class Bandcamp {
 		// make sure fanId is an integer
 		fanId = this._parser.convertToNumberIfAble(fanId);
 		// build body
-		const body = {
-			fan_id: fanId
+		const body: {
+			fan_id: string | number
+			older_than_token: string | null
+			count: number
+		} = {
+			fan_id: fanId,
+			older_than_token: olderThanToken ?? `${Math.floor((new Date()).getTime()/1000)+3600}::t::`,
+			count: count ?? 20
 		};
-		if(olderThanToken) {
-			body.older_than_token = olderThanToken;
-		} else {
-			body.older_than_token = `${Math.floor((new Date()).getTime()/1000)+3600}::t::`;
-		}
-		if(count != null) {
-			body.count = count;
-		} else {
-			body.count = 20;
-		}
 		const jsonBody = JSON.stringify(body);
 		const { res, data } = await this.sendHttpRequest(apiURL, {
 			method: 'POST',
@@ -427,34 +487,34 @@ class Bandcamp {
 		return resultParser(res, data);
 	}
 
-	async getFanCollectionItems(fanURL, fanId, { olderThanToken, count }) {
+	async getFanCollectionItems(fanURL: string, fanId: string | number, {olderThanToken, count}: { olderThanToken?: string | null, count: number }): Promise<BandcampFan$APICollectionPage> {
 		return await this._getFanSectionItems(
 			'https://bandcamp.com/api/fancollection/1/collection_items',
 			fanURL, fanURL, fanId, { olderThanToken, count },
-			(res, data) => {
+			(res, data): BandcampFan$APICollectionPage => {
 				return this._parser.parseFanCollectionItemsJsonData(res,data);
 			});
 	}
 
-	async getFanWishlistItems(fanURL, fanId, { olderThanToken, count }) {
+	async getFanWishlistItems(fanURL: string, fanId: string | number, {olderThanToken, count}: { olderThanToken?: string | null, count: number }): Promise<BandcampFan$APIWishlistPage> {
 		return await this._getFanSectionItems(
 			'https://bandcamp.com/api/fancollection/1/wishlist_items',
 			fanURL+'/wishlist', fanURL, fanId, { olderThanToken, count },
-			(res, data) => {
+			(res, data): BandcampFan$APIWishlistPage => {
 				return this._parser.parseFanCollectionItemsJsonData(res,data);
 			});
 	}
 
-	async getFanHiddenItems(fanURL, fanId, { olderThanToken, count }) {
+	async getFanHiddenItems(fanURL: string, fanId: string | number, {olderThanToken, count}: { olderThanToken?: string | null, count: number }): Promise<BandcampFan$APICollectionPage> {
 		return await this._getFanSectionItems(
 			'https://bandcamp.com/api/fancollection/1/hidden_items',
 			fanURL, fanURL, fanId, { olderThanToken, count },
-			(res, data) => {
+			(res, data): BandcampFan$APICollectionPage => {
 				return this._parser.parseFanCollectionItemsJsonData(res,data);
 			});
 	}
 
-	async getFanFollowingArtists(fanURL, fanId, { olderThanToken, count }) {
+	async getFanFollowingArtists(fanURL: string, fanId: string | number, {olderThanToken, count}: { olderThanToken?: string | null, count: number }): Promise<BandcampFan$APIFollowedArtistPage> {
 		return await this._getFanSectionItems(
 			'https://bandcamp.com/api/fancollection/1/following_bands',
 			fanURL+'/following/artists_and_labels', fanURL, fanId, { olderThanToken, count },
@@ -463,7 +523,7 @@ class Bandcamp {
 			});
 	}
 
-	async getFanFollowingFans(fanURL, fanId, { olderThanToken, count }) {
+	async getFanFollowingFans(fanURL: string, fanId: string | number, {olderThanToken, count}: { olderThanToken?: string | null, count: number }) {
 		return await this._getFanSectionItems(
 			'https://bandcamp.com/api/fancollection/1/following_fans',
 			fanURL+'/following/fans', fanURL, fanId, { olderThanToken, count },
@@ -472,7 +532,7 @@ class Bandcamp {
 			});
 	}
 
-	async getFanFollowers(fanURL, fanId, { olderThanToken, count }) {
+	async getFanFollowers(fanURL: string, fanId: string | number, {olderThanToken, count}: { olderThanToken?: string | null, count: number }) {
 		return await this._getFanSectionItems(
 			'https://bandcamp.com/api/fancollection/1/followers',
 			fanURL+'/followers', fanURL, fanId, { olderThanToken, count },
@@ -483,12 +543,15 @@ class Bandcamp {
 
 
 
-	async _performArtistFollowAction(artistURL, action) { // action: 'follow' | 'unfollow'
+	async _performArtistFollowAction(artistURL: string, action: ('follow' | 'unfollow')) {
 		if(!this._auth.isLoggedIn) {
 			throw new Error("not logged in");
 		}
 		artistURL = this._parser.cleanUpURL(artistURL);
 		const fanInfo = await this._getCurrentFanInfo();
+		if(!fanInfo) {
+			throw new Error("Could not parse current fan info");
+		}
 		const isBandcampDomain = this._parser.isUrlBandcampDomain(artistURL);
 		// get data from artist url
 		let { res, data } = await this.sendHttpRequest(artistURL);
@@ -501,7 +564,7 @@ class Bandcamp {
 		}
 		// parse response
 		const $ = cheerio.load(dataString);
-		const artist = this._parser.parseItemFromURL(url, 'artist', $);
+		const artist = this._parser.parseItemFromURL(artistURL, 'artist', $);
 		if(artist == null) {
 			if(res.statusCode >= 200 && res.statusCode < 300) {
 				throw new Error("Failed to parse artist page");
@@ -519,7 +582,12 @@ class Bandcamp {
 			throw new Error("couldn't parse band ID");
 		}
 		// create post body object
-		const reqBodyObj = {
+		const reqBodyObj: {
+			fan_id: string
+			band_id: string
+			action: 'follow' | 'unfollow'
+			ref_token?: string
+		} = {
 			fan_id: fanInfo.id,
 			band_id: bandId,
 			action: action
@@ -534,7 +602,7 @@ class Bandcamp {
 		}
 		// send post request
 		const reqBody = QueryString.stringify(reqBodyObj);
-		const headers = {
+		const headers: {[key: string]: string | number} = {
 			'Content-Length': reqBody.length,
 			'Content-Type': 'application/x-www-form-urlencoded',
 			'Referer': `${artistURL}/`,
@@ -558,28 +626,31 @@ class Bandcamp {
 		});
 		res = reqResult.res;
 		data = reqResult.data;
-		dataString = data ? data.toString() : null;
+		dataString = data ? data.toString() : "";
 		const result = dataString ? JSON.parse(dataString) : null;
 		this._parser.parseFollowActionError(res, result, action);
 		return result;
 	}
 
-	async followArtist(artistURL) {
+	async followArtist(artistURL: string): Promise<void> {
 		return await this._performArtistFollowAction(artistURL, 'follow');
 	}
 
-	async unfollowArtist(artistURL) {
+	async unfollowArtist(artistURL: string): Promise<void> {
 		return await this._performArtistFollowAction(artistURL, 'unfollow');
 	}
 
 
 
-	async _performFanFollowAction(fanURL, action) { // action: 'follow' | 'unfollow'
+	async _performFanFollowAction(fanURL: string, action: ('follow' | 'unfollow')) {
 		if(!this._auth.isLoggedIn) {
 			throw new Error("not logged in");
 		}
 		fanURL = this._parser.cleanUpURL(fanURL);
 		const fanInfo = await this._getCurrentFanInfo();
+		if(!fanInfo) {
+			throw new Error("Could not parse current fan info");
+		}
 		// get data from fan url
 		const { targetFanId, crumbs } = await (async () => {
 			const { res, data } = await this.sendHttpRequest(fanURL);
@@ -590,6 +661,9 @@ class Bandcamp {
 			// parse response
 			const $ = cheerio.load(dataString);
 			const pageData = this._parser.parsePageData($);
+			if(!pageData) {
+				throw new Error("Could not parse page data to get fan_data");
+			}
 			return {
 				targetFanId: pageData.fan_data.fan_id,
 				crumbs: this._parser.parseCrumbs($)
@@ -602,6 +676,10 @@ class Bandcamp {
 		// ensure target fan ID
 		if(!targetFanId) {
 			throw new Error("could not parse target fan id");
+		}
+		// ensure crumbs
+		if(!crumbs) {
+			throw new Error("could not parse crumbs");
 		}
 		// create post request
 		const reqBodyObj = {
@@ -633,26 +711,29 @@ class Bandcamp {
 		return result;
 	}
 
-	async followFan(fanURL) {
+	async followFan(fanURL: string): Promise<void> {
 		return await this._performFanFollowAction(fanURL, 'follow');
 	}
 
-	async unfollowFan(fanURL) {
+	async unfollowFan(fanURL: string): Promise<void> {
 		return await this._performFanFollowAction(fanURL, 'unfollow');
 	}
 
 
 
-	async _performWishlistItemAction(itemURL, action) { // action: 'collect' | 'uncollect'
+	async _performWishlistItemAction(itemURL: string, action: ('collect' | 'uncollect')) {
 		if(!this._auth.isLoggedIn) {
 			throw new Error("not logged in");
 		}
 		itemURL = this._parser.cleanUpURL(itemURL);
 		const fanInfo = await this._getCurrentFanInfo();
+		if(!fanInfo) {
+			throw new Error("Could not parse current fan info");
+		}
 		const callbackName = `${action}_item_cb`;
 		const isBandcampDomain = this._parser.isUrlBandcampDomain(itemURL);
 		// perform request to get item
-		const item = await (async () => {
+		const { item, refToken, crumbs } = await (async () => {
 			// get data from item URL
 			const { res, data } = await this.sendHttpRequest(itemURL);
 			const dataString = data ? data.toString() : null;
@@ -669,9 +750,18 @@ class Bandcamp {
 					throw new Error(res.statusCode+": "+res.statusMessage);
 				}
 			}
-			return item;
+			// parse ref token
+			const refToken = this._parser.parseReferrerToken($);
+			// parse crumbs
+			const crumbs = this._parser.parseCrumbs($);
+			return { item, refToken, crumbs };
 		})();
-		const bandId = item.artist.id;
+		const mediaItem = (item as BandcampTrack | BandcampAlbum);
+		// ensure artist
+		if(!mediaItem.artist) {
+			throw new Error("artist property is missing on item");
+		}
+		const bandId = mediaItem.artist.id;
 		// ensure fan ID is set
 		if(!fanInfo.id) {
 			throw new Error("Could not parse fan ID");
@@ -689,14 +779,20 @@ class Bandcamp {
 			throw new Error("Could not parse item band ID");
 		}
 		// create post body object
-		const reqBodyObj = {
+		const reqBodyObj: {
+			fan_id: string
+			band_id: string
+			item_id: string
+			item_type: string
+			ref_token?: string
+			crumb?: string
+		} = {
 			fan_id: fanInfo.id,
 			band_id: bandId,
 			item_id: item.id,
 			item_type: item.type
 		};
 		// parse ref_token
-		const refToken = this._parser.parseReferrerToken($);
 		if(action === 'collect') {
 			if(!refToken) {
 				throw new Error("couldn't parse ref token");
@@ -705,14 +801,13 @@ class Bandcamp {
 		}
 		// parse crumb
 		if(isBandcampDomain) {
-			const crumbsData = this._parser.parseCrumbs($);
-			if(crumbsData && crumbsData[callbackName]) {
-				reqBodyObj.crumb = crumbsData[callbackName];
+			if(crumbs && crumbs[callbackName]) {
+				reqBodyObj.crumb = crumbs[callbackName];
 			}
 		}
 		// send post request
 		const reqBody = QueryString.stringify(reqBodyObj);
-		const headers = {
+		const headers: {[key: string]: string | number} = {
 			'Content-Length': reqBody.length,
 			'Content-Type': 'application/x-www-form-urlencoded',
 			'Origin': this._parser.cleanUpURL(UrlUtils.resolve(itemURL, '/')),
@@ -723,7 +818,7 @@ class Bandcamp {
 		};
 		let apiURL = undefined;
 		if(isBandcampDomain) {
-			apiURL = UrlUtls.resolve(itemURL, `/${callbackName}`);
+			apiURL = UrlUtils.resolve(itemURL, `/${callbackName}`);
 			headers['Sec-Fetch-Site'] = 'same-origin';
 		} else {
 			apiURL = `https://bandcamp.com/${callbackName}`;
@@ -741,22 +836,25 @@ class Bandcamp {
 		return result;
 	}
 
-	async wishlistItem(itemURL) {
+	async wishlistItem(itemURL: string): Promise<void> {
 		return await this._performWishlistItemAction(itemURL, 'collect');
 	}
 
-	async unwishlistItem(itemURL) {
+	async unwishlistItem(itemURL: string): Promise<void> {
 		return await this._performWishlistItemAction(itemURL, 'uncollect');
 	}
 
 
 
-	async _performCollectionHideAction(itemURL, action) { // action: 'hide' | 'unhide'
+	async _performCollectionHideAction(itemURL: string, action: ('hide' | 'unhide')) {
 		if(!this._auth.isLoggedIn) {
 			throw new Error("not logged in");
 		}
 		const apiEndpoint = 'api/collectionowner/1/hide_unhide_item';
 		const fanInfo = await this._getCurrentFanInfo();
+		if(!fanInfo) {
+			throw new Error("Could not parse current fan info");
+		}
 		// ensure fan URL is set
 		if(!fanInfo.url) {
 			throw new Error("Could not parse fan URL");
@@ -764,7 +862,7 @@ class Bandcamp {
 		// perform both requests simultaneously
 		const [ crumbs, item ] = await Promise.all([
 			// fan-page request
-			this._getCurrentFanPageCrumbs()
+			this._getCurrentFanPageCrumbs(),
 			// item request
 			(async () => {
 				// perform request to get item
@@ -834,21 +932,24 @@ class Bandcamp {
 		return result;
 	}
 
-	async hideCollectionItem(itemURL) {
+	async hideCollectionItem(itemURL: string): Promise<void> {
 		return await this._performCollectionHideAction(itemURL, 'hide');
 	}
 
-	async unhideCollectionItem(itemURL) {
+	async unhideCollectionItem(itemURL: string): Promise<void> {
 		return await this._performCollectionHideAction(itemURL, 'unhide');
 	}
 
 
 
-	async _performSaveItemAction(itemURL, action) { // action: 'save' | 'unsave'
+	async _performSaveItemAction(itemURL: string, action: ('save' | 'unsave')) {
 		if(!this._auth.isLoggedIn) {
 			throw new Error("not logged in");
 		}
 		const fanInfo = await this._getCurrentFanInfo();
+		if(!fanInfo) {
+			throw new Error("Could not parse current fan info");
+		}
 		const isBandcampDomain = this._parser.isUrlBandcampDomain(itemURL);
 		// fetch data
 		const [ fanCrumbs, { item, itemCrumbs, isPurchased, refToken } ] = await Promise.all([
@@ -881,8 +982,8 @@ class Bandcamp {
 				} else {
 					// parse extra CDUI data since not bandcamp domain
 					const cduiLink = this._parser.parseCDUILink($);
-					const cduiData = await this._fetchCDUIData(cduiLink, itemURL);
-					const fanControls = this._parser.parseFanControlsFromCDUI(cduiData);
+					const cduiData = cduiLink ? (await this._fetchCDUIData(cduiLink, itemURL)) : null;
+					const fanControls = cduiData ? this._parser.parseFanControlsFromCDUI(cduiData) : {};
 					isPurchased = fanControls.is_purchased;
 					isWishlisted = fanControls.is_collected;
 				}
@@ -908,11 +1009,12 @@ class Bandcamp {
 		// perform request depending on purchase state
 		if(isPurchased) {
 			// hiding / unhiding collection items
+			let hideAction: 'hide' | 'unhide';
 			if(action === 'save') {
-				action = 'unhide';
+				hideAction = 'unhide';
 			}
 			else if(action === 'unsave') {
-				action = 'hide';
+				hideAction = 'hide';
 			}
 			else {
 				throw new Error("Invalid action "+action);
@@ -927,7 +1029,7 @@ class Bandcamp {
 				fan_id: this._parser.convertToNumberIfAble(fanInfo.id),
 				item_type: item.type,
 				item_id: this._parser.convertToNumberIfAble(item.id),
-				action: action,
+				action: hideAction,
 				//collection_index: (action === 'unhide') ? 0 : null // TODO determine if we actually need this parameter
 				crumb: fanCrumbs[apiEndpoint]
 			});
@@ -945,35 +1047,44 @@ class Bandcamp {
 				body: reqBody
 			});
 			// parse response
-			dataString = data ? data.toString() : null;
+			const dataString = data ? data.toString() : null;
 			const result = dataString ? JSON.parse(dataString) : null;
-			this._parser.parseFollowActionError(res, result, action);
+			this._parser.parseFollowActionError(res, result, hideAction);
 			return result;
 		}
 		else {
 			// wishlisting / unwishlisting items
+			let collectAction: 'collect' | 'uncollect';
 			if(action === 'save') {
-				action = 'collect';
+				collectAction = 'collect';
 			}
 			else if(action === 'unsave') {
-				action = 'uncollect';
+				collectAction = 'uncollect';
 			}
 			else {
 				throw new Error("Invalid action "+action);
 			}
-			const callbackName = `${action}_item_cb`;
+			const callbackName = `${collectAction}_item_cb`;
+			const mediaItem = item as (BandcampTrack | BandcampAlbum);
 			// ensure band id
-			if(!item.artist.id) {
+			if(!mediaItem.artist || !mediaItem.artist.id) {
 				throw new Error("failed to parse item artist ID");
 			}
 			// create post body object
-			const reqBodyObj = {
+			const reqBodyObj: {
+				fan_id: string,
+				band_id: string
+				item_id: string
+				item_type: string
+				ref_token?: string
+				crumb?: string
+			} = {
 				fan_id: fanInfo.id,
-				band_id: item.artist.id,
+				band_id: mediaItem.artist.id,
 				item_id: item.id,
 				item_type: item.type
 			};
-			if(action === 'collect') {
+			if(collectAction === 'collect') {
 				reqBodyObj.ref_token = refToken;
 			}
 			// parse crumb
@@ -986,7 +1097,7 @@ class Bandcamp {
 			}
 			// send post request
 			const reqBody = QueryString.stringify(reqBodyObj);
-			const headers = {
+			const headers: {[key: string]: string | number} = {
 				'Content-Length': reqBody.length,
 				'Content-Type': 'application/x-www-form-urlencoded',
 				'Origin': this._parser.cleanUpURL(UrlUtils.resolve(itemURL, '/')),
@@ -997,7 +1108,7 @@ class Bandcamp {
 			};
 			let apiURL = undefined;
 			if(isBandcampDomain) {
-				apiURL = UrlUtls.resolve(itemURL, `/${callbackName}`);
+				apiURL = UrlUtils.resolve(itemURL, `/${callbackName}`);
 				headers['Sec-Fetch-Site'] = 'same-origin';
 			} else {
 				apiURL = `https://bandcamp.com/${callbackName}`;
@@ -1011,23 +1122,16 @@ class Bandcamp {
 			// parse response
 			const dataString = data ? data.toString() : null;
 			const result = dataString ? JSON.parse(dataString) : null;
-			this._parser.parseFollowActionError(res, result, action);
+			this._parser.parseFollowActionError(res, result, collectAction);
 			return result;
 		}
 	}
 
-	async saveItem(itemURL) {
+	async saveItem(itemURL: string): Promise<void> {
 		return await this._performSaveItemAction(itemURL, 'save');
 	}
 
-	async unsaveItem(itemURL) {
+	async unsaveItem(itemURL: string): Promise<void> {
 		return await this._performSaveItemAction(itemURL, 'unsave');
 	}
 }
-
-
-Bandcamp.Auth = BandcampAuth;
-Bandcamp.Session = BandcampSession;
-Bandcamp.Parser = BandcampParser;
-
-module.exports = Bandcamp;

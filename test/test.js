@@ -1,10 +1,10 @@
 
-const Bandcamp = require('./src/Bandcamp');
+const Bandcamp = require('../src/Bandcamp');
 
 (async () => {
 	const bandcamp = new Bandcamp();
 
-	const wapTrack = await bandcamp.getTrack('https://jaydiggs.bandcamp.com/track/w-a-p-funk');
+	/*const wapTrack = await bandcamp.getTrack('https://jaydiggs.bandcamp.com/track/w-a-p-funk');
 	console.log("single track:");
 	console.log(wapTrack);
 	console.log("\n\n");
@@ -12,14 +12,14 @@ const Bandcamp = require('./src/Bandcamp');
 	const paidAlbumResult = await bandcamp.getAlbum('https://music.dirtwire.net/album/atlas-ep');
 	console.log("paid album:");
 	console.log(paidAlbumResult);
-	console.log("\n\n");
+	console.log("\n\n");*/
 
 	const result = await bandcamp.search("Phony ppl");
 	console.log("search:");
 	console.log(result);
 	console.log("\n\n");
 
-	const albumInfo = await bandcamp.getItemFromURL(result.items[1].url);
+	/*const albumInfo = await bandcamp.getItemFromURL(result.items[1].url);
 	console.log("getItemFromURL: 1");
 	console.log(albumInfo);
 	console.log("\n\n");
@@ -72,7 +72,7 @@ const Bandcamp = require('./src/Bandcamp');
 	});
 	console.log("getFanFollowers John May:");
 	console.log(JSON.stringify(followers,null,'\t'));
-	console.log("\n\n");
+	console.log("\n\n");*/
 
 	console.log("slugify:");
 	const slugTests = {

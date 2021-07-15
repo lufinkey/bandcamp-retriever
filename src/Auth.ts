@@ -1,25 +1,34 @@
 
-const BandcampSession = require('./Session');
+import BandcampSession from './Session';
+import tough from 'tough-cookie';
 
-class BandcampAuth {
-	constructor(options) {
+export type BandcampAuthOptions = {
+	sessionCookies?: (tough.Cookie | string)[]
+}
+
+export default class BandcampAuth {
+	_session: BandcampSession | null
+
+	constructor(options: BandcampAuthOptions) {
 		if(options.sessionCookies && options.sessionCookies.length > 0) {
 			this._session = new BandcampSession(options.sessionCookies);
+		} else {
+			this._session = null;
 		}
 	}
 
-	get isLoggedIn() {
+	get isLoggedIn(): boolean {
 		if(this._session && this._session.isLoggedIn) {
 			return true;
 		}
 		return false;
 	}
 
-	get session() {
+	get session(): BandcampSession | null {
 		return this._session;
 	}
 
-	getSameSiteRequestHeaders(url) {
+	getSameSiteRequestHeaders(url: string): {[key: string]: string} {
 		if(this._session == null) {
 			return {};
 		}
@@ -30,7 +39,7 @@ class BandcampAuth {
 		};
 	}
 
-	getCrossSiteRequestHeaders(url) {
+	getCrossSiteRequestHeaders(url: string): {[key: string]: string} {
 		if(this._session == null) {
 			return {};
 		}
@@ -43,12 +52,12 @@ class BandcampAuth {
 		};
 	}
 
-	loginWithCookies(sessionCookies) {
+	loginWithCookies(sessionCookies: (string | tough.Cookie)[]) {
 		const session = new BandcampSession(sessionCookies);
 		return this.loginWithSession(session);
 	}
 
-	loginWithSession(session) {
+	loginWithSession(session: BandcampSession) {
 		if(session.isLoggedIn) {
 			this._session = session;
 			return true;
@@ -56,7 +65,7 @@ class BandcampAuth {
 		return false;
 	}
 
-	updateSessionCookies(sessionCookies) {
+	updateSessionCookies(sessionCookies: (string | tough.Cookie)[]) {
 		if(this._session) {
 			this._session.updateCookies(sessionCookies);
 		} else if(sessionCookies.length > 0) {
@@ -68,5 +77,3 @@ class BandcampAuth {
 		this._session = null;
 	}
 }
-
-module.exports = BandcampAuth;
