@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "test": "node test/test.js",
+    "test": "npm run build && node test/test.js",
     "build": "npm run build-ts",
     "build-ts": "npx tsc",
     "postinstall": "npm run build-ts"
