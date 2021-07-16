@@ -8,7 +8,7 @@
     "test": "node test/test.js",
     "build": "npm run build-ts",
     "build-ts": "npx tsc",
-    "preinstall": "npm run build-ts"
+    "postinstall": "npm run build-ts"
   },
   "author": "Luis Finke (luisfinke@gmail.com)",
   "license": "Zlib",
