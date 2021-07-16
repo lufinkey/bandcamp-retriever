@@ -1750,7 +1750,7 @@ export default class BandcampParser {
 					artistName = artistName.substring(artistPrefix.length);
 				}
 				// build URLs
-				let url: string | undefined = html.find('a.item_link').attr('href');
+				let url: string | undefined = html.find('a.item-link[href]').attr('href');
 				let albumURL: string | undefined
 				let albumSlug: string | undefined
 				let artistURL: string | undefined
@@ -1771,7 +1771,7 @@ export default class BandcampParser {
 					url = this.cleanUpURL(UrlUtils.resolve(artistURL, `/${itemType}/${this.slugify(itemName)}`));
 				}
 				if(!url) {
-					throw new Error(`Failed to parse URL for collection item at index ${index}`);
+					throw new Error(`Failed to parse URL for collection item at index ${index} in ${sectionSlug} section`);
 				}
 				// build basic item data
 				let item: BandcampFan$CollectionTrack | BandcampFan$CollectionAlbum = {
