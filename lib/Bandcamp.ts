@@ -8,8 +8,10 @@ import {
 	BandcampArtist,
 	BandcampFan$APICollectionPage,
 	BandcampFan$APIFollowedArtistPage,
+	BandcampFan$APIFollowedFanPage,
 	BandcampFan$APIWishlistPage,
-	BandcampSearchResultsList } from './types';
+	BandcampSearchResultsList,
+	BandcampIdentities } from './types';
 import {
 	sendHttpRequest,
 	HttpResponse,
@@ -420,7 +422,7 @@ export default class Bandcamp {
 	}
 
 
-	async getMyIdentities() {
+	async getMyIdentities(): Promise<BandcampIdentities> {
 		const url = 'https://bandcamp.com/';
 		const { res, data } = await this.sendHttpRequest(url);
 		if(res.statusCode < 200 || res.statusCode >= 300) {
@@ -523,7 +525,7 @@ export default class Bandcamp {
 			});
 	}
 
-	async getFanFollowingFans(fanURL: string, fanId: string | number, {olderThanToken, count}: { olderThanToken?: string | null, count: number }) {
+	async getFanFollowingFans(fanURL: string, fanId: string | number, {olderThanToken, count}: { olderThanToken?: string | null, count: number }): Promise<BandcampFan$APIFollowedFanPage> {
 		return await this._getFanSectionItems(
 			'https://bandcamp.com/api/fancollection/1/following_fans',
 			fanURL+'/following/fans', fanURL, fanId, { olderThanToken, count },
@@ -532,7 +534,7 @@ export default class Bandcamp {
 			});
 	}
 
-	async getFanFollowers(fanURL: string, fanId: string | number, {olderThanToken, count}: { olderThanToken?: string | null, count: number }) {
+	async getFanFollowers(fanURL: string, fanId: string | number, {olderThanToken, count}: { olderThanToken?: string | null, count: number }): Promise<BandcampFan$APIFollowedFanPage> {
 		return await this._getFanSectionItems(
 			'https://bandcamp.com/api/fancollection/1/followers',
 			fanURL+'/followers', fanURL, fanId, { olderThanToken, count },
