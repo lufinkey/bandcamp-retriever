@@ -238,11 +238,7 @@ export default class BandcampParser {
 		if(typeof dateString === 'string') {
 			const date = new Date(dateString);
 			if(date instanceof Date && !Number.isNaN(date.getTime())) {
-				dateString = date.toISOString();
-				const suffix = ".000Z";
-				if(dateString.endsWith(suffix)) {
-					dateString = dateString.substring(0,dateString.length-suffix.length)+'Z';
-				}
+				return date.toISOString();
 			}
 		}
 		return dateString;
