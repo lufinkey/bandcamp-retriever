@@ -1501,7 +1501,7 @@ export default class BandcampParser {
 
 	parseFanPageDataMediaSectionJson(listData: any, itemCache: any, trackLists: any, trAlbumLookup: any, existingSection: BandcampFan$CollectionSection | nullish) : BandcampFan$CollectionSection | null {
 		const existingItems = (existingSection || {}).items || [];
-		return this.parseFanPageDataSection(listData, itemCache, existingSection, (itemIdentifier: string): BandcampFan$CollectionNode => {
+		const page = this.parseFanPageDataSection(listData, itemCache, existingSection, (itemIdentifier: string): BandcampFan$CollectionNode => {
 			// get item data
 			const itemData = itemCache[itemIdentifier];
 			if(!itemData) {
@@ -1634,11 +1634,22 @@ export default class BandcampParser {
 			}
 			return itemNode;
 		});
+		// sort page items
+		page?.items.sort((a, b) => {
+			if(a.dateAdded > b.dateAdded) {
+				return -1;
+			}
+			else if(a.dateAdded < b.dateAdded) {
+				return 1;
+			}
+			return 0;
+		});
+		return page;
 	}
 
 
 	parseFanPageDataBandsSectionJson(listData: any, itemCache: any, existingSection: BandcampFan$ArtistSection | nullish): BandcampFan$ArtistSection | null {
-		return this.parseFanPageDataSection(listData, itemCache, existingSection, (itemIdentifier: string): BandcampFan$FollowedArtistNode => {
+		const page = this.parseFanPageDataSection(listData, itemCache, existingSection, (itemIdentifier: string): BandcampFan$FollowedArtistNode => {
 			const itemData = itemCache[itemIdentifier];
 			if(!itemData) {
 				throw new Error(`couldn't find matching artist item with ID ${itemIdentifier} in itemCache`);
@@ -1668,10 +1679,21 @@ export default class BandcampParser {
 				dateFollowed: (itemData.date_followed ? this.formatDate(itemData.date_followed) : undefined) as string
 			};
 		});
+		// sort page items
+		page?.items.sort((a, b) => {
+			if(a.dateFollowed > b.dateFollowed) {
+				return -1;
+			}
+			else if(a.dateFollowed < b.dateFollowed) {
+				return 1;
+			}
+			return 0;
+		});
+		return page;
 	}
 
 	parseFanPageDataFansSectionJson(listData: any, itemCache: any, existingSection: BandcampFan$FanSection | nullish): BandcampFan$FanSection | null {
-		return this.parseFanPageDataSection(listData, itemCache, existingSection, (itemIdentifier: string): BandcampFan$FollowedFanNode => {
+		const page = this.parseFanPageDataSection(listData, itemCache, existingSection, (itemIdentifier: string): BandcampFan$FollowedFanNode => {
 			const itemData = itemCache[itemIdentifier];
 			if(!itemData) {
 				throw new Error(`couldn't find matching fan item with ID ${itemIdentifier} in itemCache`);
@@ -1697,6 +1719,17 @@ export default class BandcampParser {
 				dateFollowed: (itemData.date_followed ? this.formatDate(itemData.date_followed) : undefined) as string
 			};
 		});
+		// sort page items
+		page?.items.sort((a, b) => {
+			if(a.dateFollowed > b.dateFollowed) {
+				return -1;
+			}
+			else if(a.dateFollowed < b.dateFollowed) {
+				return 1;
+			}
+			return 0;
+		});
+		return page;
 	}
 
 
