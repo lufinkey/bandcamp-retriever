@@ -100,7 +100,7 @@ export const sendHttpRequest = (url: string, options: SendHttpRequestOptions = {
 
 			// build response
 			let buffers: Buffer[] = [];
-			res.on('data', (chunk) => {
+			res.on('data', (chunk: Buffer) => {
 				buffers.push(chunk);
 			});
 
@@ -113,7 +113,7 @@ export const sendHttpRequest = (url: string, options: SendHttpRequestOptions = {
 				try {
 					data = Buffer.concat(buffers);
 				}
-				catch(error) {
+				catch(error: any) {
 					error.response = res;
 					error.data = null;
 					reject(error);
@@ -124,7 +124,7 @@ export const sendHttpRequest = (url: string, options: SendHttpRequestOptions = {
 		});
 
 		// handle error
-		req.on('error', (error) => {
+		req.on('error', (error: Error) => {
 			if(errored) {
 				return;
 			}
