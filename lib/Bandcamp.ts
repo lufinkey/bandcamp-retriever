@@ -382,7 +382,7 @@ export default class Bandcamp {
 			.then((item) => (item as BandcampAlbum));
 	}
 
-	async getArtist(artistURL: string, options: {[key: string]: any} = {}) {
+	async getArtist(artistURL: string, options: {[key: string]: any} = {}): Promise<BandcampArtist> {
 		return await this.getItemFromURL(UrlUtils.resolve(artistURL,'/music'), {type:'artist',...options})
 			.then((item) => (item as BandcampArtist));
 	}

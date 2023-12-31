@@ -320,6 +320,8 @@ export default class BandcampParser {
 					albumName = albumName.substring('from '.length).trim();
 					item.albumName = albumName;
 					if(item.artistURL) {
+						// TODO we shouldn't be slugifying the album name to get the URL.
+						// This is a hacky fix, but we have no real way of getting the true album URL from this data
 						item.albumURL = this.cleanUpURL(UrlUtils.resolve(item.artistURL, '/album/'+this.slugify(albumName)));
 					}
 				}
@@ -922,6 +924,7 @@ export default class BandcampParser {
 						}
 					}
 					if(nameSlug != null) {
+						// find the correct dash index to split the name and artist
 						const dashSearchStr = " - ";
 						let dashSearchStartIndex = 0;
 						while(true) {
@@ -929,6 +932,7 @@ export default class BandcampParser {
 							if(dashIndex == -1) {
 								break;
 							}
+							// if the slugified track name matches the expected slug, this is the dash index where the track name should get split
 							const possibleName = trackName.substring(dashIndex+dashSearchStr.length);
 							const cmpNameSlug = this.slugify(possibleName);
 							if(cmpNameSlug === nameSlug || (cmpNameSlug.length >= (nameSlug.length / 2) && nameSlug.startsWith(cmpNameSlug))) {
