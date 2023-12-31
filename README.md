@@ -11,7 +11,7 @@ This was a tool built out of necessity. I love bandcamp and the fact that they p
 ## Library Usage
 
 To make calls to bandcamp, import the `Bandcamp` type and create a new instance:
-```
+```js
 import { Bandcamp } from 'bandcamp-retriever';
 const bandcamp = new Bandcamp();
 ```
