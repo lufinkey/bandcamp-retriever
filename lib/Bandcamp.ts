@@ -75,7 +75,6 @@ export default class Bandcamp {
 	}
 
 
-
 	loginWithCookies(cookies: (string | tough.Cookie)[]) {
 		this._clearFanData();
 		return this._auth.loginWithCookies(cookies);
@@ -97,6 +96,10 @@ export default class Bandcamp {
 
 	get session(): BandcampSession | null {
 		return this._auth.session;
+	}
+
+	get isLoggedIn(): boolean {
+		return this._auth.isLoggedIn;
 	}
 
 	_updateSessionFromResponse(res: HttpResponse) {
