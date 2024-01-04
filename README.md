@@ -19,27 +19,27 @@ const bandcamp = new Bandcamp();
 
 - **Bandcamp** *(class)*
 
-  - **search(** query: string, options: `{[key: string]: any}` = {} **)**: Promise<BandcampSearchResultsList>
+  - **search(** query: string, options: `{[key: string]: any}` = {} **)**: `Promise<BandcampSearchResultsList>`
 
     Perform a search with a given query
 
-  - **getTrack(** url: string, options: `{[key: string]: any}` = {} **)**: Promise<BandcampTrack>
+  - **getTrack(** url: `string` **)**: `Promise<BandcampTrack>`
 
     Fetch info for a given track
 
-  - **getAlbum(** url: string, options: `{[key: string]: any}` = {} **)**: Promise<BandcampAlbum>
+  - **getAlbum(** url: `string` **)**: `Promise<BandcampAlbum>`
 
     Fetch info for a given album
 
-  - **getArtist(** url: string, options: `{[key: string]: any}` = {} **)**: Promise<BandcampArtist>
+  - **getArtist(** url: `string` **)**: `Promise<BandcampArtist>`
 
     Fetch info for a given artist
 
-  - **getFan(** url: string, options: `{[key: string]: any}` = {} **)**: Promise<BandcampFan>
+  - **getFan(** url: `string` **)**: `Promise<BandcampFan>`
 
     Fetch info for a given fan profile
 
-  - **loginWithCookies(** cookies: string[] | `tough.Cookie`[] **)**
+  - **loginWithCookies(** cookies: `string[] | tough.Cookie[]` **)**
 
     Log in using an array of cookies or cookie strings
 
@@ -47,7 +47,7 @@ const bandcamp = new Bandcamp();
 
     Log in using an existing session object
 
-  - **updateSessionCookies(** cookies: string[] | `tough.Cookie`[] **)**
+  - **updateSessionCookies(** cookies: `string[] | tough.Cookie[]` **)**
 
     Updates the cookies for the current session
 
@@ -57,8 +57,12 @@ const bandcamp = new Bandcamp();
 
   - **session** *(read-only)*
 
-    The current auth session
+    The current session
+  
+  - **isLoggedIn** *(read-only)*
+
+    Tells whether the current session contains auth cookies
     
-  - **getMyIdentities()**: Promise<BandcampIdentities>
+  - **getMyIdentities()**: `Promise<BandcampIdentities>`
 
     Fetches the "identities" for the currently authenticated user
