@@ -1,5 +1,7 @@
 
-export type nullish = null | undefined
+export type BandcampMediaType = 'artist' | 'label' | 'album' | 'track' | 'fan';
+export const BandcampMediaTypes: (BandcampMediaType[] & string[]) = [ 'artist', 'label', 'album', 'track', 'fan' ];
+
 
 export type BandcampImage = {
 	url: string
@@ -33,7 +35,7 @@ export type BandcampFanIdentity = {
 
 
 export type BandcampSearchResult = {
-	type: string
+	type: BandcampMediaType
 	name: string
 	url: string
 	imageURL?: string
@@ -59,7 +61,7 @@ export type BandcampSearchResultsList = {
 
 export type BandcampTrack = {
 	id?: string
-	type: 'track' | string
+	type: 'track'
 	url: string
 	name: string
 	artistName: string
@@ -85,8 +87,8 @@ export type BandcampAudioSource = {
 
 
 export type BandcampAlbum = {
-	id: string
-	type: 'album' | string
+	id?: string
+	type: 'album'
 	url: string
 	name: string
 	artistName: string
@@ -140,7 +142,7 @@ export type BandcampArtistShow = {
 
 export type BandcampArtistPageItem = {
 	id: string
-	type: 'track' | 'album' | string
+	type: 'track' | 'album'
 	url: string
 	name: string
 	artistName: string
@@ -218,23 +220,23 @@ export type BandcampFan$FollowedFanNode = BandcampFan$FollowedNode<BandcampFan$C
 
 export type BandcampFan$CollectionTrack = {
 	id: string
-	type: 'track' | string
+	type: 'track'
 	url: string
 	name: string
 	artistName: string
 	artistURL: string
 	albumURL?: string
 	albumName?: string | null
-	albumSlug: string
+	albumSlug?: string // included because we can't get the album name on some calls
 	images?: BandcampImage[]
-	duration?: number
 	trackNumber?: number
+	duration?: number
 	audioSources?: BandcampAudioSource[]
 }
 
 export type BandcampFan$CollectionAlbum = {
 	id: string
-	type: 'album' | string
+	type: 'album'
 	url: string
 	name: string
 	artistName: string
@@ -244,7 +246,7 @@ export type BandcampFan$CollectionAlbum = {
 
 export type BandcampFan$CollectionArtist = {
 	id: string
-	type: 'artist' | 'label' | string
+	type: 'artist' | 'label'
 	url: string
 	name: string
 	location?: string | null
@@ -253,7 +255,7 @@ export type BandcampFan$CollectionArtist = {
 
 export type BandcampFan$CollectionFan = {
 	id: string
-	type: 'fan' | string
+	type: 'fan'
 	url: string
 	name: string
 	location?: string | null

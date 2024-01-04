@@ -1,13 +1,15 @@
 
 import tough from 'tough-cookie';
 
-const BANDCAMP_COOKIES_URL = "https://bandcamp.com/"
-const COOKIE_NAME_CLIENT_ID = "client_id";
-const COOKIE_NAME_IDENTITY = "identity";
-const COOKIE_NAME_SESSION = "session";
+export const BANDCAMP_COOKIES_URL = "https://bandcamp.com/"
+
+export const COOKIE_NAME_CLIENT_ID = "client_id";
+export const COOKIE_NAME_IDENTITY = "identity";
+export const COOKIE_NAME_SESSION = "session";
 
 
 type GetCookiesOptions = tough.CookieJar.GetCookiesOptions & {
+	// this property is in the tough-cookie docs, but missing from the actual type
 	sameSiteContext: 'none' | 'lax' | 'strict'
 }
 

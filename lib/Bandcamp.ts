@@ -3,15 +3,18 @@ import BandcampAuth, { BandcampAuthOptions } from './Auth';
 import BandcampSession from './Session';
 import BandcampParser from './Parser';
 import {
+	BandcampMediaType,
 	BandcampTrack,
 	BandcampAlbum,
 	BandcampArtist,
+	BandcampFan,
 	BandcampFan$APICollectionPage,
 	BandcampFan$APIFollowedArtistPage,
 	BandcampFan$APIFollowedFanPage,
 	BandcampFan$APIWishlistPage,
 	BandcampSearchResultsList,
 	BandcampIdentities } from './types';
+import { PrivBandcampAPI$Fan$CollectionSummary } from './private_types';
 import {
 	sendHttpRequest,
 	HttpResponse,
@@ -291,11 +294,7 @@ export default class Bandcamp {
 		return searchResults;
 	}
 
-	async getItemFromURL(url: string, options: {[key: string]: any} = {}) {
-		options = {...options};
-		if(!options.type) {
-			options.type = this._parser.parseType(url);
-		}
+	async getItemFromURL(url: string, options: {forceType?: BandcampMediaType, fetchAdditionalData?: boolean} = {}) {
 		// perform request
 		const isBandcampDomain = this._parser.isUrlBandcampDomain(url);
 		const { res, data } = await this.sendHttpRequest(url);
@@ -308,40 +307,82 @@ export default class Bandcamp {
 		}
 		// parse response
 		const $ = cheerio.load(dataString);
-		const item = this._parser.parseItemFromURL(url, options.type, $);
-		if(item == null) {
-			if(res.statusCode >= 200 && res.statusCode < 300) {
-				throw new Error("Failed to parse item");
+		const type = options.forceType ? options.forceType : this._parser.parseType(url, $);
+		// parse data by type
+		if(type === 'fan') {
+			// handle fan
+			// check if this is actually the root fan page
+			let fanURL = this._parser.parseMetaURL($);
+			let fanURLType;
+			if(fanURL) {
+				fanURLType = this._parser.checkFanURLType(url, fanURL);
 			} else {
-				throw new Error(res.statusCode+": "+res.statusMessage);
+				fanURL = url;
+				fanURLType = '/';
 			}
-		}
-		// if we're logged in and missing some audio streams,
-		//  and if the link isn't a bandcamp subdomain
-		//  then fetch the missing audio files
-		const itemAsTrack = item as BandcampTrack;
-		const itemAsAlbum = item as BandcampAlbum;
-		if(this._auth.isLoggedIn && !isBandcampDomain
-		   && (item.type === 'track'
-		    || (item.type === 'album' && itemAsAlbum.tracks && itemAsAlbum.tracks.length > 0))) {
-			let missingAudioSources = false;
-			if((item.type === 'track' && (!itemAsTrack.audioSources || itemAsTrack.audioSources.length === 0))
-			   || (item.type === 'album' && itemAsAlbum.tracks && itemAsAlbum.tracks.find((track) => (!track.audioSources || track.audioSources.length === 0)))) {
-				missingAudioSources = true;
+			if(options.fetchAdditionalData ?? true) {
+				// fetch fan collection summary
+				const collectionSummary = await this._fetchFanCollectionSummary(fanURL);
+				// parse fan
+				const fan = this._parser.parseFanHtmlData(fanURL, data, collectionSummary);
+				// load and parse wishlist if this is the root fan page
+				if(fanURLType == '/') {
+					const wishlistURL = fanURL+'/wishlist';
+					const { res: resWl, data: dataWl } = await this.sendHttpRequest(wishlistURL);
+					if(dataWl) {
+						const fan2 = this._parser.parseFanHtmlData(wishlistURL, dataWl, collectionSummary);
+						if(fan2.wishlist) {
+							fan.wishlist = fan2.wishlist;
+						}
+					} else {
+						console.error(`Unable to get wishlist data from url (response was ${resWl.statusCode})`);
+					}
+				}
+				return fan;
+			} else {
+				// parse fan
+				const fan = this._parser.parseFanHtmlData(fanURL, data, null);
+				return fan;
 			}
-			if(missingAudioSources) {
-				const cdUIURL = this._parser.parseCDUILink($);
-				const streams = cdUIURL ? (await this._fetchItemStreamsFromCDUI(cdUIURL, url)) : null;
-				if(streams) {
-					if(item.type === 'track') {
-						this._parser.attachStreamsToTracks([item], streams);
-					} else if(item.type === 'album' && itemAsAlbum.tracks) {
-						this._parser.attachStreamsToTracks(itemAsAlbum.tracks, streams);
+		} else {
+			// handle other media types
+			const item = this._parser.parseItemFromURL(url, type, $);
+			if(item == null) {
+				if(res.statusCode >= 200 && res.statusCode < 300) {
+					throw new Error(`Failed to parse '${type}' item`);
+				} else {
+					throw new Error(res.statusCode+": "+res.statusMessage);
+				}
+			}
+			// if we're logged in and missing some audio streams,
+			//  and if the link isn't a bandcamp subdomain
+			//  then fetch the missing audio files from cdui
+			if(options.fetchAdditionalData ?? true) {
+				const itemAsTrack = item as BandcampTrack;
+				const itemAsAlbum = item as BandcampAlbum;
+				if(this._auth.isLoggedIn && !isBandcampDomain
+				&& (item.type === 'track'
+					|| (item.type === 'album' && itemAsAlbum.tracks && itemAsAlbum.tracks.length > 0))) {
+					let missingAudioSources = false;
+					if((item.type === 'track' && (!itemAsTrack.audioSources || itemAsTrack.audioSources.length === 0))
+					|| (item.type === 'album' && itemAsAlbum.tracks && itemAsAlbum.tracks.find((track) => (!track.audioSources || track.audioSources.length === 0)))) {
+						missingAudioSources = true;
+					}
+					if(missingAudioSources) {
+						const cdUIURL = this._parser.parseCDUILink($);
+						const streams = cdUIURL ? (await this._fetchItemStreamsFromCDUI(cdUIURL, url)) : null;
+						if(streams) {
+							if(item.type === 'track') {
+								this._parser.attachStreamsToTracks([item], streams);
+							} else if(item.type === 'album' && itemAsAlbum.tracks) {
+								this._parser.attachStreamsToTracks(itemAsAlbum.tracks, streams);
+							}
+						}
 					}
 				}
 			}
+			return item;
 		}
-		return item;
 	}
 
 	async _fetchCDUIData(cduiLink: string, refererURL: string) {
@@ -375,31 +416,22 @@ export default class Bandcamp {
 		return this._parser.parseStreamFilesFromCDUI(cduiData);
 	}
 
-	async getTrack(trackURL: string, options: {[key: string]: any} ={ }): Promise<BandcampTrack> {
-		return await this.getItemFromURL(trackURL, {type:'track',...options})
+	async getTrack(trackURL: string): Promise<BandcampTrack> {
+		return await this.getItemFromURL(trackURL, {forceType:'track', fetchAdditionalData:true})
 			.then((item) => (item as BandcampTrack));
 	}
 
-	async getAlbum(albumURL: string, options: {[key: string]: any} = {}): Promise<BandcampAlbum> {
-		return await this.getItemFromURL(albumURL, {type:'album',...options})
+	async getAlbum(albumURL: string): Promise<BandcampAlbum> {
+		return await this.getItemFromURL(albumURL, {forceType:'album', fetchAdditionalData:true})
 			.then((item) => (item as BandcampAlbum));
 	}
 
-	async getArtist(artistURL: string, options: {[key: string]: any} = {}): Promise<BandcampArtist> {
-		return await this.getItemFromURL(UrlUtils.resolve(artistURL,'/music'), {type:'artist',...options})
+	async getArtist(artistURL: string): Promise<BandcampArtist> {
+		return await this.getItemFromURL(UrlUtils.resolve(artistURL,'/music'), {forceType:'artist', fetchAdditionalData:true})
 			.then((item) => (item as BandcampArtist));
 	}
 
-	async getFan(fanURL: string, options: {[key: string]: any} = {}) {
-		// load fan page
-		const { res, data } = await this.sendHttpRequest(fanURL);
-		if(res.statusCode < 200 || res.statusCode >= 300) {
-			throw new Error(res.statusMessage);
-		}
-		if(!data) {
-			throw new Error("Unable to get data from url");
-		}
-		// load collection summary
+	async _fetchFanCollectionSummary(fanURL: string): Promise<PrivBandcampAPI$Fan$CollectionSummary | null> {
 		const collectionSummaryURL = 'https://bandcamp.com/api/fan/2/collection_summary';
 		const { res: resCs, data: dataCs } = await this.sendHttpRequest(collectionSummaryURL, {
 			headers: {
@@ -409,21 +441,14 @@ export default class Bandcamp {
 				'Sec-Fetch-Site': 'same-origin',
 			}
 		});
-		// parse fan
-		const fan = await this._parser.parseFanHtmlData(fanURL, data, dataCs);
-		// load and parse wishlist
-		const wishlistURL = fanURL+'/wishlist';
-		const { res: resWl, data: dataWl } = await this.sendHttpRequest(wishlistURL);
-		if(!dataWl) {
-			throw new Error("Unable to get wishlist data from url");
-		}
-		const fan2 = await this._parser.parseFanHtmlData(wishlistURL, dataWl, dataCs);
-		if(fan2.wishlist) {
-			fan.wishlist = fan2.wishlist;
-		}
-		return fan;
+		const collectionSummary = dataCs ? JSON.parse(dataCs.toString()) : dataCs;
+		return collectionSummary;
 	}
 
+	async getFan(fanURL: string): Promise<BandcampFan> {
+		return await this.getItemFromURL(fanURL, {forceType:'fan', fetchAdditionalData:true})
+			.then((item) => (item as BandcampFan));
+	}
 
 	async getMyIdentities(): Promise<BandcampIdentities> {
 		const url = 'https://bandcamp.com/';

@@ -2,13 +2,15 @@
 import {
 	HttpResponse
 } from './Utils';
-import UrlUtils from 'url';
+import UrlUtils, {
+	URL } from 'url';
 import cheerio, {
 	Cheerio,
 	CheerioAPI,
 	Element } from 'cheerio';
 import {
-	nullish,
+	BandcampMediaType,
+	BandcampMediaTypes,
 	BandcampAlbum,
 	BandcampAlbumTrack,
 	BandcampArtist,
@@ -35,7 +37,15 @@ import {
 	BandcampFan$CollectionFan,
 	BandcampFan$APICollectionPage,
 	BandcampFan$APIFollowedArtistPage,
-	BandcampFan$APIFollowedFanPage} from './types';
+	BandcampFan$APIFollowedFanPage } from './types';
+import {
+	PrivBandcampFan$AlbumTrack,
+	PrivBandcampFan$CollectionBatchData,
+	PrivBandcampFan$CollectionItemInfo,
+	PrivBandcampFan$FanData,
+	PrivBandcampFanPageData,
+	PrivBandcampAPI$Fan$CollectionSummary, 
+	PrivBandcampAPI$Fan$CollectionSummary$TRAlbumLookup } from './private_types';
 
 
 
@@ -86,7 +96,7 @@ export default class BandcampParser {
 				if(repCh != null) {
 					return result + repCh;
 				}
-				return result + ch.replace(/([^\w\s$*_+~.'"!:@]|(\.|\+|\*|~|\\|\/))/g, '-')
+				return result + ch.replace(/([^\w\s$*_+~.'"!:@]|(\.|\+|\*|~|\\|\/))/g, '-');
 			}, '')
 			.toLowerCase()
 			// trim leading/trailing spaces
@@ -108,22 +118,28 @@ export default class BandcampParser {
 
 
 
-	parseType(url: string, $: CheerioAPI | null = null): string {
-		const urlObj = UrlUtils.parse(url);
+	parseType(url: string, $: CheerioAPI | null = null): BandcampMediaType {
+		// parse type from URL
+		const urlObj = new URL(url);
+		if(urlObj.host != 'bandcamp.com' && (!urlObj.pathname || urlObj.pathname === '/' || urlObj.pathname === '')) {
+			return 'artist'
+		}
+		// parse from pathname
 		if(urlObj.pathname) {
-			if(urlObj.pathname === '/' || urlObj.pathname === '/music' || urlObj.pathname === '/releases') {
+			if(urlObj.pathname === '/music' || urlObj.pathname === '/releases') {
 				return 'artist';
 			}
 			if(urlObj.pathname === '/artists') {
 				return 'label';
 			}
-			else if(urlObj.pathname.startsWith('/album/')) {
+			else if(urlObj.pathname.startsWith('/album/') && urlObj.pathname.length > '/album/'.length) {
 				return 'album';
 			}
-			else if(urlObj.pathname.startsWith('/track/')) {
+			else if(urlObj.pathname.startsWith('/track/') && urlObj.pathname.length > '/track/'.length) {
 				return 'track';
 			}
 		}
+		// parse type from page
 		if($) {
 			const metaType = $('meta[property="og:type"]').attr('content');
 			if(metaType) {
@@ -133,12 +149,58 @@ export default class BandcampParser {
 				else if(metaType === 'song') {
 					return 'track';
 				}
-				else if(['track', 'artist', 'album'].indexOf(metaType) !== -1) {
-					return metaType;
+				else if(metaType == 'profile') {
+					return 'fan';
+				}
+				else if(BandcampMediaTypes.indexOf(metaType) !== -1) {
+					return metaType as BandcampMediaType;
 				}
 			}
 		}
+		if(url) {
+			throw new Error(`Failed to parse item type for '${url}'`);
+		}
 		throw new Error("failed to parse item type");
+	}
+
+	parseMetaURL($: CheerioAPI): (string | undefined) {
+		const metaURL = $('meta[property="og:url"]').attr('content');
+		if(metaURL && metaURL.length == 0) {
+			return undefined;
+		}
+		return metaURL;
+	}
+
+	checkFanURLType(url: string, fanURL: string): ('/' | 'wishlist' | string) {
+		if(url.startsWith(fanURL)) {
+			let trailingOffset = fanURL.length;
+			let minDiff = 1;
+			if(!fanURL.endsWith('/')) {
+				minDiff++;
+				trailingOffset++;
+			}
+			if((fanURL.length - url.length) >= minDiff) {
+				let trailing = url.substring(trailingOffset);
+				while(trailing.startsWith('/')) {
+					trailing = trailing.substring(1);
+				}
+				if(!trailing.startsWith('?') && !trailing.startsWith('#') && trailing.length > 0) {
+					if(trailing == 'wishlist' || trailing.startsWith('wishlist/')) {
+						return 'wishlist';
+					}
+					const hashIndex = trailing.indexOf('#');
+					if(hashIndex != -1) {
+						trailing = trailing.substring(0, hashIndex);
+					}
+					const queryIndex = trailing.indexOf('?');
+					if(queryIndex != -1) {
+						trailing = trailing.substring(0, queryIndex);
+					}
+					return trailing;
+				}
+			}
+		}
+		return '/';
 	}
 
 
@@ -156,7 +218,7 @@ export default class BandcampParser {
 	}
 
 
-	padImageId(imageId: string): string {
+	padImageId(imageId: number | string): string {
 		imageId = ''+imageId;
 		while(imageId.length < 10) {
 			imageId = '0'+imageId;
@@ -278,6 +340,9 @@ export default class BandcampParser {
 			else if(type === 'band') {
 				type = 'artist';
 			}
+			if(BandcampMediaTypes.indexOf(type) === -1) {
+				console.error(`Unrecognized media type ${type} from url ${url}`);
+			}
 
 			// parse release date
 			let releaseDate: string | undefined = resultItemHtml.find('.released').text().trim().replace(/^released /, '').trim();
@@ -289,7 +354,7 @@ export default class BandcampParser {
 
 			// parse general fields
 			const item: BandcampSearchResult = {
-				type: type,
+				type: type as BandcampMediaType,
 				name: resultItemHtml.find('.heading').text().trim(),
 				url: this.cleanUpURL(resultItemHtml.find('.itemurl').text().trim()),
 				imageURL: resultItemHtml.find('.art img').attr('src') || undefined,
@@ -425,7 +490,7 @@ export default class BandcampParser {
 		}
 
 		// determine if track or album
-		let type: string | null = null;
+		let type: 'album' | 'track' | null = null;
 		if(ldJson) {
 			let ldType = ldJson['@type'];
 			if(ldType === 'MusicAlbum' || ldType === 'album' || ldType === 'Album') {
@@ -446,8 +511,7 @@ export default class BandcampParser {
 		if(type == null) {
 			if(trackTable.index() === -1) {
 				type = 'track';
-			}
-			else {
+			} else {
 				type = 'album';
 			}
 		}
@@ -700,14 +764,14 @@ export default class BandcampParser {
 		}
 
 		// make item object with basic data
-		const item: BandcampTrack | BandcampAlbum = {
+		const item = {
 			id: itemId,
 			type: type,
 			url: itemURL,
 			name: itemName,
 			artistName,
 			artistURL,
-			images: [],
+			images: [] as BandcampImage[],
 			tags,
 			description: description ?? "",
 			releaseDate: releaseDate ?? undefined
@@ -794,7 +858,7 @@ export default class BandcampParser {
 		};
 
 		// parse type-specific data
-		if(type === 'album') {
+		if(item.type === 'album') {
 			// ALBUM
 			const album = item as BandcampAlbum;
 			// construct tracks
@@ -964,6 +1028,7 @@ export default class BandcampParser {
 					artistName: trackArtistName,
 					artistURL: album.artistURL as string,
 					trackNumber: (i + 1),
+					duration: trackDuration,
 					audioSources: trackAudioSources,
 					playable: trackPlayable
 				};
@@ -971,28 +1036,30 @@ export default class BandcampParser {
 				tracks.push(track);
 			}
 			album.tracks = tracks;
+			return album;
 		}
-		else if(type === 'track') {
+		else if(item.type === 'track') {
 			// TRACK
+			const track = item as BandcampTrack;
 			// get properties from data-tralbum
 			if(trAlbumData) {
 				const trTracks = trAlbumData['trackinfo'];
 				if(trTracks instanceof Array && trTracks.length > 0) {
 					const trTrack = trTracks[0];
 					const audioSources = parseTrTrackAudioSources(trTrack);
-					item.audioSources = audioSources;
+					track.audioSources = audioSources;
 					if(audioSources.length > 0) {
-						item.playable = true;
+						track.playable = true;
 					} else {
-						item.playable = false;
+						track.playable = false;
 					}
 					const trTrackDuration = trTrack['duration'];
 					if(typeof trTrackDuration === 'number' && trTrackDuration) {
-						item.duration = trTrackDuration;
+						track.duration = trTrackDuration;
 					}
 					const trackNum = trTrack['track_num'];
 					if(typeof trackNum === 'number') {
-						item.trackNumber = trackNum;
+						track.trackNumber = trackNum;
 					}
 				}
 
@@ -1000,13 +1067,14 @@ export default class BandcampParser {
 				if(current) {
 					const trackNum = current.track_number;
 					if(typeof trackNum === 'number') {
-						item.trackNumber = trackNum;
+						track.trackNumber = trackNum;
 					}
 				}
 			}
+			return track;
 		}
-
-		return item;
+		console.error(`Unrecognized item type ${item.type} for url ${url}`);
+		return item as any;
 	}
 
 
@@ -1111,7 +1179,7 @@ export default class BandcampParser {
 			itemURL = (itemURL ? this.cleanUpURL(UrlUtils.resolve(url,itemURL)) : undefined);
 			// parse item type
 			const dataItemId = albumTag.attr('data-item-id');
-			let itemType = dataItemId?.startsWith('track') ? 'track' : dataItemId?.startsWith('album') ? 'album' : undefined;
+			let itemType: ('track' | 'album' | undefined) = dataItemId?.startsWith('track') ? 'track' : dataItemId?.startsWith('album') ? 'album' : undefined;
 			if(!itemType && itemURL) {
 				const urlParts = UrlUtils.parse(itemURL);
 				itemType = urlParts.pathname?.startsWith('/track/') ? 'track' : urlParts.pathname?.startsWith('/album/') ? 'album' : undefined;
@@ -1127,7 +1195,7 @@ export default class BandcampParser {
 			const artistURL = itemURL ? this.cleanUpURL(UrlUtils.resolve(itemURL, '/')) : undefined;
 			basicAlbumInfos.push({
 				id: dataItemId?.replace(/^(album|track)-/, '') as string,
-				type: itemType as string,
+				type: itemType as ('track' | 'album'),
 				url: itemURL as string,
 				name: titleText,
 				artistName: artistNameText as string,
@@ -1180,7 +1248,7 @@ export default class BandcampParser {
 
 
 
-	parseItemDataFromURL(url: string, type: string, data: Buffer) {
+	parseItemDataFromURL(url: string, type: BandcampMediaType, data: Buffer) {
 		const dataString = data.toString();
 		if(!dataString) {
 			throw new Error("Unable to get data from url");
@@ -1188,7 +1256,7 @@ export default class BandcampParser {
 		const $ = cheerio.load(dataString);
 		return this.parseItemFromURL(url, type, $);
 	}
-	parseItemFromURL(url: string, type: string, $: CheerioAPI): BandcampTrack | BandcampAlbum | BandcampArtist | null {
+	parseItemFromURL(url: string, type: BandcampMediaType, $: CheerioAPI): BandcampTrack | BandcampAlbum | BandcampArtist | BandcampFan | null {
 		if(type === 'track' || type === 'album') {
 			// parse track or album data
 			let item = this.parseTrackInfo(url, $);
@@ -1198,8 +1266,9 @@ export default class BandcampParser {
 			item.artist = this.parseArtistInfo(url, $) || undefined;
 			// if item is a single, and we were requesting an album, mutate into an album
 			const itemAsTrack = item as BandcampTrack;
-			if(itemAsTrack.type == 'track' && type == 'album' && ((!itemAsTrack.albumName && !itemAsTrack.albumURL) || (itemAsTrack.url && itemAsTrack.albumURL === itemAsTrack.url))) {
+			if(itemAsTrack.type === 'track' && type === 'album' && ((!itemAsTrack.albumName && !itemAsTrack.albumURL) || (itemAsTrack.url && itemAsTrack.albumURL === itemAsTrack.url))) {
 				item = {
+					//id: itemAsTrack.id, // TODO figure out if we should use the same ID for the album
 					type: 'album',
 					url: itemAsTrack.url,
 					name: itemAsTrack.name,
@@ -1231,6 +1300,10 @@ export default class BandcampParser {
 				}
 			}
 			return artist;
+		}
+		else if(type === 'fan') {
+			const fan = this.parseFanHtml(url, $, null);
+			return fan;
 		}
 		else {
 			const artist = this.parseArtistInfo(url, $);
@@ -1426,7 +1499,7 @@ export default class BandcampParser {
 
 
 
-	parseFanPageDataFanJson(fanData: any | null, fan: BandcampFan): BandcampFan {
+	parseFanPageDataFanJson(fanData: PrivBandcampFan$FanData | null, fan: BandcampFan): BandcampFan {
 		if(!fanData) {
 			return fan;
 		}
@@ -1455,7 +1528,7 @@ export default class BandcampParser {
 		return fan;
 	}
 
-	parseFanPageDataSection<T>(listData: any, itemCache: any, existingSection: BandcampFan$PageSection<T> | nullish, mapper: (itemIdentifier: string) => T): BandcampFan$PageSection<T> | null {
+	parseFanPageDataSection<T>(listData: any, itemCache: any, existingSection: BandcampFan$PageSection<T> | null | undefined, mapper: (itemIdentifier: string) => T): BandcampFan$PageSection<T> | null {
 		if(!listData || !(listData.sequence || listData.pending_sequence)
 		  || (listData.hidden === true && listData.item_count === 0)
 		  || (listData.item_count === null && (listData.sequence || []).length === 0 && (listData.pending_sequence || []).length === 0)
@@ -1503,7 +1576,12 @@ export default class BandcampParser {
 		return section;
 	}
 
-	parseFanPageDataMediaSectionJson(listData: any, itemCache: any, trackLists: any, trAlbumLookup: any, existingSection: BandcampFan$CollectionSection | nullish) : BandcampFan$CollectionSection | null {
+	parseFanPageDataMediaSectionJson(
+		listData: PrivBandcampFan$CollectionBatchData,
+		itemCache: {[itemid: string]: PrivBandcampFan$CollectionItemInfo},
+		trackLists: ({ [itemid:string]: [PrivBandcampFan$AlbumTrack] } | null | undefined),
+		trAlbumLookup: PrivBandcampAPI$Fan$CollectionSummary$TRAlbumLookup,
+		existingSection: (BandcampFan$CollectionSection | null | undefined)): (BandcampFan$CollectionSection | null) {
 		const existingItems = (existingSection || {}).items || [];
 		const page = this.parseFanPageDataSection(listData, itemCache, existingSection, (itemIdentifier: string): BandcampFan$CollectionNode => {
 			// get item data
@@ -1528,9 +1606,9 @@ export default class BandcampParser {
 			// find existing item
 			let itemNode: BandcampFan$CollectionNode = ({} as BandcampFan$CollectionNode);
 			let item = ({} as (BandcampFan$CollectionTrack | BandcampFan$CollectionAlbum));
-			if(itemData.item_id) {
+			if(itemData.item_id != null) {
 				const existingItemIndex = existingItems.findIndex((cmpNode) => {
-					if(itemData.item_id && cmpNode.itemId && itemData.item_id == cmpNode.itemId) {
+					if(itemData.item_id && cmpNode.itemId && (itemData.item_id as any) == (cmpNode.itemId as any)) {
 						return true;
 					}
 					return false;
@@ -1540,11 +1618,11 @@ export default class BandcampParser {
 					item = itemNode.item || item;
 					existingItems.splice(existingItemIndex,1);
 				}
-				item.id = itemData.item_id;
+				item.id = ''+itemData.item_id;
 			}
 			// attach basic item data
 			if(itemType) {
-				item.type = itemType;
+				item.type = itemType as ('album' | 'track');
 			}
 			if(itemURL) {
 				item.url = itemURL;
@@ -1608,12 +1686,15 @@ export default class BandcampParser {
 					// TODO the only album name we can get from this endpoint is the slug
 					//  so update this whenever we get that piece of data
 					track.albumURL = this.cleanUpURL(UrlUtils.resolve(track.url, '/album/'+itemData.url_hints.slug));
-					if(itemData.album_title) {
-						track.albumName = itemData.album_title;
-					} else if(!track.albumName) {
+					track.albumSlug = itemData.url_hints.slug;
+					// attempt to get the album name from non-existant field (maybe they'll add it! I hope!)
+					if((itemData as any).album_title) {
+						track.albumName = (itemData as any).album_title;
+					}
+					// ensure albumName is null if not set
+					else if(!track.albumName) {
 						track.albumName = null;
 					}
-					track.albumSlug = itemData.url_hints.slug;
 				}
 			}
 
@@ -1652,7 +1733,7 @@ export default class BandcampParser {
 	}
 
 
-	parseFanPageDataBandsSectionJson(listData: any, itemCache: any, existingSection: BandcampFan$ArtistSection | nullish): BandcampFan$ArtistSection | null {
+	parseFanPageDataBandsSectionJson(listData: any, itemCache: any, existingSection: BandcampFan$ArtistSection | null): BandcampFan$ArtistSection | null {
 		const page = this.parseFanPageDataSection(listData, itemCache, existingSection, (itemIdentifier: string): BandcampFan$FollowedArtistNode => {
 			const itemData = itemCache[itemIdentifier];
 			if(!itemData) {
@@ -1696,7 +1777,7 @@ export default class BandcampParser {
 		return page;
 	}
 
-	parseFanPageDataFansSectionJson(listData: any, itemCache: any, existingSection: BandcampFan$FanSection | nullish): BandcampFan$FanSection | null {
+	parseFanPageDataFansSectionJson(listData: any, itemCache: any, existingSection: BandcampFan$FanSection | null): BandcampFan$FanSection | null {
 		const page = this.parseFanPageDataSection(listData, itemCache, existingSection, (itemIdentifier: string): BandcampFan$FollowedFanNode => {
 			const itemData = itemCache[itemIdentifier];
 			if(!itemData) {
@@ -1860,18 +1941,16 @@ export default class BandcampParser {
 
 
 
-	parseFanHtmlData(url: string, data: Buffer, collectionSummaryData: Buffer | nullish): BandcampFan {
+	parseFanHtmlData(url: string, data: Buffer, collectionSummary: PrivBandcampAPI$Fan$CollectionSummary | null): BandcampFan {
 		const dataString = data ? data.toString() : null;
 		if(!dataString) {
 			throw new Error("Could not get data for fan");
 		}
-		const csDataString = collectionSummaryData ? collectionSummaryData.toString() : null;
-		const collectionSummary = csDataString ? JSON.parse(csDataString) : null;
 		const $ = cheerio.load(dataString);
 		return this.parseFanHtml(url, $, collectionSummary);
 	}
 
-	parseFanHtml(url: string, $: CheerioAPI, collectionSummary: any | nullish): BandcampFan {
+	parseFanHtml(url: string, $: CheerioAPI, collectionSummary: PrivBandcampAPI$Fan$CollectionSummary | null): BandcampFan {
 		// parse fan username from url
 		let urlParts = UrlUtils.parse(url);
 		let username = urlParts.pathname;
@@ -1921,7 +2000,7 @@ export default class BandcampParser {
 		fan.wishlist = this.parseFanCollectionHtml($,'wishlist');
 		
 		// parse pageData json
-		let pageData = null;
+		let pageData: null | PrivBandcampFanPageData = null;
 		try {
 			const pageDataString = $('#pagedata').attr('data-blob');
 			if(pageDataString) {
@@ -1944,7 +2023,7 @@ export default class BandcampParser {
 			fan.followingArtists = this.parseFanPageDataBandsSectionJson(pageData.following_bands_data, itemCache.following_bands, null);
 			// build fan sections
 			fan.followingFans = this.parseFanPageDataFansSectionJson(pageData.following_fans_data, itemCache.following_fans, null);
-			fan.followers = this.parseFanPageDataFansSectionJson(pageData.followers_data, itemCache.followers, fan.followers);
+			fan.followers = this.parseFanPageDataFansSectionJson(pageData.followers_data, itemCache.followers, (fan.followers ?? null));
 		}
 		
 		return fan;
@@ -2158,7 +2237,7 @@ export default class BandcampParser {
 		return referrerToken;
 	}
 
-	parsePageData($: CheerioAPI): any | nullish {
+	parsePageData($: CheerioAPI): any | null | undefined {
 		const pageData = $('#pagedata').attr('data-blob');
 		if(!pageData) {
 			return null;
