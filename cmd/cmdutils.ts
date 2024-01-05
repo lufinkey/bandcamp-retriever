@@ -233,7 +233,7 @@ export function parseArgsOrExit(argv: string[], startIndex: number, options: Arg
 export type PrintFormat = 'readable-brief' | 'readable' | 'json' | 'json-pretty';
 export const PrintFormats = [ 'readable-brief', 'readable', 'json', 'json-pretty' ];
 
-export function convertObjectToOutputFormat(obj: any, format: PrintFormat): string {
+export function convertObjectToPrintFormat(obj: any, format: PrintFormat): string {
 	switch(format) {
 		case 'readable-brief':
 			return convertObjectToReadableFormat(obj, {

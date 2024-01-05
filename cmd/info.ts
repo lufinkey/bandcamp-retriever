@@ -9,7 +9,7 @@ import {
 	parseBooleanArgValue,
 	PrintFormat,
 	PrintFormats,
-	convertObjectToOutputFormat as convertObjectToPrintFormat } from './cmdutils';
+	convertObjectToPrintFormat } from './cmdutils';
 
 type URLInfo = {
 	url: string,
