@@ -13,7 +13,8 @@ import {
 	PrintFormats,
 	convertObjectToPrintFormat } from './cmdutils';
 
-const SearchableMediaTypes: { [key: (BandcampMediaType | string)]: BandcampMediaTypeChar } = {
+const SearchableMediaTypes: { [key: (BandcampMediaType | 'any' | string)]: (BandcampMediaTypeChar | undefined) } = {
+	'any': undefined,
 	'album': 'a',
 	'artist': 'b',
 	'label': 'b',
@@ -24,7 +25,7 @@ const SearchableMediaTypes: { [key: (BandcampMediaType | string)]: BandcampMedia
 export async function searchCommand(bandcamp: Bandcamp, argv: string[], argi: number, options: { verbose: boolean }) {
 	// set defaults for options
 	let printFormat = 'readable-brief' as PrintFormat;
-	let mediaType: (string | undefined) = undefined;
+	let mediaType: (BandcampMediaType | 'any' | undefined) = undefined;
 	let page: (number | undefined) = undefined;
 	let query: (string | undefined) = undefined;
 	let queryGivenWithFlag = false;
@@ -32,13 +33,13 @@ export async function searchCommand(bandcamp: Bandcamp, argv: string[], argi: nu
 	// parse arguments
 	const mediaTypeFlagOpts: FlagOptions = {
 		value: 'required',
-		parseValue: (val): BandcampMediaType => {
-			if(BandcampMediaTypes.indexOf(val) == -1) {
+		parseValue: (val): (BandcampMediaType | 'any') => {
+			if(val != 'any' && BandcampMediaTypes.indexOf(val) == -1) {
 				throw new Error(`Invalid media type ${val}`);
 			}
-			return val as BandcampMediaType;
+			return val as (BandcampMediaType | 'any');
 		},
-		onRead: (flag, val: BandcampMediaType) => {
+		onRead: (flag, val: (BandcampMediaType | 'any')) => {
 			if(mediaType != null) {
 				console.warn(`specified media type ${val} will override previously specified media type ${mediaType}`);
 			}
