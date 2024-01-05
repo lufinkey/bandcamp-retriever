@@ -1,7 +1,9 @@
+import { PrivBandcampAudioFileType } from "./private_types";
 
 export type BandcampMediaType = 'artist' | 'label' | 'album' | 'track' | 'fan';
 export const BandcampMediaTypes: (BandcampMediaType[] & string[]) = [ 'artist', 'label', 'album', 'track', 'fan' ];
 
+export type BandcampAudioFileType = PrivBandcampAudioFileType;
 
 export type BandcampImage = {
 	url: string
@@ -80,7 +82,7 @@ export type BandcampTrack = {
 }
 
 export type BandcampAudioSource = {
-	type: string
+	type: BandcampAudioFileType | string
 	url: string
 }
 
