@@ -278,7 +278,7 @@ export default class Bandcamp {
 
 
 
-	async search(query: string, options: {[key: string]: any} = {}): Promise<BandcampSearchResultsList> {
+	async search(query: string, options: { item_type?: ('t'|'a'|'b'), page?: number } = {}): Promise<BandcampSearchResultsList> {
 		// create and send request
 		const params = {
 			...options,
