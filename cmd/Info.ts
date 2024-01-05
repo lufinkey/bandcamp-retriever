@@ -26,6 +26,13 @@ export async function infoCommand(bandcamp: Bandcamp, argv: string[], argi: numb
 	const urls: URLInfo[] = [];
 	
 	// parse arguments
+	const urlFlagOpts: FlagOptions = {
+		value: 'required',
+		onRead: (flag, val) => {
+			validateAndAppendURL(urls, val, pendingURLOptions.mediaType);
+			pendingURLOptions = {};
+		}
+	};
 	const mediaTypeFlagOpts: FlagOptions = {
 		value: 'required',
 		parseValue: (val): BandcampMediaType => {
@@ -77,21 +84,23 @@ export async function infoCommand(bandcamp: Bandcamp, argv: string[], argi: numb
 				},
 				onRead: (flag, val) => { printFormat = val; }
 			},
+			'url': urlFlagOpts,
 			'media-type': mediaTypeFlagOpts
 		},
 		shortFlags: {
+			'u': urlFlagOpts,
 			't': mediaTypeFlagOpts
 		},
+		recognizeDoubleDash: true,
 		stopAfterDoubleDash: true,
-		stopAfterSingleDash: true,
+		recognizeSingleDash: false,
 		stopBeforeNonFlagArg: false,
 		onNonFlagArg: (arg) => {
-			if(validateAndAppendURL(urls, arg, pendingURLOptions.mediaType)) {
-				pendingURLOptions = {};
-			}
+			validateAndAppendURL(urls, arg, pendingURLOptions.mediaType);
+			pendingURLOptions = {};
 		}
 	});
-	// parse remaining URLs with the same pending media type
+	// if there are any remaining arguments, parsing was stopped at a -- argument, so parse the rest as URLs
 	argi = parseArgsResult.argIndex;
 	if(argi < argv.length) {
 		while(argi < argv.length) {
@@ -172,13 +181,12 @@ export async function infoCommand(bandcamp: Bandcamp, argv: string[], argi: numb
 
 
 
-function validateAndAppendURL(urls: URLInfo[], url: string, mediaType: BandcampMediaType | undefined): boolean {
+function validateAndAppendURL(urls: URLInfo[], url: string, mediaType: BandcampMediaType | undefined) {
 	// TODO validate URL
 	urls.push({
 		url: url,
 		mediaType: mediaType
 	});
-	return true;
 }
 
 async function printItemResult(url: string, itemPromise: Promise<any>, options: { printURLs: boolean, printFormat: PrintFormat, verbose: boolean }): Promise<boolean> {

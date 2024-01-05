@@ -4,6 +4,7 @@ import BandcampSession from './Session';
 import BandcampParser from './Parser';
 import {
 	BandcampMediaType,
+	BandcampMediaTypeChar,
 	BandcampTrack,
 	BandcampAlbum,
 	BandcampArtist,
@@ -18,7 +19,7 @@ import { PrivBandcampAPI$Fan$CollectionSummary } from './private_types';
 import {
 	sendHttpRequest,
 	HttpResponse,
-	SendHttpRequestOptions } from './Utils';
+	SendHttpRequestOptions } from './network_utils';
 import QueryString from 'querystring';
 import UrlUtils from 'url';
 import cheerio from 'cheerio';
@@ -278,14 +279,25 @@ export default class Bandcamp {
 
 
 
-	async search(query: string, options: { item_type?: ('t'|'a'|'b'), page?: number } = {}): Promise<BandcampSearchResultsList> {
-		// create and send request
-		const params = {
-			...options,
-			q: query
-		};
+	async search(query: string, options: { item_type?: (BandcampMediaTypeChar|string), page?: number } = {}): Promise<BandcampSearchResultsList> {
+		// create params
+		const params: { [key: string]: string } = {};
+		for(const key in options) {
+			let val = (options as any)[key];
+			if(val != null) {
+				if(typeof val !== 'string') {
+					val = val.toString();
+				}
+				params[key] = val;
+			}
+		}
+		params['q'] = query;
+		// send request
 		const url = "https://bandcamp.com/search?"+QueryString.stringify(params);
 		const { res, data } = await this.sendHttpRequest(url);
+		if(res.statusCode < 200 || res.statusCode >= 300) {
+			throw new Error(res.statusMessage);
+		}
 		if(!data) {
 			throw new Error("Unable to get data from search url");
 		}

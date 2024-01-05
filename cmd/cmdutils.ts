@@ -11,8 +11,10 @@ export type ArgumentParseOptions = {
 	longFlags: {[key: string]: FlagOptions};
 	onUnrecognizedShortFlag?: (argIndex: number, flag: string, indexInArg: number, arg: string) => ({argIndex: number} | {indexInArg: number} | undefined);
 	onUnrecognizedLongFlag?: (argIndex: number, flag: string, value: any, arg: string) => ({argIndex: number} | undefined);
+	recognizeSingleDash?: boolean;
 	stopAfterSingleDash?: boolean;
 	onSingleDash?: () => (boolean | undefined | void);
+	recognizeDoubleDash?: boolean;
 	stopAfterDoubleDash?: boolean;
 	onDoubleDash?: () => (boolean | undefined | void);
 	stopBeforeNonFlagArg?: boolean;
@@ -25,14 +27,21 @@ export type ParseArgsResult = {
 };
 
 
-export function parseBooleanArgValue(arg: string): boolean | undefined {
+export function parseBooleanArgValue(arg: string): boolean {
 	if (arg == '0' || arg == 'false' || arg == 'no') {
 		return false;
 	} else if(arg == '1' || arg == 'true' || arg == 'yes') {
 		return true;
 	} else {
-		console.error(`invalid boolean value ${arg}`);
-		return undefined;
+		throw new Error(`invalid boolean value ${arg}`);
+	}
+}
+
+export function parseIntegerArgValue(arg: string): number | undefined {
+	try {
+		return parseInt(arg);
+	} catch(error) {
+		throw new Error(`invalid integer value ${arg}`);
 	}
 }
 
@@ -50,12 +59,12 @@ export function parseArgs(argv: string[], startIndex: number, options: ArgumentP
 			continue;
 		}
 		// parse flags
-		if (arg.startsWith('--')) {
+		if (arg.startsWith('--') && (arg.length > 2 || options.recognizeDoubleDash)) {
 			// parse named flag
 			const flag = arg.substring(2);
 			if (flag.length == 0) {
 				// argument was --
-				const shouldContinue = (options.onDoubleDash ? options.onDoubleDash() : undefined) ?? !(options.stopAfterDoubleDash ?? true);
+				const shouldContinue = (options.onDoubleDash ? options.onDoubleDash() : undefined) ?? !(options.stopAfterDoubleDash ?? false);
 				if(shouldContinue == false) {
 					argi++;
 					break;
@@ -117,10 +126,10 @@ export function parseArgs(argv: string[], startIndex: number, options: ArgumentP
 				}
 			}
 		}
-		else if(arg.startsWith('-')) {
+		else if(arg.startsWith('-') && (arg.length > 1 || options.recognizeSingleDash)) {
 			// parse single character flags
 			const argLen = arg.length;
-			if (argLen > 0) {
+			if (argLen > 1) {
 				let nextArg: ({argIndex:number} | undefined) = undefined;
 				for (let i = 1 ; i < argLen ; i++ ) {
 					const flagName = arg.substring(i, 1);
@@ -188,7 +197,7 @@ export function parseArgs(argv: string[], startIndex: number, options: ArgumentP
 			}
 			else {
 				// argument was -
-				const shouldContinue = (options.onSingleDash ? options.onSingleDash() : undefined) ?? !(options.stopAfterSingleDash ?? true);
+				const shouldContinue = (options.onSingleDash ? options.onSingleDash() : undefined) ?? !(options.stopAfterSingleDash ?? false);
 				if(shouldContinue == false) {
 					argi++;
 					break;
@@ -233,26 +242,36 @@ export function parseArgsOrExit(argv: string[], startIndex: number, options: Arg
 export type PrintFormat = 'readable-brief' | 'readable' | 'json' | 'json-pretty';
 export const PrintFormats = [ 'readable-brief', 'readable', 'json', 'json-pretty' ];
 
-export function convertObjectToPrintFormat(obj: any, format: PrintFormat): string {
+export function convertObjectToPrintFormat(obj: any, format: PrintFormat, options: {
+	readable?: {
+		maxArrayEntries?: number,
+		arrayEntryLimitDepth?: number,
+		indent?: string,
+		indentLength?: number
+	}
+} = {}): string {
 	switch(format) {
 		case 'readable-brief':
-			return convertObjectToReadableFormat(obj, {
+			return convertObjectToReadableFormat(obj, 0, {
 				maxArrayEntries: 2,
+				indent: '  ',
+				indentLength: 2,
+				...options.readable
+			}, {
 				currentLineLength: 0,
 				linePrefix: '',
-				linePrefixLength: 0,
-				indent: '  ',
-				indentLength: 2
+				linePrefixLength: 0
 			});
 
 		case 'readable':
-			return convertObjectToReadableFormat(obj, {
-				maxArrayEntries: null,
+			return convertObjectToReadableFormat(obj, 0, {
+				indent: '  ',
+				indentLength: 2,
+				...options.readable
+			}, {
 				currentLineLength: 0,
 				linePrefix: '',
-				linePrefixLength: 0,
-				indent: '  ',
-				indentLength: 2
+				linePrefixLength: 0
 			});
 		
 		case 'json':
@@ -263,15 +282,15 @@ export function convertObjectToPrintFormat(obj: any, format: PrintFormat): strin
 	}
 }
 
-const ReadableFormat_SameLineTypes = [ 'undefined', 'boolean', 'number', 'string', 'bigint', 'symbol' ];
-
-export function convertObjectToReadableFormat(obj: any, options: {
-	maxArrayEntries: number | null,
-	currentLineLength: number,
+export function convertObjectToReadableFormat(obj: any, depth: number, options: {
+	maxArrayEntries?: number,
+	arrayEntryLimitDepth?: number,
+	indent: string,
+	indentLength: number
+}, state: {
 	linePrefix: string,
 	linePrefixLength: number,
-	indent: string,
-	indentLength: number,
+	currentLineLength: number,
 	startObjectOnNewline?: boolean
 }): string {
 	const objType = typeof obj;
@@ -282,7 +301,7 @@ export function convertObjectToReadableFormat(obj: any, options: {
 		case 'string':
 		case 'bigint':
 			return JSON.stringify(obj);
-
+		
 		case 'function':
 			return `function ${(obj as Function).name || '<UNNAMED>'}`;
 		
@@ -298,48 +317,42 @@ export function convertObjectToReadableFormat(obj: any, options: {
 				if (obj.length == 0) {
 					return 'empty';
 				}
-				if(options.maxArrayEntries != null && obj.length > options.maxArrayEntries) {
+				if(options.maxArrayEntries != null && (options.arrayEntryLimitDepth == null || depth >= options.arrayEntryLimitDepth) && obj.length > options.maxArrayEntries) {
 					return `${obj.length} entries`;
 				}
 				// output each line separately
-				const innerLinePrefix = options.linePrefix + options.indent;
-				const innerLinePrefixLength = options.linePrefixLength + options.indentLength;
+				const innerLinePrefix = state.linePrefix + options.indent;
+				const innerLinePrefixLength = state.linePrefixLength + options.indentLength;
 				let joined = `\n${obj.map((entry): string => (
-					`${options.linePrefix}- ${convertObjectToReadableFormat(entry, {
-						maxArrayEntries: options.maxArrayEntries,
+					`${state.linePrefix}- ${convertObjectToReadableFormat(entry, (depth+1), options, {
 						currentLineLength: innerLinePrefix.length,
 						linePrefix: innerLinePrefix,
 						linePrefixLength: innerLinePrefixLength,
-						indent: options.indent,
-						indentLength: options.indentLength,
 						startObjectOnNewline: false
 					})}`
 				)).join('\n')}`;
 				return joined;
 			} else {
 				// Object
-				const innerLinePrefix = options.linePrefix + options.indent;
-				const innerLinePrefixLength = options.linePrefixLength + options.indentLength;
+				const innerLinePrefix = state.linePrefix + options.indent;
+				const innerLinePrefixLength = state.linePrefixLength + options.indentLength;
 				const parts: string[] = [ ];
 				let firstLine = true;
 				for(const key in obj) {
 					const val = obj[key];
 					let formattedKey = key;
 					// TODO if the key contains invalid characters, JSON.stringify it
-					let line = `${(!firstLine || options.startObjectOnNewline) ? options.linePrefix : ''}${formattedKey}: ${convertObjectToReadableFormat(val, {
-						maxArrayEntries: options.maxArrayEntries,
+					let line = `${(!firstLine || state.startObjectOnNewline) ? state.linePrefix : ''}${formattedKey}: ${convertObjectToReadableFormat(val, (depth+1), options, {
 						currentLineLength: (innerLinePrefix.length + formattedKey.length + 2),
 						linePrefix: innerLinePrefix,
 						linePrefixLength: innerLinePrefixLength,
-						indent: options.indent,
-						indentLength: options.indentLength,
 						startObjectOnNewline: true
 					})}`;
 					parts.push(line);
 					firstLine = false;
 				}
 				let joined = parts.join('\n');
-				if(options.startObjectOnNewline) {
+				if(state.startObjectOnNewline) {
 					joined = '\n' + joined;
 				}
 				return joined;

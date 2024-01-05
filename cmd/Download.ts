@@ -37,6 +37,13 @@ export async function downloadCommand(bandcamp: Bandcamp, argv: string[], argi: 
 	const urls: URLInfo[] = [];
 	
 	// parse arguments
+	const urlFlagOpts: FlagOptions = {
+		value: 'required',
+		onRead: (flag, val) => {
+			validateAndAppendURL(urls, { ...sharedURLOptions, ...pendingURLOptions, url:val });
+			pendingURLOptions = {};
+		}
+	};
 	const mediaTypeFlagOpts: FlagOptions = {
 		value: 'required',
 		parseValue: (val): DownloadableMediaType => {
@@ -106,25 +113,27 @@ export async function downloadCommand(bandcamp: Bandcamp, argv: string[], argi: 
 				parseValue: parseBooleanArgValue,
 				onRead: (flag, val) => { continueOnFailure = val ?? true; }
 			},
+			'url': urlFlagOpts,
 			'media-type': mediaTypeFlagOpts,
 			'dir': dirFlagOpts,
 			'output': outputFlagOpts
 		},
 		shortFlags: {
+			'u': urlFlagOpts,
 			't': mediaTypeFlagOpts,
 			'd': dirFlagOpts,
 			'o': outputFlagOpts
 		},
+		recognizeDoubleDash: true,
 		stopAfterDoubleDash: true,
-		stopAfterSingleDash: true,
+		recognizeSingleDash: false,
 		stopBeforeNonFlagArg: false,
 		onNonFlagArg: (arg) => {
-			if(validateAndAppendURL(urls, { ...sharedURLOptions, ...pendingURLOptions, url:arg })) {
-				pendingURLOptions = {};
-			}
+			validateAndAppendURL(urls, { ...sharedURLOptions, ...pendingURLOptions, url:arg });
+			pendingURLOptions = {};
 		}
 	});
-	// parse remaining URLs with the same pending media type
+	// if there are any remaining arguments, parsing was stopped at a -- argument, so parse the rest as URLs
 	argi = parseArgsResult.argIndex;
 	if(argi < argv.length) {
 		while(argi < argv.length) {
@@ -163,17 +172,16 @@ export async function downloadCommand(bandcamp: Bandcamp, argv: string[], argi: 
 
 
 
-function validateAndAppendURL(urls: URLInfo[], urlInfo: URLInfo): boolean {
+function validateAndAppendURL(urls: URLInfo[], urlInfo: URLInfo) {
 	// TODO validate URL
 	urls.push(urlInfo);
-	return true;
 }
 
 async function downloadMedia(bandcamp: Bandcamp, urlInfo: URLInfo, options: { verbose: boolean, continueOnFailure?: boolean }): Promise<{ successCount: number, failureCount: number }> {
 	// get media info
-	let mediaInfo;
+	let mediaItem;
 	try {
-		mediaInfo = await bandcamp.getItemFromURL(urlInfo.url, {
+		mediaItem = await bandcamp.getItemFromURL(urlInfo.url, {
 			forceType: urlInfo.mediaType
 		});
 	} catch(error: any) {
@@ -188,14 +196,14 @@ async function downloadMedia(bandcamp: Bandcamp, urlInfo: URLInfo, options: { ve
 	// ensure item is a track or album
 	let successCount = 0;
 	let failureCount = 0;
-	if(mediaInfo.type == 'track') {
+	if(mediaItem.type == 'track') {
 		// download single track
-		return await downloadTracks(urlInfo, [mediaInfo], options);
-	} else if(mediaInfo.type == 'album') {
+		return await downloadTracks(urlInfo, [mediaItem], options);
+	} else if(mediaItem.type == 'album') {
 		// download tracks from album
-		return await downloadTracks(urlInfo, mediaInfo.tracks, options);
+		return await downloadTracks(urlInfo, mediaItem.tracks, options);
 	} else {
-		console.error(`Unknown media type ${mediaInfo.type} for url ${urlInfo.url}`);
+		console.error(`Unknown media type ${mediaItem.type} for url ${urlInfo.url}`);
 		failureCount++;
 	}
 	return { successCount, failureCount };

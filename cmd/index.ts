@@ -3,9 +3,9 @@ import { Bandcamp } from '../lib';
 import {
 	parseArgsOrExit,
 	parseBooleanArgValue } from './cmdutils';
-import { outputUsageError } from './help';
-import { infoCommand } from './info';
-import { downloadCommand } from './download';
+import { outputUsageError } from './Help';
+import { infoCommand } from './Info';
+import { downloadCommand } from './Download';
 
 // set defaults for options
 let verbose = false;
@@ -51,6 +51,11 @@ const bandcamp = new Bandcamp();
 			await downloadCommand(bandcamp, process.argv, argi, {
 				verbose
 			});
+			break;
+		
+		default:
+			console.error(`Invalid command ${cmd}`);
+			process.exit(1);
 			break;
 	}
 })().catch((error) => {

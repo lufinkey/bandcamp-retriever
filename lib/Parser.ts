@@ -1,7 +1,7 @@
 
 import {
 	HttpResponse
-} from './Utils';
+} from './network_utils';
 import UrlUtils, {
 	URL } from 'url';
 import cheerio, {
