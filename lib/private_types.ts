@@ -23,7 +23,7 @@ export type PrivBandcampCurrencyData = {
 	payflow: boolean
 };
 
-export type PrivBandcampFileType = 'mp3-v0';
+export type PrivBandcampFileType = 'mp3-128' | 'mp3-v0';
 
 export type PrivBandcampPlatform = 'win';
 
@@ -61,7 +61,7 @@ export type PrivBandcampFan$AlbumTrack = {
 	track_number: number,
 	duration: number,
 	file: { // map of file types to URLs
-		[filetype: (string | PrivBandcampFileType)]: string
+		[filetype: (PrivBandcampFileType | string)]: string
 	}
 };
 

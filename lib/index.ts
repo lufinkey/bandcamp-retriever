@@ -6,4 +6,9 @@ export { default as BandcampParser } from './Parser';
 
 export {
 	BandcampMediaType,
-	BandcampMediaTypes } from './types';
+	BandcampMediaTypes,
+	BandcampTrack,
+	BandcampAlbum,
+	BandcampAlbumTrack,
+	BandcampArtist,
+	BandcampFan } from './types';

@@ -150,8 +150,8 @@ export function parseArgs(argv: string[], startIndex: number, options: ArgumentP
 							} break;
 
 							case 'optional': {
+								// use remainder of string as the argument if '='
 								if(i < (argLen-1) && arg[i+1] == '=') {
-									// use remainder of string as the argument
 									flagVal = arg.substring(i+2);
 								}
 							} break;
@@ -230,14 +230,24 @@ export function parseArgsOrExit(argv: string[], startIndex: number, options: Arg
 }
 
 
-export type OutputFormat = 'readable' | 'json' | 'json-pretty';
-export const OutputFormats = [ 'readable', 'json', 'json-pretty' ];
+export type PrintFormat = 'readable-brief' | 'readable' | 'json' | 'json-pretty';
+export const PrintFormats = [ 'readable-brief', 'readable', 'json', 'json-pretty' ];
 
-export function convertObjectToOutputFormat(obj: any, format: OutputFormat): string {
+export function convertObjectToOutputFormat(obj: any, format: PrintFormat): string {
 	switch(format) {
-		case 'readable':
+		case 'readable-brief':
 			return convertObjectToReadableFormat(obj, {
 				maxArrayEntries: 2,
+				currentLineLength: 0,
+				linePrefix: '',
+				linePrefixLength: 0,
+				indent: '  ',
+				indentLength: 2
+			});
+
+		case 'readable':
+			return convertObjectToReadableFormat(obj, {
+				maxArrayEntries: null,
 				currentLineLength: 0,
 				linePrefix: '',
 				linePrefixLength: 0,
@@ -256,7 +266,7 @@ export function convertObjectToOutputFormat(obj: any, format: OutputFormat): str
 const ReadableFormat_SameLineTypes = [ 'undefined', 'boolean', 'number', 'string', 'bigint', 'symbol' ];
 
 export function convertObjectToReadableFormat(obj: any, options: {
-	maxArrayEntries: number,
+	maxArrayEntries: number | null,
 	currentLineLength: number,
 	linePrefix: string,
 	linePrefixLength: number,
@@ -288,13 +298,13 @@ export function convertObjectToReadableFormat(obj: any, options: {
 				if (obj.length == 0) {
 					return 'empty';
 				}
-				if(obj.length > options.maxArrayEntries) {
+				if(options.maxArrayEntries != null && obj.length > options.maxArrayEntries) {
 					return `${obj.length} entries`;
 				}
 				// output each line separately
 				const innerLinePrefix = options.linePrefix + options.indent;
 				const innerLinePrefixLength = options.linePrefixLength + options.indentLength;
-				return `\n${obj.map((entry): string => (
+				let joined = `\n${obj.map((entry): string => (
 					`${options.linePrefix}- ${convertObjectToReadableFormat(entry, {
 						maxArrayEntries: options.maxArrayEntries,
 						currentLineLength: innerLinePrefix.length,
@@ -304,7 +314,8 @@ export function convertObjectToReadableFormat(obj: any, options: {
 						indentLength: options.indentLength,
 						startObjectOnNewline: false
 					})}`
-				)).join('')}`;
+				)).join('\n')}`;
+				return joined;
 			} else {
 				// Object
 				const innerLinePrefix = options.linePrefix + options.indent;

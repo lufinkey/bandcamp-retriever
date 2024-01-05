@@ -5,6 +5,7 @@ import {
 	parseBooleanArgValue } from './cmdutils';
 import { outputUsageError } from './help';
 import { infoCommand } from './info';
+import { downloadCommand } from './download';
 
 // set defaults for options
 let verbose = false;
@@ -47,8 +48,9 @@ const bandcamp = new Bandcamp();
 			break;
 		
 		case 'download':
-			// TODO download the media at the given URL
-			throw new Error("Not yet implemented");
+			await downloadCommand(bandcamp, process.argv, argi, {
+				verbose
+			});
 			break;
 	}
 })().catch((error) => {

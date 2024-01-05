@@ -1,6 +1,6 @@
 
 import { BandcampMediaTypes } from '../lib';
-import { OutputFormats } from './cmdutils';
+import { PrintFormats } from './cmdutils';
 
 export const getUsageText = () =>
 `bandcamp-retriever [--verbose] <command> [<args>]
@@ -12,20 +12,22 @@ OPTIONS:
 
 COMMANDS:
 
-	info [--media-type=${BandcampMediaTypes.join('|')}]  <URL>
+	info <URL>... [--media-type=${BandcampMediaTypes.join('|')}] [--print-format ${PrintFormats.join('|')}]
 		
 		Fetches, parses, and outputs info from the given bandcamp URL.
 		
 		--media-type ${BandcampMediaTypes.join(' | ')}
 
 			Forcibly specifies the type of media that the given URL points to. This will be deduced from the URL or page if not given.
-			If more than 1 URL is given, this argument should be placed before the URL it refers to.
+			If more than 1 URL is given, this argument should be placed after the URL it refers to.
 		
-		--output-format ${OutputFormats.join(' | ')}
+		--print-format ${PrintFormats.join(' | ')}
+
+			The format to print the fetched info
 	
-	download [--media-type=track|album] [--dir=<PATH>] [--filepath=<PATH>] <URL>
+	download <URL>... [--media-type=track|album] [--dir=<PATH>] [--output=<FORMAT_PATH>]
 		
-		Downloads the track or album that the given URL points to
+		Downloads the track or album that the given URL points to.
 `;
 
 export function outputUsage() {
