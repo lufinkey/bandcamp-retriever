@@ -6,6 +6,7 @@ import {
 import { outputUsageError } from './Help';
 import { infoCommand } from './Info';
 import { downloadCommand } from './Download';
+import { searchCommand } from './Search';
 
 // set defaults for options
 let verbose = false;
@@ -43,6 +44,12 @@ const bandcamp = new Bandcamp();
 	switch(cmd) {
 		case 'info':
 			await infoCommand(bandcamp, process.argv, argi, {
+				verbose
+			});
+			break;
+
+		case 'search':
+			await searchCommand(bandcamp, process.argv, argi, {
 				verbose
 			});
 			break;
