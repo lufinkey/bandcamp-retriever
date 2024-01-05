@@ -150,7 +150,7 @@ export async function downloadCommand(bandcamp: Bandcamp, argv: string[], argi: 
 		successCount += result.successCount;
 		failureCount += result.failureCount;
 		if(failureCount > 0 && !continueOnFailure) {
-			process.exit(1);
+			process.exit(2);
 		}
 	}
 
