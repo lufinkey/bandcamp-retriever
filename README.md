@@ -25,7 +25,7 @@ bandcamp-retriever [<OPTION>]... <COMMAND> [<ARG>]...
 ### Options
 
 - --verbose
-	
+
 	Enables verbose logging. Useful for debugging.
 	
 - --cookies-file <FILE>
@@ -59,16 +59,18 @@ bandcamp-retriever [<OPTION>]... <COMMAND> [<ARG>]...
 	- --additional-data[=*yes*|*no*]
 
 		Specifies if additional resources should be fetched for the given URL's page.
-		Just passing `--additional-data` without `=yes` or `=no` will specify `yes`.
 		Some bandcamp pages require fetching additional resources to populate extra data for the entity at the URL.
-		If more than 1 URL is given, this argument should be placed after the URL it refers to. Default is `yes` if argument is not passed.
+		If more than 1 URL is given, this argument should be placed after the URL it refers to.
+		Just passing `--additional-data` without `=yes` or `=no` will specify `yes`.
+		Default is `yes` if argument is not passed.
 		
 	- --additional-pages[=*yes*|*no*]
 
 		Specifies if additional pages should be fetched for the entity at the given URL.
-		Just passing `--additional-pages` without `=yes` or `=no` will specify `yes`.
 		Some bandcamp entities may require fetching data from additional pages to populate extra data for the entity at the URL.
-		If more than 1 URL is given, this argument should be placed after the URL it refers to. Default is `no` if argument is not passed.
+		If more than 1 URL is given, this argument should be placed after the URL it refers to.
+		Just passing `--additional-pages` without `=yes` or `=no` will specify `yes`.
+		Default is `no` if argument is not passed.
 		
 	- --print-format *readable-brief* | *readable* | *json* | *json-pretty*
 
