@@ -16,20 +16,24 @@ type GetCookiesOptions = tough.CookieJar.GetCookiesOptions & {
 export default class BandcampSession {
 	_cookieStore: tough.CookieJar
 
-	constructor(cookies: (tough.Cookie | string)[]) {
-		this._cookieStore = new tough.CookieJar();
-		if(cookies) {
-			for(const cookie of cookies) {
-				this._cookieStore.setCookieSync(cookie, BANDCAMP_COOKIES_URL);
+	constructor(cookies?: (tough.Store | (tough.Cookie | string)[] | undefined)) {
+		if(cookies instanceof tough.Store) {
+			this._cookieStore = new tough.CookieJar(cookies);
+		} else {
+			this._cookieStore = new tough.CookieJar();
+			if(cookies) {
+				for(const cookie of cookies) {
+					this._cookieStore.setCookieSync(cookie, BANDCAMP_COOKIES_URL);
+				}
 			}
 		}
 	}
 	
-	get cookies(): tough.Cookie[] {
-		return this.getURLCookies(BANDCAMP_COOKIES_URL);
+	getBandcampCookiesSync(): tough.Cookie[] {
+		return this.getURLCookiesSync(BANDCAMP_COOKIES_URL);
 	}
 
-	getURLCookies(url: string, options?: GetCookiesOptions): tough.Cookie[] {
+	getURLCookiesSync(url: string, options?: GetCookiesOptions): tough.Cookie[] {
 		if(options) {
 			return this._cookieStore.getCookiesSync(url, options);
 		} else {
@@ -38,7 +42,7 @@ export default class BandcampSession {
 	}
 
 	getCookie(cookieName: string) {
-		return findCookie(this.cookies, cookieName);
+		return findCookie(this.getBandcampCookiesSync(), cookieName);
 	}
 
 	get clientIdCookie(): tough.Cookie | null {
@@ -54,11 +58,33 @@ export default class BandcampSession {
 	}
 
 	get isLoggedIn(): boolean {
-		const cookies = this.cookies;
+		const cookies = this.getBandcampCookiesSync();
 		if(findCookie(cookies, COOKIE_NAME_CLIENT_ID) && findCookie(cookies, COOKIE_NAME_IDENTITY)) {
 			return true;
 		}
 		return false;
+	}
+
+	removeAllCookiesSync() {
+		this._cookieStore.removeAllCookiesSync();
+	}
+
+	getSameSiteRequestHeaders(url: string): {[key: string]: string} {
+		return {
+			'Cookie': this.getURLCookiesSync(url).map((cookie) => {
+					return cookie.cookieString();
+				}).join('; ')
+		};
+	}
+
+	getCrossSiteRequestHeaders(url: string): {[key: string]: string} {
+		return {
+			'Cookie': this.getURLCookiesSync(url, {
+					sameSiteContext: 'none'
+				}).map((cookie) => {
+					return cookie.cookieString();
+				}).join('; ')
+		};
 	}
 
 	updateCookies(cookies: (string | tough.Cookie)[]) {
@@ -68,7 +94,7 @@ export default class BandcampSession {
 	}
 
 	serialize(): string {
-		const cookies = this.cookies;
+		const cookies = this.getBandcampCookiesSync();
 		const clientIdCookie = findCookie(cookies, COOKIE_NAME_CLIENT_ID);
 		const identityCookie = findCookie(cookies, COOKIE_NAME_IDENTITY);
 		return JSON.stringify({

@@ -40,14 +40,6 @@ const bandcamp = new Bandcamp();
 
     Fetch info for a given fan profile
 
-  - **loginWithCookies(** cookies: `string[] | tough.Cookie[]` **)**
-
-    Log in using an array of cookies or cookie strings
-
-  - **loginWithSession(** session: `BandcampSession` **)**
-
-    Log in using an existing session object
-
   - **updateSessionCookies(** cookies: `string[] | tough.Cookie[]` **)**
 
     Updates the cookies for the current session

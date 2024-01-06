@@ -6,7 +6,6 @@ import QueryString from 'querystring';
 import UrlUtils from 'url';
 import cheerio from 'cheerio';
 import tough from 'tough-cookie';
-import BandcampAuth, { BandcampAuthOptions } from './Auth';
 import BandcampSession from './Session';
 import BandcampParser from './Parser';
 import {
@@ -38,8 +37,8 @@ const DefaultOutputStructure = '%(artistName)/%(albumName)/%(trackNumber:d2) %(n
 
 
 type BandcampOptions = {
-	auth?: BandcampAuthOptions
-}
+	cookies?: (tough.Store | (tough.Cookie | string)[] | undefined)
+};
 
 type LoadNode = {
 	cancelled: boolean
@@ -49,15 +48,14 @@ type FanInfo = {
 	id: string
 	url: string
 	name: string
-}
+};
 
 
 export default class Bandcamp {
-	static Auth = BandcampAuth
 	static Session = BandcampSession;
 	static Parser = BandcampParser;
 
-	_auth: BandcampAuth
+	_session: BandcampSession
 	_parser: BandcampParser
 
 	_fan: FanInfo | null
@@ -69,7 +67,7 @@ export default class Bandcamp {
 	_fanCrumbsPromise: Promise<{[key: string]: string} | null> | null
 
 	constructor(options: BandcampOptions = {}) {
-		this._auth = new BandcampAuth(options.auth || {});
+		this._session = new BandcampSession(options.cookies);
 		this._parser = new BandcampParser();
 
 		this._fan = null;
@@ -85,33 +83,22 @@ export default class Bandcamp {
 	slugify(str: string): string {
 		return this._parser.slugify(str);
 	}
-
-
-	loginWithCookies(cookies: (string | tough.Cookie)[]) {
-		this._clearFanData();
-		return this._auth.loginWithCookies(cookies);
-	}
-
-	loginWithSession(session: BandcampSession) {
-		this._clearFanData();
-		return this._auth.loginWithSession(session);
-	}
-
+	
 	updateSessionCookies(cookies: (string | tough.Cookie)[]) {
-		this._auth.updateSessionCookies(cookies);
+		this._session.updateCookies(cookies);
 	}
 
 	logout() {
 		this._clearFanData();
-		this._auth.logout();
+		this._session.removeAllCookiesSync();
 	}
 
 	get session(): BandcampSession | null {
-		return this._auth.session;
+		return this._session;
 	}
 
 	get isLoggedIn(): boolean {
-		return this._auth.isLoggedIn;
+		return this._session.isLoggedIn;
 	}
 
 	_updateSessionFromResponse(res: HttpResponse) {
@@ -121,7 +108,7 @@ export default class Bandcamp {
 			if(!(setCookiesHeaders instanceof Array)) {
 				setCookiesHeaders = [ setCookiesHeaders ];
 			}
-			this._auth.updateSessionCookies(setCookiesHeaders);
+			this._session.updateCookies(setCookiesHeaders);
 		}
 	}
 
@@ -146,12 +133,12 @@ export default class Bandcamp {
 			if(sameSiteReferrer) {
 				headers = {
 					...headers,
-					...this._auth.getSameSiteRequestHeaders(url)
+					...this._session.getSameSiteRequestHeaders(url)
 				};
 			} else {
 				headers = {
 					...headers,
-					...this._auth.getCrossSiteRequestHeaders(url)
+					...this._session.getCrossSiteRequestHeaders(url)
 				};
 			}
 		}
@@ -234,7 +221,7 @@ export default class Bandcamp {
 	}
 
 	async _getCurrentFanInfo(): Promise<FanInfo | null> {
-		if(!this._auth.isLoggedIn) {
+		if(!this._session.isLoggedIn) {
 			return null;
 		}
 		if(this._fan) {
@@ -419,7 +406,7 @@ export default class Bandcamp {
 			if(options.fetchAdditionalData ?? true) {
 				const itemAsTrack = item as BandcampTrack;
 				const itemAsAlbum = item as BandcampAlbum;
-				if(this._auth.isLoggedIn && !isBandcampDomain
+				if(this._session.isLoggedIn && !isBandcampDomain
 				&& (item.type === 'track'
 					|| (item.type === 'album' && itemAsAlbum.tracks && itemAsAlbum.tracks.length > 0))) {
 					let missingAudioSources = false;
@@ -542,10 +529,6 @@ export default class Bandcamp {
 		if(!fanURL || !fanId || !olderThanToken) {
 			throw new Error("missing required parameters for _getFanSectionItems");
 		}
-		if(!this._auth.session) {
-			// go to fan page first to acquire cookies
-			await this.getFan(fanURL);
-		}
 
 		// make sure fanId is an integer
 		fanId = this._parser.convertToNumberIfAble(fanId);
@@ -633,7 +616,7 @@ export default class Bandcamp {
 
 
 	async _performArtistFollowAction(artistURL: string, action: ('follow' | 'unfollow')) {
-		if(!this._auth.isLoggedIn) {
+		if(!this._session.isLoggedIn) {
 			throw new Error("not logged in");
 		}
 		artistURL = this._parser.cleanUpURL(artistURL);
@@ -732,7 +715,7 @@ export default class Bandcamp {
 
 
 	async _performFanFollowAction(fanURL: string, action: ('follow' | 'unfollow')) {
-		if(!this._auth.isLoggedIn) {
+		if(!this._session.isLoggedIn) {
 			throw new Error("not logged in");
 		}
 		fanURL = this._parser.cleanUpURL(fanURL);
@@ -811,7 +794,7 @@ export default class Bandcamp {
 
 
 	async _performWishlistItemAction(itemURL: string, action: ('collect' | 'uncollect')) {
-		if(!this._auth.isLoggedIn) {
+		if(!this._session.isLoggedIn) {
 			throw new Error("not logged in");
 		}
 		itemURL = this._parser.cleanUpURL(itemURL);
@@ -936,7 +919,7 @@ export default class Bandcamp {
 
 
 	async _performCollectionHideAction(itemURL: string, action: ('hide' | 'unhide')) {
-		if(!this._auth.isLoggedIn) {
+		if(!this._session.isLoggedIn) {
 			throw new Error("not logged in");
 		}
 		const apiEndpoint = 'api/collectionowner/1/hide_unhide_item';
@@ -1032,7 +1015,7 @@ export default class Bandcamp {
 
 
 	async _performSaveItemAction(itemURL: string, action: ('save' | 'unsave')) {
-		if(!this._auth.isLoggedIn) {
+		if(!this._session.isLoggedIn) {
 			throw new Error("not logged in");
 		}
 		const fanInfo = await this._getCurrentFanInfo();
