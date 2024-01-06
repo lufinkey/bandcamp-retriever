@@ -340,7 +340,10 @@ export default class Bandcamp {
 		return searchResults;
 	}
 
-	async getItemFromURL(url: string, options: {forceType?: BandcampMediaType, fetchAdditionalData?: boolean} = {}) {
+	async getItemFromURL(url: string, options: {
+		forceType?: BandcampMediaType,
+		fetchAdditionalData?: boolean,
+		fetchAdditionalPages?: boolean } = {}): Promise<BandcampTrack | BandcampAlbum | BandcampArtist | BandcampFan> {
 		// perform request
 		const isBandcampDomain = this._parser.isUrlBandcampDomain(url);
 		const { res, data } = await this.sendHttpRequest(url);
@@ -366,11 +369,15 @@ export default class Bandcamp {
 				fanURL = url;
 				fanURLType = '/';
 			}
+			let collectionSummary: PrivBandcampAPI$Fan$CollectionSummary | null = null;
 			if(options.fetchAdditionalData ?? true) {
 				// fetch fan collection summary
-				const collectionSummary = await this._fetchFanCollectionSummary(fanURL);
-				// parse fan
-				const fan = this._parser.parseFanHtmlData(fanURL, data, collectionSummary);
+				collectionSummary = await this._fetchFanCollectionSummary(fanURL);
+			}
+			// parse fan
+			const fan = this._parser.parseFanHtmlData(fanURL, data, collectionSummary);
+			// fetch additional pages if needed
+			if(options.fetchAdditionalPages ?? options.fetchAdditionalData ?? true) {
 				// load and parse wishlist if this is the root fan page
 				if(fanURLType == '/') {
 					const wishlistURL = fanURL+'/wishlist';
@@ -384,12 +391,8 @@ export default class Bandcamp {
 						console.error(`Unable to get wishlist data from url (response was ${resWl.statusCode})`);
 					}
 				}
-				return fan;
-			} else {
-				// parse fan
-				const fan = this._parser.parseFanHtmlData(fanURL, data, null);
-				return fan;
 			}
+			return fan;
 		} else {
 			// handle other media types
 			const item = this._parser.parseItemFromURL(url, type, $);
@@ -462,24 +465,27 @@ export default class Bandcamp {
 		return this._parser.parseStreamFilesFromCDUI(cduiData);
 	}
 
-	async getTrack(trackURL: string, options: { fetchAdditionalData?: boolean } = {}): Promise<BandcampTrack> {
+	async getTrack(trackURL: string, options: { fetchAdditionalData?: boolean, fetchAdditionalPages?: boolean } = {}): Promise<BandcampTrack> {
 		return await this.getItemFromURL(trackURL, {
 			forceType: 'track',
-			fetchAdditionalData: options.fetchAdditionalData ?? true
+			fetchAdditionalData: options.fetchAdditionalData ?? true,
+			fetchAdditionalPages: options.fetchAdditionalPages ?? options.fetchAdditionalData ?? true
 		}) as any as Promise<BandcampTrack>;
 	}
 
-	async getAlbum(albumURL: string, options: { fetchAdditionalData?: boolean } = {}): Promise<BandcampAlbum> {
+	async getAlbum(albumURL: string, options: { fetchAdditionalData?: boolean, fetchAdditionalPages?: boolean } = {}): Promise<BandcampAlbum> {
 		return await this.getItemFromURL(albumURL, {
 			forceType: 'album',
-			fetchAdditionalData: options.fetchAdditionalData ?? true
+			fetchAdditionalData: options.fetchAdditionalData ?? true,
+			fetchAdditionalPages: options.fetchAdditionalPages ?? options.fetchAdditionalData ?? true
 		}) as any as Promise<BandcampAlbum>;
 	}
 
-	async getArtist(artistURL: string, options: { fetchAdditionalData?: boolean } = {}): Promise<BandcampArtist> {
+	async getArtist(artistURL: string, options: { fetchAdditionalData?: boolean, fetchAdditionalPages?: boolean } = {}): Promise<BandcampArtist> {
 		return await this.getItemFromURL(UrlUtils.resolve(artistURL,'/music'), {
 			forceType: 'artist',
-			fetchAdditionalData: options.fetchAdditionalData ?? true
+			fetchAdditionalData: options.fetchAdditionalData ?? true,
+			fetchAdditionalPages: options.fetchAdditionalPages ?? options.fetchAdditionalData ?? true
 		}) as any as Promise<BandcampArtist>;
 	}
 
@@ -497,10 +503,11 @@ export default class Bandcamp {
 		return collectionSummary;
 	}
 
-	async getFan(fanURL: string, options: { fetchAdditionalData?: boolean } = {}): Promise<BandcampFan> {
+	async getFan(fanURL: string, options: { fetchAdditionalData?: boolean, fetchAdditionalPages?: boolean } = {}): Promise<BandcampFan> {
 		return await this.getItemFromURL(fanURL, {
 			forceType: 'fan',
-			fetchAdditionalData: options.fetchAdditionalData ?? true
+			fetchAdditionalData: options.fetchAdditionalData ?? true,
+			fetchAdditionalPages: options.fetchAdditionalPages ?? options.fetchAdditionalData ?? true
 		}) as any as Promise<BandcampFan>;
 	}
 

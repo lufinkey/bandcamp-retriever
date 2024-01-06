@@ -19,22 +19,19 @@ const CollectionTypes = [ 'collection', 'wishlist', 'following-artists', 'follow
 export async function collectionCommand(bandcamp: Bandcamp, argv: string[], argi: number, options: { verbose: boolean }) {
 	// set defaults for options
 	let printFormat = 'readable-brief' as PrintFormat;
-	let profile: (string | undefined) = undefined;
 	let profileId: (string | undefined) = undefined;
 	let collectionType: (CollectionType | undefined) = undefined as (CollectionType | undefined);
 	let limit: (number | undefined) = undefined;
 	let olderThanToken: (string | undefined) = undefined;
+
+	// get profile argument
+	if(argi >= argv.length) {
+		throw new Error("Missing profile argument");
+	}
+	const profile = argv[argi];
+	argi++;
 	
 	// parse arguments
-	const profileFlagOpts: FlagOptions = {
-		value: 'required',
-		onRead: (flag, val) => {
-			if(profile) {
-				throw new Error("Cannot specify multiple profiles");
-			}
-			profile = val;
-		}
-	};
 	const profileIdFlagOpts: FlagOptions = {
 		value: 'required',
 		onRead: (flag, val) => {
@@ -90,45 +87,25 @@ export async function collectionCommand(bandcamp: Bandcamp, argv: string[], argi
 				},
 				onRead: (flag, val) => { printFormat = val; }
 			},
-			'profile': profileFlagOpts,
 			'profile-id': profileIdFlagOpts,
 			'collection': collectionTypeFlagOpts,
 			'limit': limitFlagOpts,
 			'older-than-token': olderThanTokenOpts
 		},
 		shortFlags: {
-			'p': profileFlagOpts,
 			'i': profileIdFlagOpts,
 			'c': collectionTypeFlagOpts,
 			'l': limitFlagOpts,
-			's': olderThanTokenOpts
+			'p': olderThanTokenOpts
 		},
 		recognizeDoubleDash: true,
 		stopAfterDoubleDash: true,
 		recognizeSingleDash: false,
 		stopBeforeNonFlagArg: false,
 		onNonFlagArg: (arg) => {
-			if(profile) {
-				throw new Error("Cannot specify multiple profiles");
-			}
-			profile = arg;
+			throw new Error(`Unrecognized argument ${arg}`);
 		}
 	});
-	// if there are any remaining arguments, parsing was stopped at a -- argument, so parse the rest as profiles
-	argi = parseArgsResult.argIndex;
-	if(argi < argv.length) {
-		while(argi < argv.length) {
-			const arg = argv[argi];
-			if(profile) {
-				throw new Error("Cannot specify multiple profiles");
-			}
-			profile = arg;
-		}
-	}
-	// TODO if no profile was given, use the current user profile
-	if(!profile) {
-		throw new Error("No profile was given");
-	}
 	// convert username to a URL if needed
 	let profileURL: string;
 	if(!isURLString(profile)) {

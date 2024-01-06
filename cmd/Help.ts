@@ -38,6 +38,42 @@ COMMANDS:
 			Forcibly specifies the type of media that the given URL points to. This will be deduced from the URL or page if not given.
 			If more than 1 URL is given, this argument should be placed after the URL it refers to.
 		
+		--additional-data[=yes|no]
+
+			Default is yes. Specifies if additional resources should be fetched for the given URL's page.
+			Some bandcamp pages require fetching additional resources to populate extra data for the entity at the URL.
+			If more than 1 URL is given, this argument should be placed after the URL it refers to.
+		
+		--additional-pages[=yes|no]
+
+			Default is no. Specifies if additional pages should be fetched for the entity at the given URL.
+			Some bandcamp entities may require fetching data from additional pages to populate extra data for the entity at the URL.
+			If more than 1 URL is given, this argument should be placed after the URL it refers to.
+		
+		--print-format ${PrintFormats.join(' | ')}
+
+			The format to print the fetched info
+	
+	collection <URL_OR_USERNAME> [--profile-id <ID>] [--collection collection | wishlist | following-artists | following-fans | followers] [--limit <COUNT>] [--older-than-token <TOKEN>] [--print-format ${PrintFormats.join('|')}]
+	
+		Fetches items from one of the collections of the given profile.
+		
+		--profile-id <ID>
+
+			Optionally specifies the fan ID for the given profile. The fan ID is a numeric value.
+
+		--collection collection | wishlist | following-artists | following-fans | followers
+
+			Optionally specifies the collection to fetch from. If not given, the fan's "Collection" page is used.
+		
+		--limit <COUNT>
+
+			Default is 20. Optionally specifies the maximum number of items to return.
+		
+		--older-than-token <TOKEN>
+
+			Optionally specifies the token of the item before the first item to return in the results.
+		
 		--print-format ${PrintFormats.join(' | ')}
 
 			The format to print the fetched info

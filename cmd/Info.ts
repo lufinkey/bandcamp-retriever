@@ -13,12 +13,18 @@ import {
 
 type URLInfo = {
 	url: string,
-	mediaType: BandcampMediaType | undefined
+	mediaType?: BandcampMediaType | undefined
+	additionalData?: (boolean | undefined),
+	additionalPages?: (boolean | undefined)
 };
 
 export async function infoCommand(bandcamp: Bandcamp, argv: string[], argi: number, options: { verbose: boolean }) {
 	// set defaults for options
-	let pendingURLOptions: { mediaType?: (BandcampMediaType | undefined) } = {};
+	let pendingURLOptions: {
+		mediaType?: (BandcampMediaType | undefined),
+		additionalData?: (boolean | undefined),
+		additionalPages?: (boolean | undefined)
+	} = {};
 	let concurrent = false;
 	let continueOnFailure: boolean | undefined = undefined;
 	let printFormat = 'readable-brief' as PrintFormat;
@@ -29,7 +35,7 @@ export async function infoCommand(bandcamp: Bandcamp, argv: string[], argi: numb
 	const urlFlagOpts: FlagOptions = {
 		value: 'required',
 		onRead: (flag, val) => {
-			validateAndAppendURL(urls, val, pendingURLOptions.mediaType);
+			validateAndAppendURL(urls, val, pendingURLOptions);
 			pendingURLOptions = {};
 		}
 	};
@@ -54,6 +60,32 @@ export async function infoCommand(bandcamp: Bandcamp, argv: string[], argi: numb
 					throw new Error(`Cannot specify multiple media types for URL ${urlInfo.url}`);
 				}
 				urlInfo.mediaType = val;
+			}
+		}
+	};
+	const additionalDataFlagOpts: FlagOptions = {
+		value: 'optional',
+		parseValue: parseBooleanArgValue,
+		onRead: (flag, val) => {
+			if(urls.length == 0) {
+				pendingURLOptions.additionalData = val;
+			} else {
+				const lastIndex = urls.length - 1;
+				const urlInfo = urls[lastIndex];
+				urlInfo.additionalData = val;
+			}
+		}
+	};
+	const additionalPagesFlagOpts: FlagOptions = {
+		value: 'optional',
+		parseValue: parseBooleanArgValue,
+		onRead: (flag, val) => {
+			if(urls.length == 0) {
+				pendingURLOptions.additionalPages = val;
+			} else {
+				const lastIndex = urls.length - 1;
+				const urlInfo = urls[lastIndex];
+				urlInfo.additionalPages = val;
 			}
 		}
 	};
@@ -85,18 +117,21 @@ export async function infoCommand(bandcamp: Bandcamp, argv: string[], argi: numb
 				onRead: (flag, val) => { printFormat = val; }
 			},
 			'url': urlFlagOpts,
-			'media-type': mediaTypeFlagOpts
+			'media-type': mediaTypeFlagOpts,
+			'additional-data': additionalDataFlagOpts,
+			'additional-pages': additionalPagesFlagOpts
 		},
 		shortFlags: {
 			'u': urlFlagOpts,
-			't': mediaTypeFlagOpts
+			't': mediaTypeFlagOpts,
+			'z': additionalDataFlagOpts
 		},
 		recognizeDoubleDash: true,
 		stopAfterDoubleDash: true,
 		recognizeSingleDash: false,
 		stopBeforeNonFlagArg: false,
 		onNonFlagArg: (arg) => {
-			validateAndAppendURL(urls, arg, pendingURLOptions.mediaType);
+			validateAndAppendURL(urls, arg, pendingURLOptions);
 			pendingURLOptions = {};
 		}
 	});
@@ -105,7 +140,7 @@ export async function infoCommand(bandcamp: Bandcamp, argv: string[], argi: numb
 	if(argi < argv.length) {
 		while(argi < argv.length) {
 			const arg = argv[argi];
-			validateAndAppendURL(urls, arg, pendingURLOptions.mediaType);
+			validateAndAppendURL(urls, arg, pendingURLOptions);
 		}
 	}
 	if(continueOnFailure === undefined) {
@@ -135,7 +170,9 @@ export async function infoCommand(bandcamp: Bandcamp, argv: string[], argi: numb
 		// fetch all items at once
 		const itemPromises = urls.map((urlInfo) => {
 			return bandcamp.getItemFromURL(urlInfo.url, {
-				forceType: urlInfo.mediaType
+				forceType: urlInfo.mediaType,
+				fetchAdditionalData: urlInfo.additionalData,
+				fetchAdditionalPages: urlInfo.additionalPages ?? false
 			});
 		});
 		for(let i=0; i<itemPromises.length; i++) {
@@ -156,7 +193,9 @@ export async function infoCommand(bandcamp: Bandcamp, argv: string[], argi: numb
 		for(let i=0; i<urls.length; i++) {
 			const urlInfo = urls[i];
 			const itemPromise = bandcamp.getItemFromURL(urlInfo.url, {
-				forceType: urlInfo.mediaType
+				forceType: urlInfo.mediaType,
+				fetchAdditionalData: urlInfo.additionalData,
+				fetchAdditionalPages: urlInfo.additionalPages ?? false
 			});
 			const success = await printItemResult(urlInfo.url, itemPromise, itemOpts);
 			if(success) {
@@ -181,11 +220,15 @@ export async function infoCommand(bandcamp: Bandcamp, argv: string[], argi: numb
 
 
 
-function validateAndAppendURL(urls: URLInfo[], url: string, mediaType: BandcampMediaType | undefined) {
+function validateAndAppendURL(urls: URLInfo[], url: string, options: {
+	mediaType?: BandcampMediaType | undefined,
+	additionalData?: boolean | undefined,
+	additionalPages?: boolean | undefined
+}) {
 	// TODO validate URL
 	urls.push({
-		url: url,
-		mediaType: mediaType
+		...options,
+		url: url
 	});
 }
 
