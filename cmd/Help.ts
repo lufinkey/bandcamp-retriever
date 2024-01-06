@@ -3,7 +3,7 @@ import { BandcampMediaTypes } from '../lib';
 import { PrintFormats } from './cmdutils';
 
 export const getUsageText = () =>
-`bandcamp-retriever [--verbose] <command> [<args>]
+`bandcamp-retriever [--verbose] [--cookies-file <FILE> [--update-cookies] [--lock-cookies]] <command> [<args>]
 
 OPTIONS:
 
