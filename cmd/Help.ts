@@ -8,7 +8,20 @@ export const getUsageText = () =>
 OPTIONS:
 
 	--verbose
+
 		Enables verbose logging. Useful for debugging.
+	
+	--cookies-file <FILE>
+	
+		Specifies the path to the cookies.txt file where the bandcamp session is stored.
+	
+	--update-cookies
+	
+		Specifies that the cookies.txt file should be updated after each request (if a cookies.txt file has been specified).
+	
+	--lock-cookies
+
+		Specifies that a lockfile should be used to access the cookies.txt file.
 
 COMMANDS:
 
