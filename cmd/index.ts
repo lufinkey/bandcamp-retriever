@@ -3,7 +3,7 @@ import { Bandcamp } from '../lib';
 import {
 	parseArgsOrExit,
 	parseBooleanArgValue } from './cmdutils';
-import { outputUsageError } from './Help';
+import { outputUsage, outputUsageError } from './Help';
 import { infoCommand } from './Info';
 import { downloadCommand } from './Download';
 import { searchCommand } from './Search';
@@ -58,6 +58,10 @@ const bandcamp = new Bandcamp();
 			await downloadCommand(bandcamp, process.argv, argi, {
 				verbose
 			});
+			break;
+		
+		case 'help':
+			outputUsage();
 			break;
 		
 		default:
