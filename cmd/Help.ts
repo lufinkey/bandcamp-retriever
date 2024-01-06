@@ -53,6 +53,10 @@ COMMANDS:
 		--media-type any | ${BandcampMediaTypes.join(' | ')}
 
 			Filter which kind of media type will be searched. Specifying either 'artist' or 'label' will show both artists and labels.
+		
+		--print-format ${PrintFormats.join(' | ')}
+
+			The format to print the search results
 	
 	download [--url] <URL>... [--media-type=track|album] [--dir=<PATH>] [--output=<FORMAT_PATH>]
 		
