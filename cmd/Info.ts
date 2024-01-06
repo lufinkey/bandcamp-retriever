@@ -174,7 +174,7 @@ export async function infoCommand(bandcamp: Bandcamp, argv: string[], argi: numb
 
 	// output result and exit if failures
 	if(failureCount > 0) {
-		console.error(`Finished with ${failureCount} failure${(failureCount > 1 ? 's' : '')}`);
+		process.stderr.write(`Finished with ${failureCount} failure${(failureCount > 1 ? 's' : '')}\n`);
 		process.exit(2);
 	}
 }

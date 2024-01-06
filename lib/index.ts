@@ -12,4 +12,6 @@ export {
 	BandcampAlbum,
 	BandcampAlbumTrack,
 	BandcampArtist,
-	BandcampFan } from './types';
+	BandcampFan,
+	BandcampAudioFileType,
+	BandcampAudioSource } from './types';

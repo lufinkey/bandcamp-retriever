@@ -1,4 +1,11 @@
 
+import http from 'http';;
+import fs from 'fs';
+import path from 'path';
+import QueryString from 'querystring';
+import UrlUtils from 'url';
+import cheerio from 'cheerio';
+import tough from 'tough-cookie';
 import BandcampAuth, { BandcampAuthOptions } from './Auth';
 import BandcampSession from './Session';
 import BandcampParser from './Parser';
@@ -8,25 +15,26 @@ import {
 	BandcampTrack,
 	BandcampAlbum,
 	BandcampArtist,
+	BandcampAlbumTrack,
 	BandcampFan,
 	BandcampFan$APICollectionPage,
 	BandcampFan$APIFollowedArtistPage,
 	BandcampFan$APIFollowedFanPage,
 	BandcampFan$APIWishlistPage,
 	BandcampSearchResultsList,
-	BandcampIdentities } from './types';
+	BandcampIdentities,
+	BandcampAudioSource } from './types';
 import { PrivBandcampAPI$Fan$CollectionSummary } from './private_types';
 import {
-	sendHttpRequest,
 	HttpResponse,
-	SendHttpRequestOptions } from './network_utils';
-import QueryString from 'querystring';
-import UrlUtils from 'url';
-import cheerio from 'cheerio';
-import tough from 'tough-cookie';
+	sendHttpRequest,
+	SendHttpRequestOptions,
+	performHttpRequest } from './network_utils';
+import { createPathForFile, formatTrackAudioFileOutputPath } from './media_utils';
 
 
 const CRUMB_VALID_TIME = 5 * 60 * 1000;
+const DefaultOutputStructure = '%(artistName)/%(albumName)/%(trackNumber:d2) %(name).%(fileExt)';
 
 
 type BandcampOptions = {
@@ -119,7 +127,7 @@ export default class Bandcamp {
 
 
 
-	async sendHttpRequest(url: string, options: SendHttpRequestOptions = {}): Promise<{res: HttpResponse, data: Buffer}> {
+	_createRequestHeaders(url: string, options: { headers?: http.OutgoingHttpHeaders }): { isBandcampDomain: boolean, headers: http.OutgoingHttpHeaders } {
 		// add auth headers
 		const isBandcampDomain = this._parser.isUrlBandcampDomain(url);
 		let refererURL = (options.headers ? options.headers['Referer'] : null);
@@ -153,17 +161,56 @@ export default class Bandcamp {
 				...options.headers
 			};
 		}
+		return {
+			isBandcampDomain,
+			headers
+		};
+	}
+
+	async sendHttpRequest(url: string, options: SendHttpRequestOptions = {}): Promise<{res: HttpResponse, data: Buffer}> {
+		const { isBandcampDomain, headers } = this._createRequestHeaders(url, { headers: options.headers });
 		// send request
 		const { res, data } = await sendHttpRequest(url, {
 			...options,
-			headers: headers
+			headers
 		});
-		// udpate session if needed
+		// update session if needed
 		if(isBandcampDomain) {
 			this._updateSessionFromResponse(res);
 		}
 		// return result
 		return { res, data };
+	}
+
+	downloadFile(url: string, filepath: string, options: { headers?: http.OutgoingHttpHeaders } = {}): Promise<void> {
+		const { isBandcampDomain, headers } = this._createRequestHeaders(url, { headers: options.headers });
+		return performHttpRequest(url, {
+			method: 'GET',
+			headers
+		}, (res, resolve, reject) => {
+			// update session if needed
+			if(isBandcampDomain) {
+				this._updateSessionFromResponse(res);
+			}
+			// open file stream
+			let file: fs.WriteStream;
+			try {
+				file = fs.createWriteStream(filepath);
+			} catch(error: any) {
+				reject(error);
+				return;
+			}
+			file.on('open', () => {
+				// write until finished
+				res.pipe(file);
+				// close the file when finished
+				file.on('finish', () => {
+					file.close();
+					resolve();
+				});
+			});
+			file.on('error', reject);
+		});
 	}
 
 
@@ -1175,5 +1222,44 @@ export default class Bandcamp {
 
 	async unsaveItem(itemURL: string): Promise<void> {
 		return await this._performSaveItemAction(itemURL, 'unsave');
+	}
+
+
+
+	async downloadTrackAudioSource(track: (BandcampTrack | BandcampAlbumTrack), audioSource: BandcampAudioSource, options: {
+		verbose?: boolean,
+		logger?: (message: any) => void
+		dir: string,
+		output?: string,
+		outputIsFormatString?: boolean,
+		createOutputPath?: boolean
+	}): Promise<string> {
+		// resolve output path
+		let output = options.output;
+		let outputIsFormatString = options.outputIsFormatString ?? true;
+		if(output == null) {
+			output = DefaultOutputStructure;
+			outputIsFormatString = true;
+		}
+		if(outputIsFormatString) {
+			output = formatTrackAudioFileOutputPath(output, track, audioSource);
+		}
+		// create output path
+		const filepath = path.resolve(options.dir, output);
+		if(options.createOutputPath) {
+			await createPathForFile(options.dir, filepath, {
+				verbose: options.verbose,
+				logger: options.logger
+			});
+		}
+		// download the file
+		if (options.logger) {
+			options.logger(`Downloading ${audioSource.type} audio for track ${track.url} to path ${filepath}`);
+		}
+		await this.downloadFile(audioSource.url, filepath);
+		if (options.logger) {
+			options.logger(`Done downloading to ${filepath}`);
+		}
+		return filepath;
 	}
 }

@@ -2,7 +2,7 @@
 import { Buffer } from 'buffer';
 import http from 'http';
 import https from 'https';
-import * as UrlUtils from 'url';
+import { URL } from 'url';
 
 
 export type SendHttpRequestOptions = {
@@ -14,7 +14,7 @@ export type SendHttpRequestOptions = {
 }
 
 type HttpClient = {
-	request: (opts: http.RequestOptions, callback: (res: http.IncomingMessage) => void) => http.ClientRequest
+	request: (opts: https.RequestOptions, callback: (res: http.IncomingMessage) => void) => http.ClientRequest
 }
 
 export type HttpResponse = http.IncomingMessage & {
@@ -27,43 +27,46 @@ type HttpResult = {
 	data: Buffer
 }
 
-export const sendHttpRequest = (url: string, options: SendHttpRequestOptions = {}): Promise<HttpResult> => {
+
+export const createRequestHeaders = (options: { headers: string[] }) => {
+	
+};
+
+export const createHTTPRequest = (url: string, options: SendHttpRequestOptions): { request: https.RequestOptions, client: HttpClient } => {
+	// build request data
+	const urlObj = new URL(url);
+	const request: https.RequestOptions = {
+		method: options.method ?? 'GET',
+		protocol: urlObj.protocol,
+		hostname: urlObj.hostname,
+		path: urlObj.pathname + (urlObj.search || ''),
+		agent: false,
+		headers: {
+			//"User-Agent": "miniweb",
+			"Accept": "*/*",
+			"Host": urlObj.hostname ?? undefined,
+			...options.headers
+		}
+	};
+	// add withCredentials: false to prevent automatic property setting (false is the default value for XMLHttpRequest)
+	(request as any).withCredentials = false;
+	// attach port if needed
+	if(Number.isInteger(urlObj.port)) {
+		request.port = urlObj.port;
+	}
+	// attach options
+	return {
+		request: request,
+		client: (urlObj.protocol === 'https:' || urlObj.protocol === 'https') ? https : http
+	};
+};
+
+export const performHttpRequest = <T>(url: string, options: SendHttpRequestOptions, callback: (res: HttpResponse, resolve: (result: T) => void, reject: (error: Error) => void) => void): Promise<T> => {
 	options = {...options};
 	return new Promise((resolve, reject) => {
-		// build request data
-		const urlObj = UrlUtils.parse(url);
-		const reqData: http.RequestOptions = {
-			protocol: urlObj.protocol,
-			hostname: urlObj.hostname,
-			path: urlObj.pathname + (urlObj.search || ''),
-			agent: false,
-			headers: {
-				//"User-Agent": "miniweb",
-				"Accept": "*/*",
-				"Host": urlObj.hostname ?? undefined
-			}
-		};
-		// add withCredentials: false to prevent automatic property setting
-		(reqData as any).withCredentials = false;
-		// attach port if needed
-		if(Number.isInteger(urlObj.port)) {
-			reqData.port = urlObj.port;
-		}
-		
-		// attach options
-		if(options.method) {
-			reqData.method = options.method;
-		} else {
-			reqData.method = 'GET';
-		}
-		if(options.headers) {
-			reqData.headers = { ...reqData.headers, ...options.headers };
-		}
-		
-		// create request
+		const { request, client } = createHTTPRequest(url, options);
 		let errored = false;
-		const protocolObj: HttpClient = (urlObj.protocol === 'https:' || urlObj.protocol === 'https') ? https : http;
-		const req = protocolObj.request(reqData, (res: http.IncomingMessage) => {
+		const req = client.request(request, (res: http.IncomingMessage) => {
 			// ensure status code
 			if(res.statusCode == null) {
 				if(errored) {
@@ -94,33 +97,11 @@ export const sendHttpRequest = (url: string, options: SendHttpRequestOptions = {
 					reject(new Error(res.statusCode+" status with no redirect"));
 					return;
 				}
-				sendHttpRequest(res.headers.location, options).then(resolve,reject);
+				performHttpRequest(res.headers.location, options, callback).then(resolve,reject);
 				return;
 			}
 
-			// build response
-			let buffers: Buffer[] = [];
-			res.on('data', (chunk: Buffer) => {
-				buffers.push(chunk);
-			});
-
-			res.on('end', () => {
-				if(errored) {
-					return;
-				}
-				// parse response
-				let data = null;
-				try {
-					data = Buffer.concat(buffers);
-				}
-				catch(error: any) {
-					error.response = res;
-					error.data = null;
-					reject(error);
-					return;
-				}
-				resolve({ res: res as HttpResponse, data });
-			});
+			callback(res as HttpResponse, resolve, reject);
 		});
 
 		// handle error
@@ -139,5 +120,30 @@ export const sendHttpRequest = (url: string, options: SendHttpRequestOptions = {
 
 		// send
 		req.end();
+	});
+}
+
+export const sendHttpRequest = (url: string, options: SendHttpRequestOptions = {}): Promise<HttpResult> => {
+	return performHttpRequest(url, options, (res, resolve, reject) => {
+		// build response
+		let buffers: Buffer[] = [];
+		res.on('data', (chunk: Buffer) => {
+			buffers.push(chunk);
+		});
+
+		res.on('end', () => {
+			// parse response
+			let data: (Buffer | null) = null;
+			try {
+				data = Buffer.concat(buffers);
+			}
+			catch(error: any) {
+				error.response = res;
+				error.data = null;
+				reject(error);
+				return;
+			}
+			resolve({ res: res as HttpResponse, data });
+		});
 	});
 }

@@ -62,7 +62,7 @@ COMMANDS:
 
 			A format path string specifying where tracks should get downloaded, relative to the base directory.
 			A default output path structure will be used if not given.
-			Example: '%(artistName)/%(albumName)/%(trackNumber) %(name).%(fileExt)'
+			Example: '%(artistName)/%(albumName)/%(trackNumber:d2) %(name).%(fileExt)'
 `;
 
 export function outputUsage() {
