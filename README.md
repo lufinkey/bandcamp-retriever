@@ -15,6 +15,7 @@ To make calls to bandcamp, import the `Bandcamp` type and create a new instance:
 import { Bandcamp } from 'bandcamp-retriever';
 const bandcamp = new Bandcamp();
 ```
+
 ### API
 
 - **Bandcamp** *(class)*

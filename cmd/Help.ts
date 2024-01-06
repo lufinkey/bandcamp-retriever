@@ -63,6 +63,19 @@ COMMANDS:
 			A format path string specifying where tracks should get downloaded, relative to the base directory.
 			A default output path structure will be used if not given.
 			Example: '%(artistName)/%(albumName)/%(trackNumber:d2) %(name).%(fileExt)'
+		
+		--file-type <FILE_TYPE>[,<FILE_TYPE>]...
+			
+			Specifies the file type(s) to download. If multiple are given, they should be comma-separated.
+			If 'all' is given, all file types will be downloaded.
+		
+		--prefer-file-type <FILE_TYPE>[,<FILE_TYPE>]...
+			
+			Specifies the preferred file type(s) to download, in order of highest to lowest priority. If multiple are given, they should be comma-separated.
+		
+		--max-files-per-track <NUM>
+
+			Specifies the maximum number of files per track that should be downloaded, if the --file-type argument was given.
 `;
 
 export function outputUsage() {
