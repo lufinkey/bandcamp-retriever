@@ -39,13 +39,18 @@ import {
 	BandcampFan$APIFollowedArtistPage,
 	BandcampFan$APIFollowedFanPage } from './types';
 import {
+	PrivBandcampTRAlbumData,
+	PrivBandcampTRAlbumDataTrack,
+	PrivBandcampTrackLDJson,
+	PrivBandcampAlbumLDJson,
 	PrivBandcampFan$AlbumTrack,
 	PrivBandcampFan$CollectionBatchData,
 	PrivBandcampFan$CollectionItemInfo,
 	PrivBandcampFan$FanData,
 	PrivBandcampFanPageData,
 	PrivBandcampAPI$Fan$CollectionSummary, 
-	PrivBandcampAPI$Fan$CollectionSummary$TRAlbumLookup } from './private_types';
+	PrivBandcampAPI$Fan$CollectionSummary$TRAlbumLookup,
+	PrivBandcampAlbumLDJsonTrack } from './private_types';
 
 
 
@@ -467,7 +472,7 @@ export default class BandcampParser {
 		}).filter((text) => (text !== undefined));
 
 		// get LD JSON
-		let ldJson = null;
+		let ldJson: (PrivBandcampTrackLDJson | PrivBandcampAlbumLDJson | null) = null;
 		const ldJsonTag = $('script[type="application/ld+json"]');
 		if(ldJsonTag != null && ldJsonTag.index() !== -1) {
 			const ldJsonStr = ldJsonTag.html()?.trim();
@@ -479,7 +484,7 @@ export default class BandcampParser {
 		}
 
 		// get data-tralbum
-		let trAlbumData = null;
+		let trAlbumData: (PrivBandcampTRAlbumData | null) = null;
 		const trAlbumDataText = $('script[data-tralbum]').attr('data-tralbum');
 		if(trAlbumDataText) {
 			try {
@@ -548,10 +553,12 @@ export default class BandcampParser {
 			}
 		}
 		if(ldJson) {
-			const ldJsonURL = ldJson['url'];
+			// check for the likely non-existant URL field first
+			const ldJsonURL = (ldJson as any)['url'];
 			if(typeof ldJsonURL === 'string') {
 				itemURL = ldJsonURL;
 			} else {
+				// fallback to @id, which is just a URL
 				const ldJsonId = ldJson['@id'];
 				if(typeof ldJsonId === 'string' && ldJsonId.startsWith('http')) {
 					itemURL = ldJsonId;
@@ -559,7 +566,7 @@ export default class BandcampParser {
 			}
 		}
 		if(trAlbumData) {
-			const trURL = trAlbumData['url'];
+			const trURL = trAlbumData.url;
 			if(typeof trURL === 'string' && trURL) {
 				itemURL = trURL;
 			}
@@ -576,12 +583,12 @@ export default class BandcampParser {
 		// find item name
 		let itemName = nameSection.find('.trackTitle').text().trim();
 		if(ldJson) {
-			const ldJsonName = ldJson['name'];
+			const ldJsonName = ldJson.name;
 			if(typeof ldJsonName === 'string' && ldJsonName) {
 				itemName = ldJsonName;
 			}
 		}
-
+		
 		// find artist / album name
 		let artistName: string | undefined = undefined;
 		let artistURL: string | undefined = undefined;
@@ -646,32 +653,36 @@ export default class BandcampParser {
 			}
 		}
 		if(ldJson) {
-			const ldByArtist = ldJson['byArtist'];
+			const ldByArtist = ldJson.byArtist;
 			if(ldByArtist) {
-				const ldArtistName = ldByArtist['name'];
+				const ldArtistName = ldByArtist.name;
 				if(typeof ldArtistName === 'string' && ldArtistName) {
 					artistName = ldArtistName;
 				}
-				const ldArtistURL = ldByArtist['url'];
+				// check for likely non-existant url field first
+				const ldArtistURL = (ldByArtist as any)['url'];
 				if(typeof ldArtistURL === 'string' && ldArtistURL) {
 					artistURL = ldArtistURL;
 				} else {
+					// fallback to @id, which is just a URL
 					const ldArtistId = ldByArtist['@id'];
 					if(typeof ldArtistId === 'string' && ldArtistId.startsWith('http')) {
 						artistURL = ldArtistId;
 					}
 				}
 			}
-			const ldInAlbum = ldJson['inAlbum'];
+			const ldInAlbum = (ldJson as PrivBandcampTrackLDJson).inAlbum;
 			if(ldInAlbum) {
-				const ldAlbumName = ldInAlbum['name'];
+				const ldAlbumName = ldInAlbum.name;
 				if(typeof ldAlbumName === 'string' && ldAlbumName) {
 					albumName = ldAlbumName;
 				}
-				const ldAlbumURL = ldInAlbum['url'];
+				// check for likely non-existant url field first
+				const ldAlbumURL = (ldInAlbum as any)['url'];
 				if(typeof ldAlbumURL === 'string' && ldAlbumURL) {
 					albumURL = ldAlbumURL;
 				} else {
+					// fallback to @id, which is just a URL
 					const ldAlbumId = ldInAlbum['@id'];
 					if(typeof ldAlbumId === 'string' && ldAlbumId.startsWith('http')) {
 						albumURL = ldAlbumId;
@@ -697,11 +708,11 @@ export default class BandcampParser {
 		$('.tralbum-tags a[class="tag"]').each((index, tagHtml) => {
 			tags.push($(tagHtml).text().trim());
 		});
-
+		
 		// get release date
 		let releaseDate: string | undefined = undefined;
 		if(ldJson) {
-			const ldDatePublished = ldJson['datePublished'];
+			const ldDatePublished = ldJson.datePublished;
 			if(typeof ldDatePublished === 'string' && ldDatePublished) {
 				releaseDate = ldDatePublished;
 			}
@@ -729,13 +740,13 @@ export default class BandcampParser {
 			description = tralbumAbout.text();
 		}
 		if(!description && ldJson) {
-			const ldDescription = ldJson['description'];
+			const ldDescription = ldJson.description;
 			if(typeof ldDescription === 'string') {
 				description = ldDescription;
 			}
 		}
 		if(!description && trAlbumData) {
-			const trCurrent = trAlbumData['current'];
+			const trCurrent = trAlbumData.current;
 			if(trCurrent) {
 				const trDescription = trCurrent['about'];
 				if(typeof trDescription === 'string') {
@@ -746,13 +757,18 @@ export default class BandcampParser {
 
 		// get track num
 		let trackNumber: number | undefined = undefined;
-		if(type === 'track' && ldJson && ldJson.additionalProperty instanceof Array) {
-			const tracknumProp = ldJson.additionalProperty.find((prop: any) => (prop.name === 'tracknum'));
-			if(tracknumProp && typeof tracknumProp.value === 'number') {
-				trackNumber = tracknumProp.value;
+		if(type === 'track') {
+			if (ldJson != null && ldJson.additionalProperty instanceof Array) {
+				const tracknumProp = ldJson.additionalProperty.find((prop: any) => (prop.name === 'tracknum'));
+				if(tracknumProp && typeof tracknumProp.value === 'number') {
+					trackNumber = tracknumProp.value;
+				}
+			}
+			if(trackNumber == null && trAlbumData?.current?.track_number != null) {
+				trackNumber = trAlbumData.current.track_number;
 			}
 		}
-
+		
 		// if item is a single, set album name / url as self
 		if(type === 'track' && (subAlbumTag == null || subAlbumTag.index() === -1)
 			&& (fromAlbumTag == null || fromAlbumTag.index() === -1)
@@ -801,7 +817,7 @@ export default class BandcampParser {
 			});
 		}
 		if(ldJson) {
-			let ldJsonImages = ldJson['image'];
+			let ldJsonImages: string | string[] | null = ldJson.image;
 			if(typeof ldJsonImages === 'string') {
 				ldJsonImages = [ ldJsonImages ];
 			}
@@ -809,7 +825,7 @@ export default class BandcampParser {
 				for(const ldJsonImage of ldJsonImages) {
 					if(typeof ldJsonImage === 'string' && ldJsonImage.startsWith('http')) {
 						if(item.images.find((img) => (img.url == ldJsonImage)) == null) {
-							ldJsonImages.push({
+							item.images.push({
 								url: ldJsonImage,
 								size: 'large'
 							});
@@ -822,19 +838,28 @@ export default class BandcampParser {
 		if(linkImageSrc.index() !== -1) {
 			const linkImageURL = linkImageSrc.attr('href');
 			if(linkImageURL && item.images.find((img) => (img.url == linkImageURL)) == null) {
-				item.images.push({url: linkImageURL, size: 'medium'});
+				item.images.push({
+					url: linkImageURL,
+					size: 'medium'
+				});
 			}
 		}
 		const metaImage = $('meta[property="og:image"]');
 		if(metaImage.index() !== -1) {
 			const metaImageURL = metaImage.attr('content');
 			if(metaImageURL && item.images.find((img) => (img.url == metaImageURL)) == null) {
-				item.images.push({url: metaImageURL, size: 'medium'});
+				item.images.push({
+					url: metaImageURL,
+					size: 'medium'
+				});
 			}
 		}
 		const mediumImageURL = tralbumArt.find('img').attr('src');
 		if(mediumImageURL && item.images.find((img) => (img.url == mediumImageURL)) == null) {
-			item.images.push({url: mediumImageURL, size: 'medium'});
+			item.images.push({
+				url: mediumImageURL,
+				size: 'medium'
+			});
 		}
 
 		// helper function to parse audio sources
@@ -868,9 +893,9 @@ export default class BandcampParser {
 					trackHtmls.push($(trackHtml));
 				});
 			}
-			let ldTracks = [];
+			let ldTracks: PrivBandcampAlbumLDJsonTrack[] = [];
 			if(ldJson) {
-				const ldTrackObj = ldJson['track'];
+				const ldTrackObj = (ldJson as PrivBandcampAlbumLDJson).track;
 				if(ldTrackObj) {
 					const ldItems = ldTrackObj['itemListElement'];
 					if(ldItems instanceof Array) {
@@ -878,7 +903,7 @@ export default class BandcampParser {
 					}
 				}
 			}
-			let trTracks = [];
+			let trTracks: PrivBandcampTRAlbumDataTrack[] = [];
 			if(trAlbumData) {
 				const trAlbumTracks = trAlbumData['trackinfo'];
 				if(trAlbumTracks instanceof Array) {
@@ -924,16 +949,18 @@ export default class BandcampParser {
 				// get properties from LD JSON
 				if(i < ldTracks.length) {
 					const ldTrack = ldTracks[i];
-					const ldTrackItem = ldTrack['item'];
+					const ldTrackItem = ldTrack.item;
 					if(ldTrackItem) {
-						const ldTrackName = ldTrackItem['name'];
+						const ldTrackName = ldTrackItem.name;
 						if(typeof ldTrackName === 'string' && ldTrackName) {
 							trackName = ldTrackName;
 						}
-						const ldTrackURL = ldTrackItem['url'];
+						// check likely non-existant url property
+						const ldTrackURL = (ldTrackItem as any)['url'];
 						if(typeof ldTrackURL === 'string' && ldTrackURL) {
 							trackURL = this.cleanUpURL(UrlUtils.resolve(url, ldTrackURL));
 						} else {
+							// fallback to @id, which is just a URL
 							const ldTrackId = ldTrackItem['@id'];
 							if(typeof ldTrackId === 'string' && ldTrackId.startsWith('http')) {
 								trackURL = this.cleanUpURL(ldTrackId);
@@ -950,19 +977,19 @@ export default class BandcampParser {
 					} else {
 						trackPlayable = false;
 					}
-					const trTrackId = trTrack['id'];
+					const trTrackId = trTrack.id;
 					if(trTrackId) {
 						trackId = ''+trTrackId;
 					}
-					const trTrackTitle = trTrack['title'];
+					const trTrackTitle = trTrack.title;
 					if(typeof trTrackTitle === 'string' && trTrackTitle) {
 						trackName = trTrackTitle;
 					}
-					const trTrackDuration = trTrack['duration'];
+					const trTrackDuration = trTrack.duration;
 					if(typeof trTrackDuration === 'number' && trTrackDuration) {
 						trackDuration = trTrackDuration;
 					}
-					const trTrackURL = trTrack['title_link'];
+					const trTrackURL = trTrack.title_link;
 					if(typeof trTrackURL === 'string' && trTrackURL) {
 						trackURL = this.cleanUpURL(UrlUtils.resolve(url, trTrackURL));
 					}
