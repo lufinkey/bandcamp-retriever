@@ -44,14 +44,14 @@ export async function infoCommand(bandcamp: Bandcamp, argv: string[], argi: numb
 		onRead: (flag, val: BandcampMediaType) => {
 			if(urls.length == 0) {
 				if(pendingURLOptions.mediaType) {
-					console.warn(`specified media type ${val} will override previously specified media type ${pendingURLOptions.mediaType}`);
+					throw new Error("Cannot specify multiple media types");
 				}
 				pendingURLOptions.mediaType = val;
 			} else {
 				const lastIndex = urls.length - 1;
 				const urlInfo = urls[lastIndex];
 				if(urlInfo.mediaType) {
-					console.warn(`specified media type ${val} will override previously specified media type ${urlInfo.mediaType}`);
+					throw new Error(`Cannot specify multiple media types for URL ${urlInfo.url}`);
 				}
 				urlInfo.mediaType = val;
 			}

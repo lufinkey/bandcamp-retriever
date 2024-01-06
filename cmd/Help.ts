@@ -15,11 +15,11 @@ OPTIONS:
 	
 		Specifies the path to the cookies.txt file where the bandcamp session is stored.
 	
-	--update-cookies
+	--dont-update-cookies
 	
-		Specifies that the cookies.txt file should be updated after each request (if a cookies.txt file has been specified).
+		Specifies that the cookies.txt file should NOT be updated after each request (if a cookies.txt file has been specified).
 	
-	--lock-cookies
+	--lock-cookies-file
 
 		Specifies that a lockfile should be used to access the cookies.txt file.
 

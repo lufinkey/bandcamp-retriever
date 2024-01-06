@@ -9,12 +9,13 @@ import { outputUsage, outputUsageError } from './Help';
 import { infoCommand } from './Info';
 import { downloadCommand } from './Download';
 import { searchCommand } from './Search';
+import { collectionCommand } from './Collection';
 
 // set defaults for options
 let verbose = false;
 let cookiesFilePath: (string | undefined) = undefined;
-let updateCookies: (boolean | undefined) = undefined;
-let lockCookies: (boolean | undefined) = undefined;
+let dontUpdateCookies: (boolean | undefined) = undefined;
+let lockCookiesFile: (boolean | undefined) = undefined;
 
 // parse base arguments
 let argi = 2;
@@ -31,15 +32,15 @@ let parseArgsResult = parseArgsOrExit(process.argv, argi, {
 				cookiesFilePath = val;
 			}
 		},
-		'update-cookies': {
+		'dont-update-cookies': {
 			value: 'optional',
 			parseValue: parseBooleanArgValue,
-			onRead: (flag, val) => { updateCookies = val ?? true; }
+			onRead: (flag, val) => { dontUpdateCookies = (val ?? true); }
 		},
-		'lock-cookies': {
+		'lock-cookies-file': {
 			value: 'optional',
 			parseValue: parseBooleanArgValue,
-			onRead: (flag, val) => { lockCookies = val ?? true; }
+			onRead: (flag, val) => { lockCookiesFile = val ?? true; }
 		}
 	},
 	shortFlags: {},
@@ -51,8 +52,8 @@ argi = parseArgsResult.argIndex;
 let cookies: (tough.Store | (tough.Cookie | string)[] | undefined) = undefined;
 if(cookiesFilePath) {
 	cookies = new FileCookieStore(cookiesFilePath, {
-		auto_sync: (updateCookies ?? true),
-		lockfile: (lockCookies ?? false)
+		auto_sync: !(dontUpdateCookies ?? false),
+		lockfile: (lockCookiesFile ?? false)
 	});
 }
 
@@ -76,6 +77,12 @@ const bandcamp = new Bandcamp({
 	switch(cmd) {
 		case 'info':
 			await infoCommand(bandcamp, process.argv, argi, {
+				verbose
+			});
+			break;
+		
+		case 'collection':
+			await collectionCommand(bandcamp, process.argv, argi, {
 				verbose
 			});
 			break;

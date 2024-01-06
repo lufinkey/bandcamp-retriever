@@ -28,11 +28,11 @@ export default class BandcampSession {
 			}
 		}
 	}
-	
+
 	getBandcampCookiesSync(): tough.Cookie[] {
 		return this.getURLCookiesSync(BANDCAMP_COOKIES_URL);
 	}
-
+	
 	getURLCookiesSync(url: string, options?: GetCookiesOptions): tough.Cookie[] {
 		if(options) {
 			return this._cookieStore.getCookiesSync(url, options);

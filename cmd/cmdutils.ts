@@ -318,7 +318,7 @@ export function convertObjectToReadableFormat(obj: any, depth: number, options: 
 					return 'empty';
 				}
 				if(options.maxArrayEntries != null && (options.arrayEntryLimitDepth == null || depth >= options.arrayEntryLimitDepth) && obj.length > options.maxArrayEntries) {
-					return `${obj.length} entries`;
+					return `${obj.length} items`;
 				}
 				// output each line separately
 				const innerLinePrefix = state.linePrefix + options.indent;

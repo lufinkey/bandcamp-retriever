@@ -20,7 +20,7 @@ const bandcamp = new Bandcamp();
 
 - **Bandcamp** *(class)*
 
-  - **search(** query: string, options: `{ item_type?: string, page?: number }` = {} **)**: `Promise<BandcampSearchResultsList>`
+  - **search(** query: `string`, options: `{ item_type?: string, page?: number }` = {} **)**: `Promise<BandcampSearchResultsList>`
 
     Perform a search with a given query
 
