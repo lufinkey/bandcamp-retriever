@@ -1,8 +1,8 @@
 
 import {
 	Bandcamp,
-	BandcampMediaType,
-	BandcampMediaTypes } from '../lib';
+	BandcampItemType,
+	BandcampItemTypes } from '../lib';
 import {
 	FlagOptions,
 	parseArgs,
@@ -13,7 +13,7 @@ import {
 
 type URLInfo = {
 	url: string,
-	mediaType?: BandcampMediaType | undefined
+	itemType?: BandcampItemType | undefined
 	additionalData?: (boolean | undefined),
 	additionalPages?: (boolean | undefined)
 };
@@ -21,7 +21,7 @@ type URLInfo = {
 export async function infoCommand(bandcamp: Bandcamp, argv: string[], argi: number, options: { verbose: boolean }) {
 	// set defaults for options
 	let pendingURLOptions: {
-		mediaType?: (BandcampMediaType | undefined),
+		itemType?: (BandcampItemType | undefined),
 		additionalData?: (boolean | undefined),
 		additionalPages?: (boolean | undefined)
 	} = {};
@@ -39,27 +39,27 @@ export async function infoCommand(bandcamp: Bandcamp, argv: string[], argi: numb
 			pendingURLOptions = {};
 		}
 	};
-	const mediaTypeFlagOpts: FlagOptions = {
+	const itemTypeFlagOpts: FlagOptions = {
 		value: 'required',
-		parseValue: (val): BandcampMediaType => {
-			if(BandcampMediaTypes.indexOf(val) == -1) {
-				throw new Error(`Invalid media type ${val}`);
+		parseValue: (val): BandcampItemType => {
+			if(BandcampItemTypes.indexOf(val) == -1) {
+				throw new Error(`Invalid item type ${val}`);
 			}
-			return val as BandcampMediaType;
+			return val as BandcampItemType;
 		},
-		onRead: (flag, val: BandcampMediaType) => {
+		onRead: (flag, val: BandcampItemType) => {
 			if(urls.length == 0) {
-				if(pendingURLOptions.mediaType) {
-					throw new Error("Cannot specify multiple media types");
+				if(pendingURLOptions.itemType) {
+					throw new Error("Cannot specify multiple item types");
 				}
-				pendingURLOptions.mediaType = val;
+				pendingURLOptions.itemType = val;
 			} else {
 				const lastIndex = urls.length - 1;
 				const urlInfo = urls[lastIndex];
-				if(urlInfo.mediaType) {
-					throw new Error(`Cannot specify multiple media types for URL ${urlInfo.url}`);
+				if(urlInfo.itemType) {
+					throw new Error(`Cannot specify multiple item types for URL ${urlInfo.url}`);
 				}
-				urlInfo.mediaType = val;
+				urlInfo.itemType = val;
 			}
 		}
 	};
@@ -117,13 +117,13 @@ export async function infoCommand(bandcamp: Bandcamp, argv: string[], argi: numb
 				onRead: (flag, val) => { printFormat = val; }
 			},
 			'url': urlFlagOpts,
-			'media-type': mediaTypeFlagOpts,
+			'type': itemTypeFlagOpts,
 			'additional-data': additionalDataFlagOpts,
 			'additional-pages': additionalPagesFlagOpts
 		},
 		shortFlags: {
 			'u': urlFlagOpts,
-			't': mediaTypeFlagOpts,
+			't': itemTypeFlagOpts,
 			'z': additionalDataFlagOpts
 		},
 		recognizeDoubleDash: true,
@@ -170,7 +170,7 @@ export async function infoCommand(bandcamp: Bandcamp, argv: string[], argi: numb
 		// fetch all items at once
 		const itemPromises = urls.map((urlInfo) => {
 			return bandcamp.getItemFromURL(urlInfo.url, {
-				forceType: urlInfo.mediaType,
+				forceType: urlInfo.itemType,
 				fetchAdditionalData: urlInfo.additionalData,
 				fetchAdditionalPages: urlInfo.additionalPages ?? false
 			});
@@ -193,7 +193,7 @@ export async function infoCommand(bandcamp: Bandcamp, argv: string[], argi: numb
 		for(let i=0; i<urls.length; i++) {
 			const urlInfo = urls[i];
 			const itemPromise = bandcamp.getItemFromURL(urlInfo.url, {
-				forceType: urlInfo.mediaType,
+				forceType: urlInfo.itemType,
 				fetchAdditionalData: urlInfo.additionalData,
 				fetchAdditionalPages: urlInfo.additionalPages ?? false
 			});
@@ -221,7 +221,7 @@ export async function infoCommand(bandcamp: Bandcamp, argv: string[], argi: numb
 
 
 function validateAndAppendURL(urls: URLInfo[], url: string, options: {
-	mediaType?: BandcampMediaType | undefined,
+	itemType?: BandcampItemType | undefined,
 	additionalData?: boolean | undefined,
 	additionalPages?: boolean | undefined
 }) {

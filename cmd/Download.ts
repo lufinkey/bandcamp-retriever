@@ -14,8 +14,8 @@ import {
 	popAudioSourceOfType,
 	popHighestPriorityAudioSource } from '../lib/media_utils';
 
-type DownloadableMediaType = 'track' | 'album';
-const DownloadableMediaTypes = [ 'track', 'album' ];
+type DownloadableItemType = 'track' | 'album';
+const DownloadableItemTypes = [ 'track', 'album' ];
 
 const DefaultFileTypePriorityList = [
 	'flac',
@@ -35,7 +35,7 @@ for(let i=0; i<DefaultFileTypePriorityList.length; i++) {
 
 type URLInfo = {
 	url: string,
-	mediaType?: DownloadableMediaType,
+	itemType?: DownloadableItemType,
 	dir?: string,
 	output?: string,
 	fileTypes?: (BandcampAudioFileType | string)[],
@@ -46,7 +46,7 @@ type URLInfo = {
 export async function downloadCommand(bandcamp: Bandcamp, argv: string[], argi: number, options: { verbose: boolean }) {
 	// set defaults for options
 	let pendingURLOptions: {
-		mediaType?: DownloadableMediaType
+		itemType?: DownloadableItemType
 	} = {};
 	const sharedURLOptions: {
 		dir?: string,
@@ -66,27 +66,27 @@ export async function downloadCommand(bandcamp: Bandcamp, argv: string[], argi: 
 			pendingURLOptions = {};
 		}
 	};
-	const mediaTypeFlagOpts: FlagOptions = {
+	const itemTypeFlagOpts: FlagOptions = {
 		value: 'required',
-		parseValue: (val): DownloadableMediaType => {
-			if(DownloadableMediaTypes.indexOf(val) == -1) {
-				throw new Error(`Invalid media type ${val}`);
+		parseValue: (val): DownloadableItemType => {
+			if(DownloadableItemTypes.indexOf(val) == -1) {
+				throw new Error(`Invalid item type ${val}`);
 			}
-			return val as DownloadableMediaType;
+			return val as DownloadableItemType;
 		},
-		onRead: (flag, val: DownloadableMediaType) => {
+		onRead: (flag, val: DownloadableItemType) => {
 			if(urls.length == 0) {
-				if(pendingURLOptions.mediaType) {
-					throw new Error(`Cannot specify multiple media types`);
+				if(pendingURLOptions.itemType) {
+					throw new Error(`Cannot specify multiple item types`);
 				}
-				pendingURLOptions.mediaType = val;
+				pendingURLOptions.itemType = val;
 			} else {
 				const lastIndex = urls.length - 1;
 				const urlInfo = urls[lastIndex];
-				if(urlInfo.mediaType) {
-					throw new Error(`Cannot specify multiple media types for URL ${urlInfo.url}`);
+				if(urlInfo.itemType) {
+					throw new Error(`Cannot specify multiple item types for URL ${urlInfo.url}`);
 				}
-				urlInfo.mediaType = val;
+				urlInfo.itemType = val;
 			}
 		}
 	};
@@ -136,7 +136,7 @@ export async function downloadCommand(bandcamp: Bandcamp, argv: string[], argi: 
 				onRead: (flag, val) => { continueOnFailure = val ?? true; }
 			},
 			'url': urlFlagOpts,
-			'media-type': mediaTypeFlagOpts,
+			'type': itemTypeFlagOpts,
 			'dir': dirFlagOpts,
 			'output': outputFlagOpts,
 			'file-type': {
@@ -205,7 +205,7 @@ export async function downloadCommand(bandcamp: Bandcamp, argv: string[], argi: 
 		},
 		shortFlags: {
 			'u': urlFlagOpts,
-			't': mediaTypeFlagOpts,
+			't': itemTypeFlagOpts,
 			'd': dirFlagOpts,
 			'o': outputFlagOpts
 		},
@@ -275,7 +275,7 @@ async function downloadMedia(bandcamp: Bandcamp, urlInfo: URLInfo, options: Down
 	let mediaItem;
 	try {
 		mediaItem = await bandcamp.getItemFromURL(urlInfo.url, {
-			forceType: urlInfo.mediaType
+			forceType: urlInfo.itemType
 		});
 	} catch(error: any) {
 		console.error(`Failed to fetch metadata from ${urlInfo.url}`);

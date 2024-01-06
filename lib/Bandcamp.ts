@@ -9,8 +9,8 @@ import tough from 'tough-cookie';
 import BandcampSession from './Session';
 import BandcampParser from './Parser';
 import {
-	BandcampMediaType,
-	BandcampMediaTypeChar,
+	BandcampItemType,
+	BandcampItemTypeChar,
 	BandcampTrack,
 	BandcampAlbum,
 	BandcampArtist,
@@ -313,7 +313,7 @@ export default class Bandcamp {
 
 
 
-	async search(query: string, options: { item_type?: (BandcampMediaTypeChar|string), page?: number } = {}): Promise<BandcampSearchResultsList> {
+	async search(query: string, options: { item_type?: (BandcampItemTypeChar|string), page?: number } = {}): Promise<BandcampSearchResultsList> {
 		// create params
 		const params: { [key: string]: string } = {};
 		for(const key in options) {
@@ -341,7 +341,7 @@ export default class Bandcamp {
 	}
 
 	async getItemFromURL(url: string, options: {
-		forceType?: BandcampMediaType,
+		forceType?: BandcampItemType,
 		fetchAdditionalData?: boolean,
 		fetchAdditionalPages?: boolean } = {}): Promise<BandcampTrack | BandcampAlbum | BandcampArtist | BandcampFan> {
 		// perform request
@@ -394,7 +394,7 @@ export default class Bandcamp {
 			}
 			return fan;
 		} else {
-			// handle other media types
+			// handle other item types
 			const item = this._parser.parseItemFromURL(url, type, $);
 			if(item == null) {
 				if(res.statusCode >= 200 && res.statusCode < 300) {

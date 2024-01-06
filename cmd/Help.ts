@@ -1,5 +1,5 @@
 
-import { BandcampMediaTypes } from '../lib';
+import { BandcampItemTypes } from '../lib';
 import { PrintFormats } from './cmdutils';
 
 export const getUsageText = () =>
@@ -25,17 +25,18 @@ OPTIONS:
 
 COMMANDS:
 
-	info <URL>... [--media-type ${BandcampMediaTypes.join('|')}] [--print-format ${PrintFormats.join('|')}]
+	info <URL>... [--type ${BandcampItemTypes.join('|')}] [--print-format ${PrintFormats.join('|')}]
 		
 		Fetches, parses, and outputs info from the given bandcamp URL.
 		
 		--url <URL>
 
-			Optionally specifies a URL to fetch info from via a flag, instead of using positional arguments.
+			Optionally specifies a URL to fetch info from via a flag, instead of from a positional argument.
 		
-		--media-type ${BandcampMediaTypes.join(' | ')}
+		--type ${BandcampItemTypes.join(' | ')}
 
-			Forcibly specifies the type of media that the given URL points to. This will be deduced from the URL or page if not given.
+			Forcibly specifies the type of item that the given URL points to.
+			This will be deduced from the URL or page if not given.
 			If more than 1 URL is given, this argument should be placed after the URL it refers to.
 		
 		--additional-data[=yes|no]
@@ -60,11 +61,13 @@ COMMANDS:
 		
 		--profile-id <ID>
 
-			Optionally specifies the fan ID for the given profile. The fan ID is a numeric value.
+			Optionally specifies the fan ID for the given profile.
+			The fan ID is a numeric value.
 
 		--collection collection | wishlist | following-artists | following-fans | followers
 
-			Optionally specifies the collection to fetch from. If not given, the fan's "Collection" page is used.
+			Optionally specifies the collection to fetch from.
+			If not given, the fan's "Collection" page is used.
 		
 		--limit <COUNT>
 
@@ -77,34 +80,30 @@ COMMANDS:
 		--print-format ${PrintFormats.join(' | ')}
 
 			The format to print the fetched info
-	
-	search <QUERY> [--media-type track | album | artist | fan] [--page <PAGE>] [--print-format ${PrintFormats.join('|')}]
+
+	search <QUERY> [--type track | album | artist | fan] [--page <PAGE>] [--print-format ${PrintFormats.join('|')}]
 
 		Searches the bandcamp website for the given query.
 		
-		--query <QUERY>
+		--type any | ${BandcampItemTypes.join(' | ')}
 
-			Optionally specifies the search query via a flag, instead of using positional arguments
-		
-		--media-type any | ${BandcampMediaTypes.join(' | ')}
-
-			Filter which kind of media type will be searched. Specifying either 'artist' or 'label' will show both artists and labels.
+			Filter which type of items to search for. Specifying either 'artist' or 'label' will show both artists and labels.
 		
 		--print-format ${PrintFormats.join(' | ')}
 
 			The format to print the search results
 	
-	download [--url] <URL>... [--media-type=track|album] [--dir=<PATH>] [--output=<FORMAT_PATH>]
+	download [--url] <URL>... [--type=track|album] [--dir=<PATH>] [--output=<FORMAT_PATH>]
 		
 		Downloads the track or album that the given URL points to.
 		
 		--url <URL>
 
-			Optionally specifies a URL to download media from via a flag, instead of using positional arguments.
+			Optionally specifies a URL to download media from via a flag, instead of from a positional argument.
 		
-		--media-type track | album
+		--type track | album
 
-			Forcibly specifies the type of media that the given URL points to. This will be deduced from the URL or page if not given.
+			Forcibly specifies the type of item that the given URL points to. This will be deduced from the URL or page if not given.
 			If more than 1 URL is given, this argument should be placed after the URL it refers to.
 		
 		--dir <PATH>

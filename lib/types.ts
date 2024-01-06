@@ -1,8 +1,8 @@
 import { PrivBandcampAudioFileType } from "./private_types";
 
-export type BandcampMediaType = 'artist' | 'label' | 'album' | 'track' | 'fan';
-export type BandcampMediaTypeChar = 'b' | 'a' | 't' | 'f';
-export const BandcampMediaTypes: (BandcampMediaType[] & string[]) = [ 'artist', 'label', 'album', 'track', 'fan' ];
+export type BandcampItemType = 'artist' | 'label' | 'album' | 'track' | 'fan';
+export type BandcampItemTypeChar = 'b' | 'a' | 't' | 'f';
+export const BandcampItemTypes: (BandcampItemType[] & string[]) = [ 'artist', 'label', 'album', 'track', 'fan' ];
 
 export type BandcampAudioFileType = PrivBandcampAudioFileType;
 
@@ -38,7 +38,7 @@ export type BandcampFanIdentity = {
 
 
 export type BandcampSearchResult = {
-	type: BandcampMediaType
+	type: BandcampItemType
 	name: string
 	url: string
 	imageURL?: string

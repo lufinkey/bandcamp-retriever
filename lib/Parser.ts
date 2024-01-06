@@ -9,8 +9,8 @@ import cheerio, {
 	CheerioAPI,
 	Element } from 'cheerio';
 import {
-	BandcampMediaType,
-	BandcampMediaTypes,
+	BandcampItemType,
+	BandcampItemTypes,
 	BandcampAlbum,
 	BandcampAlbumTrack,
 	BandcampArtist,
@@ -123,7 +123,7 @@ export default class BandcampParser {
 
 
 
-	parseType(url: string, $: CheerioAPI | null = null): BandcampMediaType {
+	parseType(url: string, $: CheerioAPI | null = null): BandcampItemType {
 		// parse type from URL
 		const urlObj = new URL(url);
 		if(urlObj.host != 'bandcamp.com' && (!urlObj.pathname || urlObj.pathname === '/' || urlObj.pathname === '')) {
@@ -157,8 +157,8 @@ export default class BandcampParser {
 				else if(metaType == 'profile') {
 					return 'fan';
 				}
-				else if(BandcampMediaTypes.indexOf(metaType) !== -1) {
-					return metaType as BandcampMediaType;
+				else if(BandcampItemTypes.indexOf(metaType) !== -1) {
+					return metaType as BandcampItemType;
 				}
 			}
 		}
@@ -345,8 +345,8 @@ export default class BandcampParser {
 			else if(type === 'band') {
 				type = 'artist';
 			}
-			if(BandcampMediaTypes.indexOf(type) === -1) {
-				console.error(`Unrecognized media type ${type} from url ${url}`);
+			if(BandcampItemTypes.indexOf(type) === -1) {
+				console.error(`Unrecognized item type ${type} from url ${url}`);
 			}
 
 			// parse release date
@@ -359,7 +359,7 @@ export default class BandcampParser {
 
 			// parse general fields
 			const item: BandcampSearchResult = {
-				type: type as BandcampMediaType,
+				type: type as BandcampItemType,
 				name: resultItemHtml.find('.heading').text().trim(),
 				url: this.cleanUpURL(resultItemHtml.find('.itemurl').text().trim()),
 				imageURL: resultItemHtml.find('.art img').attr('src') || undefined,
@@ -1275,7 +1275,7 @@ export default class BandcampParser {
 
 
 
-	parseItemDataFromURL(url: string, type: BandcampMediaType, data: Buffer) {
+	parseItemDataFromURL(url: string, type: BandcampItemType, data: Buffer) {
 		const dataString = data.toString();
 		if(!dataString) {
 			throw new Error("Unable to get data from url");
@@ -1283,7 +1283,7 @@ export default class BandcampParser {
 		const $ = cheerio.load(dataString);
 		return this.parseItemFromURL(url, type, $);
 	}
-	parseItemFromURL(url: string, type: BandcampMediaType, $: CheerioAPI): BandcampTrack | BandcampAlbum | BandcampArtist | BandcampFan | null {
+	parseItemFromURL(url: string, type: BandcampItemType, $: CheerioAPI): BandcampTrack | BandcampAlbum | BandcampArtist | BandcampFan | null {
 		if(type === 'track' || type === 'album') {
 			// parse track or album data
 			let item = this.parseTrackInfo(url, $);
@@ -1614,7 +1614,7 @@ export default class BandcampParser {
 			// get item data
 			const itemData = itemCache[itemIdentifier];
 			if(!itemData) {
-				throw new Error(`couldn't find matching media item with ID ${itemIdentifier} in itemCache`);
+				throw new Error(`couldn't find matching item with ID ${itemIdentifier} in itemCache`);
 			}
 			// get tralbum data
 			const trAlbumData = trAlbumLookup[itemIdentifier];

@@ -1,8 +1,8 @@
 import {
 	Bandcamp,
-	BandcampMediaType,
-	BandcampMediaTypes,
-	BandcampMediaTypeChar } from '../lib';
+	BandcampItemType,
+	BandcampItemTypes,
+	BandcampItemTypeChar } from '../lib';
 import { BandcampSearchResultsList } from '../lib/types';
 import {
 	FlagOptions,
@@ -13,7 +13,7 @@ import {
 	PrintFormats,
 	convertObjectToPrintFormat } from './cmdutils';
 
-const SearchableMediaTypes: { [key: (BandcampMediaType | 'any' | string)]: (BandcampMediaTypeChar | undefined) } = {
+const SearchableItemTypes: { [key: (BandcampItemType | 'any' | string)]: (BandcampItemTypeChar | undefined) } = {
 	'any': undefined,
 	'album': 'a',
 	'artist': 'b',
@@ -25,25 +25,31 @@ const SearchableMediaTypes: { [key: (BandcampMediaType | 'any' | string)]: (Band
 export async function searchCommand(bandcamp: Bandcamp, argv: string[], argi: number, options: { verbose: boolean }) {
 	// set defaults for options
 	let printFormat = 'readable-brief' as PrintFormat;
-	let mediaType: (BandcampMediaType | 'any' | undefined) = undefined;
+	let itemType: (BandcampItemType | 'any' | undefined) = undefined;
 	let page: (number | undefined) = undefined;
-	let query: (string | undefined) = undefined;
 	let queryGivenWithFlag = false;
+
+	// get query argument
+	if(argi >= argv.length) {
+		throw new Error("Missing profile argument");
+	}
+	const query = argv[argi];
+	argi++;
 	
 	// parse arguments
-	const mediaTypeFlagOpts: FlagOptions = {
+	const itemTypeFlagOpts: FlagOptions = {
 		value: 'required',
-		parseValue: (val): (BandcampMediaType | 'any') => {
-			if(val != 'any' && BandcampMediaTypes.indexOf(val) == -1) {
-				throw new Error(`Invalid media type ${val}`);
+		parseValue: (val): (BandcampItemType | 'any') => {
+			if(val != 'any' && BandcampItemTypes.indexOf(val) == -1) {
+				throw new Error(`Invalid item type ${val}`);
 			}
-			return val as (BandcampMediaType | 'any');
+			return val as (BandcampItemType | 'any');
 		},
-		onRead: (flag, val: (BandcampMediaType | 'any')) => {
-			if(mediaType != null) {
-				console.warn(`specified media type ${val} will override previously specified media type ${mediaType}`);
+		onRead: (flag, val: (BandcampItemType | 'any')) => {
+			if(itemType != null) {
+				throw new Error("Cannot specify item type multiple times");
 			}
-			mediaType = val;
+			itemType = val;
 		}
 	};
 	const pageFlagOpts: FlagOptions = {
@@ -54,19 +60,6 @@ export async function searchCommand(bandcamp: Bandcamp, argv: string[], argi: nu
 				console.warn(`specified page ${val} will override previously specified page ${page}`);
 			}
 			page = val;
-		}
-	};
-	const queryFlagOpts: FlagOptions = {
-		value: 'required',
-		onRead: (flag, val: string) => {
-			if(query != null) {
-				if(!queryGivenWithFlag) {
-					throw new Error(`Multiple queries given with and without query flag`);
-				}
-				console.warn(`specified query '${val}' will override previously specified query '${query}'`);
-			}
-			query = val;
-			queryGivenWithFlag = true;
 		}
 	};
 	parseArgs(argv, argi, {
@@ -81,24 +74,18 @@ export async function searchCommand(bandcamp: Bandcamp, argv: string[], argi: nu
 				},
 				onRead: (flag, val) => { printFormat = val; }
 			},
-			'media-type': mediaTypeFlagOpts,
+			'type': itemTypeFlagOpts,
 			'page': pageFlagOpts,
-			'query': queryFlagOpts
 		},
 		shortFlags: {
-			't': mediaTypeFlagOpts,
-			'p': pageFlagOpts,
-			'q': queryFlagOpts
+			't': itemTypeFlagOpts,
+			'p': pageFlagOpts
 		},
 		recognizeDoubleDash: false,
 		recognizeSingleDash: false,
 		stopBeforeNonFlagArg: false,
 		onNonFlagArg: (arg) => {
-			if(query != null) {
-				throw new Error(`ignoring unrecognized argument ${arg}`);
-			}
-			query = arg;
-			queryGivenWithFlag = false;
+			throw new Error(`Unrecognized argument ${arg}`);
 		}
 	});
 
@@ -106,9 +93,9 @@ export async function searchCommand(bandcamp: Bandcamp, argv: string[], argi: nu
 	if(query == null) {
 		throw new Error("No search query was given");
 	}
-	let searchItemType: BandcampMediaTypeChar | undefined = undefined;
-	if(mediaType) {
-		searchItemType = SearchableMediaTypes[mediaType];
+	let searchItemType: BandcampItemTypeChar | undefined = undefined;
+	if(itemType) {
+		searchItemType = SearchableItemTypes[itemType];
 	}
 
 	// perform search

@@ -1,8 +1,8 @@
 
 import {
 	Bandcamp,
-	BandcampMediaType,
-	BandcampMediaTypes } from '../lib';
+	BandcampItemType,
+	BandcampItemTypes } from '../lib';
 import { BandcampFan$APICollectionPage, BandcampFan$APIFollowedArtistPage, BandcampFan$APIFollowedFanPage, BandcampFan$APIWishlistPage } from '../lib/types';
 import {
 	FlagOptions,
@@ -75,7 +75,7 @@ export async function collectionCommand(bandcamp: Bandcamp, argv: string[], argi
 			olderThanToken = val;
 		}
 	};
-	const parseArgsResult = parseArgs(argv, argi, {
+	parseArgs(argv, argi, {
 		longFlags: {
 			'print-format': {
 				value: 'required',
@@ -98,8 +98,7 @@ export async function collectionCommand(bandcamp: Bandcamp, argv: string[], argi
 			'l': limitFlagOpts,
 			'p': olderThanTokenOpts
 		},
-		recognizeDoubleDash: true,
-		stopAfterDoubleDash: true,
+		recognizeDoubleDash: false,
 		recognizeSingleDash: false,
 		stopBeforeNonFlagArg: false,
 		onNonFlagArg: (arg) => {

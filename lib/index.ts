@@ -4,9 +4,9 @@ export { default as BandcampSession } from './Session';
 export { default as BandcampParser } from './Parser';
 
 export {
-	BandcampMediaType,
-	BandcampMediaTypes,
-	BandcampMediaTypeChar,
+	BandcampItemType,
+	BandcampItemTypes,
+	BandcampItemTypeChar,
 	BandcampTrack,
 	BandcampAlbum,
 	BandcampAlbumTrack,
