@@ -639,6 +639,12 @@ export default class Bandcamp {
 
 
 
+	async searchFanCollectionItems(query: string, fanURL: string, fanId: string | number, collection: 'collection' | 'wishlist') {
+		//
+	}
+
+
+
 	async _performArtistFollowAction(artistURL: string, action: ('follow' | 'unfollow')) {
 		if(!this._session.isLoggedIn) {
 			throw new Error("not logged in");

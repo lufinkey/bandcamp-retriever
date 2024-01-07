@@ -48,9 +48,12 @@ import {
 	PrivBandcampFan$CollectionItemInfo,
 	PrivBandcampFan$FanData,
 	PrivBandcampFanPageData,
-	PrivBandcampAPI$Fan$CollectionSummary, 
+	PrivBandcampAPI$Fan$CollectionSummary,
 	PrivBandcampAPI$Fan$CollectionSummary$TRAlbumLookup,
-	PrivBandcampAlbumLDJsonTrack } from './private_types';
+	PrivBandcampAlbumLDJsonTrack,
+	PrivBandcampAPI$Fan$CollectionItemsResult,
+	PrivBandcampAPI$Fan$FollowingArtistsResult,
+	PrivBandcampAPI$Fan$FanFollowItemsResult } from './private_types';
 
 
 
@@ -2102,7 +2105,7 @@ export default class BandcampParser {
 		if(!dataString) {
 			throw new Error("Missing data for fan collection items");
 		}
-		const json = JSON.parse(dataString);
+		const json: PrivBandcampAPI$Fan$CollectionItemsResult = JSON.parse(dataString);
 		// return items
 		return {
 			hasMore: json.more_available,
@@ -2174,12 +2177,12 @@ export default class BandcampParser {
 		if(!dataString) {
 			throw new Error("Missing data for fan collection items");
 		}
-		const json = JSON.parse(dataString);
+		const json: PrivBandcampAPI$Fan$FollowingArtistsResult = JSON.parse(dataString);
 		// return items
 		return {
 			hasMore: json.more_available,
 			lastToken: json.last_token,
-			items: (json.followeers || json.items || []).map((itemJson: any): BandcampFan$FollowedArtistNode => {
+			items: (json.followeers || []).map((itemJson: any): BandcampFan$FollowedArtistNode => {
 				const url = this.artistURLHintsToURL(itemJson.url_hints);
 				if(!url) {
 					throw new Error("unable to find url for item");
@@ -2209,12 +2212,12 @@ export default class BandcampParser {
 		if(!dataString) {
 			throw new Error("Missing data for fan collection items");
 		}
-		const json = JSON.parse(dataString);
+		const json: PrivBandcampAPI$Fan$FanFollowItemsResult = JSON.parse(dataString);
 		// return items
 		return {
 			hasMore: json.more_available,
 			lastToken: json.last_token,
-			items: (json.followeers || json.items || []).map((itemJson: any): BandcampFan$FollowedFanNode => {
+			items: (json.followeers || []).map((itemJson: any): BandcampFan$FollowedFanNode => {
 				const url = itemJson.trackpipe_url;
 				if(!url) {
 					throw new Error("unable to find url for item");
