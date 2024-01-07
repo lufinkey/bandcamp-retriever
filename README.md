@@ -118,7 +118,7 @@ bandcamp-retriever [<OPTION>]... <COMMAND> [<ARG>]...
 
 	Searches the collection on the given profile.
 
-	- --collection *wishlist*
+	- --collection *collection* | *wishlist*
 
 		Specify which collection to search on the profile
 

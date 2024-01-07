@@ -97,11 +97,11 @@ COMMANDS:
 
 			The format to print the search results.
 	
-	search-collection <URL_OR_USERNAME> <QUERY> [--collection wishlist] [--print-format ${PrintFormats.join('|')}]
+	search-collection <URL_OR_USERNAME> <QUERY> [--collection collection | wishlist] [--print-format ${PrintFormats.join('|')}]
 
 		Searches the collection on the given profile.
 
-		--collection wishlist
+		--collection collection | wishlist
 
 			Specify which collection to search on the profile
 
