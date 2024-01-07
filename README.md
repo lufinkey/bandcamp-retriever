@@ -155,6 +155,14 @@ bandcamp-retriever [<OPTION>]... <COMMAND> [<ARG>]...
 
 		Specifies the maximum number of files per track that should be downloaded, if the --file-type argument was given.
 
+- **identity** [*&lt;OPTION&gt;*]...
+
+	Outputs the identity of the current user info, or nothing if there is no logged-in user.
+
+	--print-format *readable-brief* | *readable* | *json* | *json-pretty*
+		
+		The format to print the fetched info.
+
 ## Library Usage
 
 To make calls to bandcamp, import the `Bandcamp` type and create a new instance:

@@ -6,6 +6,7 @@ import {
 	parseArgsOrExit,
 	parseBooleanArgValue } from './cmdutils';
 import { outputUsage, outputUsageError } from './Help';
+import { identityCommand } from './Identity';
 import { infoCommand } from './Info';
 import { downloadCommand } from './Download';
 import { searchCommand } from './Search';
@@ -76,6 +77,7 @@ const bandcamp = new Bandcamp({
 // handle command
 (async () => {
 	switch(cmd) {
+
 		case 'info':
 			await infoCommand(bandcamp, process.argv, argi, {
 				verbose
@@ -102,6 +104,12 @@ const bandcamp = new Bandcamp({
 		
 		case 'download':
 			await downloadCommand(bandcamp, process.argv, argi, {
+				verbose
+			});
+			break;
+		
+		case 'identity':
+			await identityCommand(bandcamp, process.argv, argi, {
 				verbose
 			});
 			break;

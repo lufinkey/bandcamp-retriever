@@ -19,4 +19,5 @@ export {
 	BandcampFan$FollowedArtistPage,
 	BandcampFan$FollowedFanPage,
 	BandcampFan$WishlistPage,
-	BandcampFan$SearchMediaItemsPage } from './types';
+	BandcampFan$SearchMediaItemsPage,
+	BandcampIdentities } from './types';

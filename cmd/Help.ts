@@ -142,8 +142,16 @@ COMMANDS:
 			Specifies the preferred file type(s) to download, in order of highest to lowest priority. If multiple are given, they should be comma-separated.
 		
 		--max-files-per-track <NUM>
-
+			
 			Specifies the maximum number of files per track that should be downloaded, if the --file-type argument was given.
+	
+	identity [--print-format ${PrintFormats.join('|')}]
+
+		Outputs the identity of the current user, or nothing if there is no logged-in user.
+
+		--print-format ${PrintFormats.join(' | ')}
+			
+			The format to print the fetched info.
 `;
 
 export function outputUsage() {
