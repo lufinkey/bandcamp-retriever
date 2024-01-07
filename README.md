@@ -147,7 +147,8 @@ bandcamp-retriever [<OPTION>]... <COMMAND> [<ARG>]...
 
 		A format path string specifying where tracks should get downloaded, relative to the base directory (specified with `--dir`).
 		A default output path structure will be used if not given.
-		Example: '%(artistName)/%(albumName)/%(trackNumber:d2) %(name).%(fileExt)'
+		
+		Example: `%(artistName)/%(albumName)/%(trackNumber:d2) %(name).%(fileExt)`
 	
 	- --file-type *&lt;FILE_TYPE&gt;*[,*&lt;FILE_TYPE&gt;*]...
 		
