@@ -689,6 +689,18 @@ export default class Bandcamp {
 		return resultParser(res, data);
 	}
 
+	async searchFanCollectionItems(query: string, fanURL: string, fanId: string | number): Promise<BandcampFan$SearchMediaItemsPage> {
+		return await this._searchFanSectionItems(query, {
+				searchType: 'collection',
+				referer: fanURL,
+				fanURL: fanURL,
+				fanId: fanId
+			},
+			(res, data) => {
+				return this._parser.parseFanSearchMediaItemsJsonData(res,data);
+			});
+	}
+	
 	async searchFanWishlistItems(query: string, fanURL: string, fanId: string | number): Promise<BandcampFan$SearchMediaItemsPage> {
 		return await this._searchFanSectionItems(query, {
 				searchType: 'wishlist',

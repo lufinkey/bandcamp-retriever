@@ -115,7 +115,7 @@ export async function searchCollectionCommand(bandcamp: Bandcamp, argv: string[]
 		switch(collectionType) {
 			case undefined:
 			case 'collection':
-				throw new Error("Not yet implemented");
+				results = await bandcamp.searchFanCollectionItems(query, profileURL, profileId);
 				break;
 
 			case 'wishlist':
