@@ -167,25 +167,159 @@ const bandcamp = new Bandcamp();
 
 - **Bandcamp** *(class)*
 
-	- **search(** query: `string`, options: `{ item_type?: string, page?: number }` = {} **)**: `Promise<BandcampSearchResultsList>`
+	- **search(** query: `string`, options: `{ item_type?: BandcampItemTypeChar, page?: number }` = `{}` **)**: `Promise<BandcampSearchResultsList>`
 
 		Perform a search with a given query
 
-	- **getTrack(** url: `string` **)**: `Promise<BandcampTrack>`
+		- **query**: The search query
+
+		- **options**:
+
+			- **item_type**: The type of item to search for.
+
+				`'t'` for track
+			
+				`'a'` for album
+
+				`'b'` for band or label
+
+				`'f'` for fan
+
+			- **page**: The page number of search results to fetch. Starts at `1`.
+	
+	- **getItemFromURL(** url: `string`, options: `{ forceType?: BandcampItemType, fetchAdditionalData?: boolean, fetchAdditionalPages?: boolean }` = `{}`): `Promise<BandcampTrack | BandcampAlbum | BandcampArtist | BandcampFan>`
+
+		Fetch info for the item at the given URL
+
+		- **url**: The item URL to fetch
+
+		- **options**:
+
+			- **forceType**: Optionally force the URL to be interpreted as a specific item type
+
+			- **fetchAdditionalData**: Controls whether or not additional resources should be fetched for the page (Default: `true`)
+
+			- **fetchAdditionalPages**: Controls whether or not additional pages should be fetched to populate the item's data. Falls back to `fetchAdditionalData` if not given.
+
+	- **getTrack(** url: `string`, options: `{ fetchAdditionalData?: boolean, fetchAdditionalPages?: boolean }` = `{}` **)**: `Promise<BandcampTrack>`
 
 		Fetch info for a given track
 
-	- **getAlbum(** url: `string` **)**: `Promise<BandcampAlbum>`
+	- **getAlbum(** url: `string`, options: `{ fetchAdditionalData?: boolean, fetchAdditionalPages?: boolean }` = `{}` **)**: `Promise<BandcampAlbum>`
 
 		Fetch info for a given album
 
-	- **getArtist(** url: `string` **)**: `Promise<BandcampArtist>`
+	- **getArtist(** url: `string`, options: `{ fetchAdditionalData?: boolean, fetchAdditionalPages?: boolean }` = `{}` **)**: `Promise<BandcampArtist>`
 
 		Fetch info for a given artist
 
-	- **getFan(** url: `string` **)**: `Promise<BandcampFan>`
+	- **getFan(** url: `string`, options: `{ fetchAdditionalData?: boolean, fetchAdditionalPages?: boolean }` = `{}` **)**: `Promise<BandcampFan>`
 
 		Fetch info for a given fan profile
+
+	- **getFanCollectionItems(** fanURL: `string`, fanId: `string | number`, options: `{ olderThanToken?: string | null, count?: number }`): `Promise<BandcampFan$CollectionPage>`
+
+		Fetch a page of collection items for the given fan profile.
+
+		- **fanURL**: The URL of the fan profile.
+
+		- **fanId**: The numeric ID of the fan.
+
+		- **options**:
+
+			- **olderThanToken**: Optional token for the item before the first item in the results.
+
+			- **count**: The maximum number of items to retrieve. Default is `20`.
+	
+	- **getFanWishlistItems(** fanURL: `string`, fanId: `string | number`, options: `{ olderThanToken?: string | null, count?: number }`): `Promise<BandcampFan$WishlistPage>`
+
+		Fetch a page of wishlist items for the given fan profile.
+
+		- **fanURL**: The URL of the fan profile.
+
+		- **fanId**: The numeric ID of the fan.
+
+		- **options**:
+
+			- **olderThanToken**: Optional token for the item before the first item in the results.
+
+			- **count**: The maximum number of items to retrieve. Default is `20`.
+	
+	- **getFanHiddenItems(** fanURL: `string`, fanId: `string | number`, options: `{ olderThanToken?: string | null, count?: number }`): `Promise<BandcampFan$CollectionPage>`
+
+		Fetch a page of "hidden" items for the given fan profile. This will only work for the currently logged in user's profile.
+
+		- **fanURL**: The URL of the fan profile.
+
+		- **fanId**: The numeric ID of the fan.
+
+		- **options**:
+
+			- **olderThanToken**: Optional token for the item before the first item in the results.
+
+			- **count**: The maximum number of items to retrieve. Default is `20`.
+	
+	- **getFanFollowingArtists(** fanURL: `string`, fanId: `string | number`, options: `{ olderThanToken?: string | null, count?: number }`): `Promise<BandcampFan$FollowedArtistPage>`
+
+		Fetch a page of artists that the given fan profile is following.
+
+		- **fanURL**: The URL of the fan profile.
+
+		- **fanId**: The numeric ID of the fan.
+
+		- **options**:
+
+			- **olderThanToken**: Optional token for the item before the first item in the results.
+
+			- **count**: The maximum number of items to retrieve. Default is `20`.
+	
+	- **getFanFollowingFans(** fanURL: `string`, fanId: `string | number`, options: `{ olderThanToken?: string | null, count?: number }`): `Promise<BandcampFan$FollowedFanPage>`
+
+		Fetch a page of fans that the given fan profile is following.
+
+		- **fanURL**: The URL of the fan profile.
+
+		- **fanId**: The numeric ID of the fan.
+
+		- **options**:
+
+			- **olderThanToken**: Optional token for the item before the first item in the results.
+
+			- **count**: The maximum number of items to retrieve. Default is `20`.
+	
+	- **getFanFollowers(** fanURL: `string`, fanId: `string | number`, options: `{ olderThanToken?: string | null, count?: number }`): `Promise<BandcampFan$FollowedFanPage>`
+
+		Fetch a page of followers for the given fan profile.
+
+		- **fanURL**: The URL of the fan profile.
+
+		- **fanId**: The numeric ID of the fan.
+
+		- **options**:
+
+			- **olderThanToken**: Optional token for the item before the first item in the results.
+
+			- **count**: The maximum number of items to retrieve. Default is `20`.
+	
+	- **searchFanCollectionItems(** query: `string`, fanURL: `string`, fanId: `string | number`): `Promise<BandcampFan$SearchMediaItemsPage>`
+
+		Search the given fan profile's collection items.
+
+		- **query**: The search query.
+
+		- **fanURL**: The URL of the fan profile.
+
+		- **fanId**: The numeric ID of the fan.
+	
+	- **searchFanWishlistItems(** query: `string`, fanURL: `string`, fanId: `string | number`): `Promise<BandcampFan$SearchMediaItemsPage>`
+
+		Search the given fan profile's wishlist items.
+
+		- **query**: The search query.
+
+		- **fanURL**: The URL of the fan profile.
+
+		- **fanId**: The numeric ID of the fan.
 
 	- **updateSessionCookies(** cookies: `string[] | tough.Cookie[]` **)**
 
