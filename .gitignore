@@ -8,3 +8,6 @@ yarn-error.log
 # macOS
 #
 .DS_Store
+
+# bandcamp-retriever
+/cookies.txt
