@@ -114,6 +114,18 @@ bandcamp-retriever [<OPTION>]... <COMMAND> [<ARG>]...
 
 		The format to print the search results
 
+- **search-collection** *&lt;URL_OR_USERNAME&gt;* *&lt;QUERY&gt;* [*&lt;OPTION&gt;*]...
+
+	Searches the collection on the given profile.
+
+	- --collection *wishlist*
+
+		Specify which collection to search on the profile
+
+	- --print-format *readable-brief* | *readable* | *json* | *json-pretty*
+
+		The format to print the search results.
+
 - **download** *&lt;URL&gt;*... [*&lt;OPTION&gt;*]...
 	
 	Downloads the track or album that the given URL points to.
