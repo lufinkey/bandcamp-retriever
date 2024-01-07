@@ -8,14 +8,6 @@ This was a tool built out of necessity. I love bandcamp and the fact that they p
 
 **PLEASE** consider whether your project helps artists to continue releasing their music on bandcamp, so it can continue to exist for purchasing DRM-free music.
 
-## Library Usage
-
-To make calls to bandcamp, import the `Bandcamp` type and create a new instance:
-```js
-import { Bandcamp } from 'bandcamp-retriever';
-const bandcamp = new Bandcamp();
-```
-
 ## Command Line Usage
 
 ```
@@ -162,6 +154,14 @@ bandcamp-retriever [<OPTION>]... <COMMAND> [<ARG>]...
 	- --max-files-per-track *&lt;NUM&gt;*
 
 		Specifies the maximum number of files per track that should be downloaded, if the --file-type argument was given.
+
+## Library Usage
+
+To make calls to bandcamp, import the `Bandcamp` type and create a new instance:
+```js
+import { Bandcamp } from 'bandcamp-retriever';
+const bandcamp = new Bandcamp();
+```
 
 ### API
 
