@@ -34,7 +34,7 @@ import { createPathForFile, formatTrackAudioFileOutputPath } from './media_utils
 
 
 const CRUMB_VALID_TIME = 5 * 60 * 1000;
-const DefaultOutputStructure = '%(artistName)/%(albumName)/%(trackNumber:d2) %(name).%(fileExt)';
+const DefaultOutputStructure = '%(artistName)/%(albumName) [%(audioType)]/%(trackNumber:d2) %(name).%(fileExt)';
 
 
 type BandcampOptions = {
