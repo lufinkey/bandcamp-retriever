@@ -42,7 +42,7 @@ COMMANDS:
 		--additional-data[=yes|no]
 
 			Specifies if additional resources should be fetched for the given URL's page.
-			Some bandcamp pages require fetching additional resources to populate extra data for the entity at the URL.
+			Some bandcamp pages require fetching additional resources to populate extra data.
 			If more than 1 URL is given, this argument should be placed after the URL it refers to.
 			Just passing --additional-pages without =yes or =no will specify yes.
 			Default is yes if argument is not passed.
@@ -50,7 +50,7 @@ COMMANDS:
 		--additional-pages[=yes|no]
 
 			Default is no. Specifies if additional pages should be fetched for the entity at the given URL.
-			Some bandcamp entities may require fetching data from additional pages to populate extra data for the entity at the URL.
+			Some bandcamp entities may require fetching data from additional pages to populate extra data.
 			If more than 1 URL is given, this argument should be placed after the URL it refers to.
 			Just passing --additional-pages without =yes or =no will specify yes.
 			Default is no if argument is not passed.
