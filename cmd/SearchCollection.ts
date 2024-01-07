@@ -1,8 +1,8 @@
 import {
 	Bandcamp,
 	BandcampItemType,
-	BandcampItemTypes } from '../lib';
-import { BandcampFan$SearchMediaItemsPage } from '../lib/types';
+	BandcampItemTypes,
+	BandcampFan$SearchMediaItemsPage } from '../lib';
 import {
 	FlagOptions,
 	parseArgs,

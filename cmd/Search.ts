@@ -2,8 +2,8 @@ import {
 	Bandcamp,
 	BandcampItemType,
 	BandcampItemTypes,
-	BandcampItemTypeChar } from '../lib';
-import { BandcampSearchResultsList } from '../lib/types';
+	BandcampItemTypeChar,
+	BandcampSearchResultsList } from '../lib';
 import {
 	FlagOptions,
 	parseArgs,

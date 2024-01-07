@@ -12,9 +12,11 @@ export {
 	BandcampAlbumTrack,
 	BandcampArtist,
 	BandcampFan,
+	BandcampSearchResultsList,
 	BandcampAudioFileType,
 	BandcampAudioSource,
 	BandcampFan$CollectionPage,
 	BandcampFan$FollowedArtistPage,
 	BandcampFan$FollowedFanPage,
-	BandcampFan$WishlistPage } from './types';
+	BandcampFan$WishlistPage,
+	BandcampFan$SearchMediaItemsPage } from './types';
