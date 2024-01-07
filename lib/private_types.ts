@@ -916,6 +916,8 @@ export type PrivBandcampAPI$Fan$FollowingArtist = {
 	token: string // "xxxxxxxxx:xxxxxxxxxx"
 };
 
+// https://bandcamp.com/api/fancollection/1/following_bands
+//  Referer: <FAN URL>/following/artists_and_labels
 export type PrivBandcampAPI$Fan$FollowingArtistsResult = {
 	followeers: PrivBandcampAPI$Fan$FollowingArtist[],
 	more_available: boolean,
@@ -937,6 +939,10 @@ export type PrivBandcampAPI$FanFollowItem = {
 	token: string // "xxxxxxxxxx:xxxxxxx"
 };
 
+// https://bandcamp.com/api/fancollection/1/following_fans
+//  Referer: <FAN URL>/following/fans
+// https://bandcamp.com/api/fancollection/1/followers
+//  Referer: <FAN URL>/followers
 export type PrivBandcampAPI$Fan$FanFollowItemsResult = {
 	followeers: PrivBandcampAPI$FanFollowItem[],
 	more_available: boolean,
