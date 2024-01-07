@@ -17,11 +17,11 @@ import {
 	BandcampAudioSource,
 	BandcampImage,
 	BandcampSearchResult,
-	BandcampSearchResultsList, 
-	BandcampTrack, 
+	BandcampSearchResultsList,
+	BandcampTrack,
 	BandcampArtistShow,
 	BandcampLink,
-	BandcampArtistPageItem, 
+	BandcampArtistPageItem,
 	BandcampIdentities,
 	BandcampFan,
 	BandcampFan$PageSection,
@@ -31,14 +31,14 @@ import {
 	BandcampFan$CollectionAlbum,
 	BandcampFan$CollectionArtist,
 	BandcampFan$CollectionNode,
-	BandcampFan$FollowedArtistNode, 
+	BandcampFan$FollowedArtistNode,
 	BandcampFan$FanSection,
 	BandcampFan$FollowedFanNode,
 	BandcampFan$CollectionFan,
 	BandcampFan$CollectionPage,
 	BandcampFan$FollowedArtistPage,
-	BandcampFan$FollowedFanPage, 
-	BandcampFan$SearchMediaItemsPage} from './types';
+	BandcampFan$FollowedFanPage,
+	BandcampFan$SearchMediaItemsPage } from './types';
 import {
 	PrivBandcampTRAlbumData,
 	PrivBandcampTRAlbumDataTrack,
@@ -54,9 +54,10 @@ import {
 	PrivBandcampAlbumLDJsonTrack,
 	PrivBandcampAPI$Fan$CollectionItemsResult,
 	PrivBandcampAPI$Fan$FollowingArtistsResult,
-	PrivBandcampAPI$Fan$FanFollowItemsResult, 
+	PrivBandcampAPI$Fan$FanFollowItemsResult,
 	PrivBandcampAPI$Fan$CollectionMediaItem,
-	PrivBandcampAPI$Fan$SearchItemsResult} from './private_types';
+	PrivBandcampAPI$Fan$SearchItemsResult,
+	PrivBandcampIdentities } from './private_types';
 
 
 
@@ -1489,12 +1490,12 @@ export default class BandcampParser {
 		if(!homePageDataJson) {
 			throw new Error("could not get page data to scrape identities");
 		}
-		const pageData = JSON.parse(homePageDataJson);
+		const pageData = JSON.parse(homePageDataJson) as { identities: PrivBandcampIdentities };
 		return this.parseIdentitiesFromJson(pageData);
 	}
 
-	parseIdentitiesFromJson(pageData: any): BandcampIdentities {
-		if(!pageData.identities) {
+	parseIdentitiesFromJson(pageData: { identities: PrivBandcampIdentities }): BandcampIdentities {
+		if(!pageData || !pageData.identities) {
 			throw new Error("could not get identities from page data");
 		}
 		const identities: BandcampIdentities = {};
@@ -1503,7 +1504,7 @@ export default class BandcampParser {
 		if(fanIdentity) {
 			let images: BandcampImage[] | undefined = undefined;
 			if(fanIdentity.photo != null) {
-				if(typeof fanIdentity.photo === 'string' && fanIdentity.startsWith("http")) {
+				if(typeof fanIdentity.photo === 'string' && (fanIdentity.photo as string).startsWith("http")) {
 					images = [
 						{
 							url: fanIdentity.photo,
