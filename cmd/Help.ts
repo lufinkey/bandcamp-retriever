@@ -57,7 +57,7 @@ COMMANDS:
 		
 		--print-format ${PrintFormats.join(' | ')}
 			
-			The format to print the fetched info
+			The format to print the fetched info.
 	
 	collection <URL_OR_USERNAME> [--profile-id <ID>] [--collection collection | wishlist | following-artists | following-fans | followers] [--limit <COUNT>] [--older-than-token <TOKEN>] [--print-format ${PrintFormats.join('|')}]
 	
@@ -83,7 +83,7 @@ COMMANDS:
 		
 		--print-format ${PrintFormats.join(' | ')}
 
-			The format to print the fetched info
+			The format to print the fetched info.
 
 	search <QUERY> [--type track | album | artist | fan] [--page <PAGE>] [--print-format ${PrintFormats.join('|')}]
 
@@ -95,7 +95,19 @@ COMMANDS:
 		
 		--print-format ${PrintFormats.join(' | ')}
 
-			The format to print the search results
+			The format to print the search results.
+	
+	search-collection <URL_OR_USERNAME> <QUERY> [--collection wishlist] [--print-format ${PrintFormats.join('|')}]
+
+		Searches the collection on the given profile.
+
+		--collection wishlist
+
+			Specify which collection to search on the profile
+
+		--print-format ${PrintFormats.join(' | ')}
+
+			The format to print the search results.
 	
 	download [--url] <URL>... [--type=track|album] [--dir=<PATH>] [--output=<FORMAT_PATH>]
 		

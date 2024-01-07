@@ -1,12 +1,8 @@
-
 import {
 	Bandcamp,
 	BandcampItemType,
-	BandcampItemTypes,
-	BandcampFan$CollectionPage,
-	BandcampFan$FollowedArtistPage,
-	BandcampFan$FollowedFanPage,
-	BandcampFan$WishlistPage } from '../lib';
+	BandcampItemTypes } from '../lib';
+import { BandcampFan$SearchMediaItemsPage } from '../lib/types';
 import {
 	FlagOptions,
 	parseArgs,
@@ -19,19 +15,24 @@ import {
 type CollectionType = 'collection' | 'wishlist' | 'following-artists' | 'following-fans' | 'followers';
 const CollectionTypes = [ 'collection', 'wishlist', 'following-artists', 'following-fans', 'followers' ];
 
-export async function collectionCommand(bandcamp: Bandcamp, argv: string[], argi: number, options: { verbose: boolean }) {
+export async function searchCollectionCommand(bandcamp: Bandcamp, argv: string[], argi: number, options: { verbose: boolean }) {
 	// set defaults for options
 	let printFormat = 'readable-brief' as PrintFormat;
 	let profileId: (string | undefined) = undefined;
 	let collectionType: (CollectionType | undefined) = undefined as (CollectionType | undefined);
-	let limit: (number | undefined) = undefined;
-	let olderThanToken: (string | undefined) = undefined;
 
 	// get profile argument
 	if(argi >= argv.length) {
 		throw new Error("Missing profile argument");
 	}
 	const profile = argv[argi];
+	argi++;
+	
+	// get query argument
+	if(argi >= argv.length) {
+		throw new Error("Missing query argument");
+	}
+	const query = argv[argi];
 	argi++;
 	
 	// parse arguments
@@ -59,25 +60,6 @@ export async function collectionCommand(bandcamp: Bandcamp, argv: string[], argi
 			collectionType = val;
 		}
 	};
-	const limitFlagOpts: FlagOptions = {
-		value: 'required',
-		parseValue: parseIntegerArgValue,
-		onRead: (flag, val: number) => {
-			if(limit != null) {
-				throw new Error("Cannot specify multiple limit arguments");
-			}
-			limit = val;
-		}
-	};
-	const olderThanTokenOpts: FlagOptions = {
-		value: 'required',
-		onRead: (flag, val) => {
-			if(olderThanToken != null) {
-				throw new Error("Cannot specify multiple older-than-token arguments");
-			}
-			olderThanToken = val;
-		}
-	};
 	parseArgs(argv, argi, {
 		longFlags: {
 			'print-format': {
@@ -92,14 +74,10 @@ export async function collectionCommand(bandcamp: Bandcamp, argv: string[], argi
 			},
 			'profile-id': profileIdFlagOpts,
 			'collection': collectionTypeFlagOpts,
-			'limit': limitFlagOpts,
-			'older-than-token': olderThanTokenOpts
 		},
 		shortFlags: {
 			'i': profileIdFlagOpts,
-			'c': collectionTypeFlagOpts,
-			'l': limitFlagOpts,
-			'p': olderThanTokenOpts
+			'c': collectionTypeFlagOpts
 		},
 		recognizeDoubleDash: false,
 		recognizeSingleDash: false,
@@ -131,44 +109,29 @@ export async function collectionCommand(bandcamp: Bandcamp, argv: string[], argi
 		profileId = fan.id;
 	}
 
-	// fetch collection page
-	let results: (BandcampFan$CollectionPage | BandcampFan$WishlistPage | BandcampFan$FollowedArtistPage | BandcampFan$FollowedFanPage);
+	// perform collection search
+	let results: (BandcampFan$SearchMediaItemsPage);
 	try {
 		switch(collectionType) {
 			case undefined:
 			case 'collection':
-				results = await bandcamp.getFanCollectionItems(profileURL, profileId, {
-					olderThanToken: olderThanToken,
-					count: limit
-				});
+				throw new Error("Not yet implemented");
 				break;
 
 			case 'wishlist':
-				results = await bandcamp.getFanWishlistItems(profileURL, profileId, {
-					olderThanToken: olderThanToken,
-					count: limit
-				});
+				results = await bandcamp.searchFanWishlistItems(query, profileURL, profileId);
 				break;
 
 			case 'following-artists':
-				results = await bandcamp.getFanFollowingArtists(profileURL, profileId, {
-					olderThanToken: olderThanToken,
-					count: limit
-				});
+				throw new Error("Not yet implemented");
 				break;
 
 			case 'following-fans':
-				results = await bandcamp.getFanFollowingFans(profileURL, profileId, {
-					olderThanToken: olderThanToken,
-					count: limit
-				});
+				throw new Error("Not yet implemented");
 				break;
 
 			case 'followers':
-				results = await bandcamp.getFanFollowers(profileURL, profileId, {
-					olderThanToken: olderThanToken,
-					count: limit
-				});
+				throw new Error("Not yet implemented");
 				break;
 
 			default:

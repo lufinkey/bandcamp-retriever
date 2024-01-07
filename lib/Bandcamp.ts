@@ -16,10 +16,11 @@ import {
 	BandcampArtist,
 	BandcampAlbumTrack,
 	BandcampFan,
-	BandcampFan$APICollectionPage,
-	BandcampFan$APIFollowedArtistPage,
-	BandcampFan$APIFollowedFanPage,
-	BandcampFan$APIWishlistPage,
+	BandcampFan$CollectionPage,
+	BandcampFan$FollowedArtistPage,
+	BandcampFan$FollowedFanPage,
+	BandcampFan$WishlistPage,
+	BandcampFan$SearchMediaItemsPage,
 	BandcampSearchResultsList,
 	BandcampIdentities,
 	BandcampAudioSource } from './types';
@@ -543,8 +544,7 @@ export default class Bandcamp {
 		resultParser: (res: HttpResponse, data: Buffer) => T): Promise<T> {
 		if(!fanURL) {
 			throw new Error("missing required fanURL for _getFanSectionItems");
-		}
-		else if(!fanId) {
+		} else if(fanId == null) {
 			throw new Error("missing required fanId for _getFanSectionItems");
 		}
 		if(this._session.getBandcampCookiesSync().length == 0) {
@@ -583,34 +583,34 @@ export default class Bandcamp {
 		return resultParser(res, data);
 	}
 
-	async getFanCollectionItems(fanURL: string, fanId: string | number, {olderThanToken, count}: { olderThanToken?: string | null, count?: number }): Promise<BandcampFan$APICollectionPage> {
+	async getFanCollectionItems(fanURL: string, fanId: string | number, {olderThanToken, count}: { olderThanToken?: string | null, count?: number }): Promise<BandcampFan$CollectionPage> {
 		return await this._getFanSectionItems(
 			'https://bandcamp.com/api/fancollection/1/collection_items',
 			fanURL, fanURL, fanId, { olderThanToken, count },
-			(res, data): BandcampFan$APICollectionPage => {
+			(res, data): BandcampFan$CollectionPage => {
 				return this._parser.parseFanCollectionItemsJsonData(res,data);
 			});
 	}
 
-	async getFanWishlistItems(fanURL: string, fanId: string | number, {olderThanToken, count}: { olderThanToken?: string | null, count?: number }): Promise<BandcampFan$APIWishlistPage> {
+	async getFanWishlistItems(fanURL: string, fanId: string | number, {olderThanToken, count}: { olderThanToken?: string | null, count?: number }): Promise<BandcampFan$WishlistPage> {
 		return await this._getFanSectionItems(
 			'https://bandcamp.com/api/fancollection/1/wishlist_items',
 			fanURL+'/wishlist', fanURL, fanId, { olderThanToken, count },
-			(res, data): BandcampFan$APIWishlistPage => {
+			(res, data): BandcampFan$WishlistPage => {
 				return this._parser.parseFanCollectionItemsJsonData(res,data);
 			});
 	}
 
-	async getFanHiddenItems(fanURL: string, fanId: string | number, {olderThanToken, count}: { olderThanToken?: string | null, count?: number }): Promise<BandcampFan$APICollectionPage> {
+	async getFanHiddenItems(fanURL: string, fanId: string | number, {olderThanToken, count}: { olderThanToken?: string | null, count?: number }): Promise<BandcampFan$CollectionPage> {
 		return await this._getFanSectionItems(
 			'https://bandcamp.com/api/fancollection/1/hidden_items',
 			fanURL, fanURL, fanId, { olderThanToken, count },
-			(res, data): BandcampFan$APICollectionPage => {
+			(res, data): BandcampFan$CollectionPage => {
 				return this._parser.parseFanCollectionItemsJsonData(res,data);
 			});
 	}
 
-	async getFanFollowingArtists(fanURL: string, fanId: string | number, {olderThanToken, count}: { olderThanToken?: string | null, count?: number }): Promise<BandcampFan$APIFollowedArtistPage> {
+	async getFanFollowingArtists(fanURL: string, fanId: string | number, {olderThanToken, count}: { olderThanToken?: string | null, count?: number }): Promise<BandcampFan$FollowedArtistPage> {
 		return await this._getFanSectionItems(
 			'https://bandcamp.com/api/fancollection/1/following_bands',
 			fanURL+'/following/artists_and_labels', fanURL, fanId, { olderThanToken, count },
@@ -619,7 +619,7 @@ export default class Bandcamp {
 			});
 	}
 
-	async getFanFollowingFans(fanURL: string, fanId: string | number, {olderThanToken, count}: { olderThanToken?: string | null, count?: number }): Promise<BandcampFan$APIFollowedFanPage> {
+	async getFanFollowingFans(fanURL: string, fanId: string | number, {olderThanToken, count}: { olderThanToken?: string | null, count?: number }): Promise<BandcampFan$FollowedFanPage> {
 		return await this._getFanSectionItems(
 			'https://bandcamp.com/api/fancollection/1/following_fans',
 			fanURL+'/following/fans', fanURL, fanId, { olderThanToken, count },
@@ -628,7 +628,7 @@ export default class Bandcamp {
 			});
 	}
 
-	async getFanFollowers(fanURL: string, fanId: string | number, {olderThanToken, count}: { olderThanToken?: string | null, count?: number }): Promise<BandcampFan$APIFollowedFanPage> {
+	async getFanFollowers(fanURL: string, fanId: string | number, {olderThanToken, count}: { olderThanToken?: string | null, count?: number }): Promise<BandcampFan$FollowedFanPage> {
 		return await this._getFanSectionItems(
 			'https://bandcamp.com/api/fancollection/1/followers',
 			fanURL+'/followers', fanURL, fanId, { olderThanToken, count },
@@ -639,8 +639,66 @@ export default class Bandcamp {
 
 
 
-	async searchFanCollectionItems(query: string, fanURL: string, fanId: string | number, collection: 'collection' | 'wishlist') {
-		//
+	async _searchFanSectionItems<T>(
+		query: string,
+		options: {
+			searchType: string,
+			referer: string,
+			fanURL: string,
+			fanId: string | number
+		},
+		resultParser: (res: HttpResponse, data: Buffer) => T): Promise<T> {
+		if(!options.fanURL) {
+			throw new Error("missing required fanURL for _searchFanSectionItems");
+		} else if(options.fanId == null) {
+			throw new Error("missing required fanId for _searchFanSectionItems");
+		}
+		if(this._session.getBandcampCookiesSync().length == 0) {
+			// go to fan page first to acquire cookies
+			await this.getFan(options.fanURL, {
+				fetchAdditionalData: false
+			});
+		}
+		
+		// make sure fanId is an integer
+		const fanId = this._parser.convertToNumberIfAble(options.fanId);
+		// build body
+		const body: {
+			fan_id: string | number
+			search_key: string | null
+			search_type: string
+		} = {
+			fan_id: fanId,
+			search_key: query,
+			search_type: options.searchType
+		};
+		const jsonBody = JSON.stringify(body);
+		const { res, data } = await this.sendHttpRequest("https://bandcamp.com/api/fancollection/1/search_items", {
+			method: 'POST',
+			body: jsonBody,
+			headers: {
+				'Content-Length': jsonBody.length,
+				'Origin': 'https://bandcamp.com',
+				'Referer': options.referer,
+				'Sec-Fetch-Dest': 'empty',
+				'Sec-Fetch-Mode': 'cors',
+				'Sec-Fetch-Site': 'same-origin',
+				'X-Requested-With': 'XMLHttpRequest'
+			}
+		});
+		return resultParser(res, data);
+	}
+
+	async searchFanWishlistItems(query: string, fanURL: string, fanId: string | number): Promise<BandcampFan$SearchMediaItemsPage> {
+		return await this._searchFanSectionItems(query, {
+				searchType: 'wishlist',
+				referer: fanURL+'/wishlist',
+				fanURL: fanURL,
+				fanId: fanId
+			},
+			(res, data) => {
+				return this._parser.parseFanSearchMediaItemsJsonData(res,data);
+			});
 	}
 
 

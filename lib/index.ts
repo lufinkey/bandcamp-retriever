@@ -13,4 +13,8 @@ export {
 	BandcampArtist,
 	BandcampFan,
 	BandcampAudioFileType,
-	BandcampAudioSource } from './types';
+	BandcampAudioSource,
+	BandcampFan$CollectionPage,
+	BandcampFan$FollowedArtistPage,
+	BandcampFan$FollowedFanPage,
+	BandcampFan$WishlistPage } from './types';

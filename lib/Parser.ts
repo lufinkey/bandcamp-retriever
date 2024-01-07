@@ -35,9 +35,10 @@ import {
 	BandcampFan$FanSection,
 	BandcampFan$FollowedFanNode,
 	BandcampFan$CollectionFan,
-	BandcampFan$APICollectionPage,
-	BandcampFan$APIFollowedArtistPage,
-	BandcampFan$APIFollowedFanPage } from './types';
+	BandcampFan$CollectionPage,
+	BandcampFan$FollowedArtistPage,
+	BandcampFan$FollowedFanPage, 
+	BandcampFan$SearchMediaItemsPage} from './types';
 import {
 	PrivBandcampTRAlbumData,
 	PrivBandcampTRAlbumDataTrack,
@@ -53,7 +54,9 @@ import {
 	PrivBandcampAlbumLDJsonTrack,
 	PrivBandcampAPI$Fan$CollectionItemsResult,
 	PrivBandcampAPI$Fan$FollowingArtistsResult,
-	PrivBandcampAPI$Fan$FanFollowItemsResult } from './private_types';
+	PrivBandcampAPI$Fan$FanFollowItemsResult, 
+	PrivBandcampAPI$Fan$CollectionMediaItem,
+	PrivBandcampAPI$Fan$SearchItemsResult} from './private_types';
 
 
 
@@ -2097,7 +2100,7 @@ export default class BandcampParser {
 		}
 	}
 
-	parseFanCollectionItemsJsonData(res: HttpResponse, data: Buffer): BandcampFan$APICollectionPage {
+	parseFanCollectionItemsJsonData(res: HttpResponse, data: Buffer): BandcampFan$CollectionPage {
 		// check for errors
 		this.parseFanCollectionItemsErrorJson(res, data);
 		// parse json
@@ -2110,66 +2113,72 @@ export default class BandcampParser {
 		return {
 			hasMore: json.more_available,
 			lastToken: json.last_token,
-			items: (json.items || []).map((itemJson: any) => {
-				let itemType = itemJson.item_type;
-				if(itemType === 'song') {
-					itemType = 'track';
-				}
-				let itemId: string | undefined = undefined;
-				if(itemJson.item_id) {
-					itemId = ''+itemJson.item_id;
-				}
-				const item: BandcampFan$CollectionTrack | BandcampFan$CollectionAlbum = {
-					id: itemId as string,
-					type: itemType,
-					url: itemJson.item_url,
-					name: itemJson.item_title,
-					artistName: itemJson.band_name,
-					artistURL: itemJson.band_url
-				};
-				if(itemJson.item_art_id) {
-					const imageId = 'a'+this.padImageId(itemJson.item_art_id);
-					item.images = this.createImagesFromImageId(imageId);
-				}
-				if(item.type === 'track') {
-					const track = item as BandcampFan$CollectionTrack;
-					if(itemJson.featured_track_duration) {
-						track.duration = itemJson.featured_track_duration;
-					}
-					if(itemJson.featured_track_number) {
-						track.trackNumber = itemJson.featured_track_number;
-					}
-					if(itemJson.album_id) {
-						track.albumName = itemJson.album_title;
-						if(itemJson.url_hints && itemJson.url_hints.item_type === 'a') {
-							if(itemJson.url_hints.custom_domain) {
-								track.albumURL = `https://${itemJson.url_hints.custom_domain}/album/${itemJson.url_hints.slug}`;
-							} else {
-								track.albumURL = `https://${itemJson.url_hints.subdomain}.bandcamp.com/album/${itemJson.url_hints.slug}`;
-							}
-							track.albumSlug = itemJson.url_hints.slug;
-						} else if(track.albumName && track.url) {
-							track.albumURL = this.cleanUpURL(UrlUtils.resolve(item.url, '/album/'+this.slugify(track.albumName)));
-						}
-					}
-					if(itemJson.album_id === null) {
-						// track is a single
-						track.albumName = item.name;
-						track.albumURL = item.url;
-					}
-				}
-				// create item node
+			items: this.parseFanCollectionItemList((json.items || []), (item, rawItem) => {
 				return {
-					token: itemJson.token,
+					token: rawItem.token,
 					itemId: item.id,
 					item: item,
-					dateAdded: ((typeof itemJson.added === 'string') ? this.formatDate(itemJson.added) : undefined) as string
+					dateAdded: ((typeof rawItem.added === 'string') ? this.formatDate(rawItem.added) : undefined) as string
 				};
 			})
 		};
 	}
 
-	parseFanCollectionArtistsJsonData(res: HttpResponse, data: Buffer): BandcampFan$APIFollowedArtistPage {
+	parseFanCollectionItemList<T>(items: PrivBandcampAPI$Fan$CollectionMediaItem[], mapper: (item: BandcampFan$CollectionTrack | BandcampFan$CollectionAlbum, rawItem: PrivBandcampAPI$Fan$CollectionMediaItem) => T): T[] {
+		return items.map((itemJson) => {
+			let itemType = itemJson.item_type;
+			if(itemType === 'song') {
+				itemType = 'track';
+			}
+			let itemId: string | undefined = undefined;
+			if(itemJson.item_id) {
+				itemId = ''+itemJson.item_id;
+			}
+			const item: BandcampFan$CollectionTrack | BandcampFan$CollectionAlbum = {
+				id: itemId as string,
+				type: itemType as ('track' | 'album'),
+				url: itemJson.item_url,
+				name: itemJson.item_title,
+				artistName: itemJson.band_name,
+				artistURL: itemJson.band_url
+			};
+			if(itemJson.item_art_id) {
+				const imageId = 'a'+this.padImageId(itemJson.item_art_id);
+				item.images = this.createImagesFromImageId(imageId);
+			}
+			if(item.type === 'track') {
+				const track = item as BandcampFan$CollectionTrack;
+				if(itemJson.featured_track_duration) {
+					track.duration = itemJson.featured_track_duration;
+				}
+				if(itemJson.featured_track_number) {
+					track.trackNumber = itemJson.featured_track_number;
+				}
+				if(itemJson.album_id) {
+					track.albumName = itemJson.album_title;
+					if(itemJson.url_hints && itemJson.url_hints.item_type === 'a') {
+						if(itemJson.url_hints.custom_domain) {
+							track.albumURL = `https://${itemJson.url_hints.custom_domain}/album/${itemJson.url_hints.slug}`;
+						} else {
+							track.albumURL = `https://${itemJson.url_hints.subdomain}.bandcamp.com/album/${itemJson.url_hints.slug}`;
+						}
+						track.albumSlug = itemJson.url_hints.slug;
+					} else if(track.albumName && track.url) {
+						track.albumURL = this.cleanUpURL(UrlUtils.resolve(item.url, '/album/'+this.slugify(track.albumName)));
+					}
+				}
+				if(itemJson.album_id === null) {
+					// track is a single
+					track.albumName = item.name;
+					track.albumURL = item.url;
+				}
+			}
+			// create item node
+			return mapper(item, itemJson);
+		});
+	}
+
+	parseFanCollectionArtistsJsonData(res: HttpResponse, data: Buffer): BandcampFan$FollowedArtistPage {
 		// check for errors
 		this.parseFanCollectionItemsErrorJson(res, data);
 		// parse json
@@ -2204,7 +2213,7 @@ export default class BandcampParser {
 		};
 	}
 
-	parseFanCollectionFansJsonData(res: HttpResponse, data: Buffer): BandcampFan$APIFollowedFanPage {
+	parseFanCollectionFansJsonData(res: HttpResponse, data: Buffer): BandcampFan$FollowedFanPage {
 		// check for errors
 		this.parseFanCollectionItemsErrorJson(res, data);
 		// parse json
@@ -2236,6 +2245,21 @@ export default class BandcampParser {
 					}
 				};
 			})
+		};
+	}
+
+	parseFanSearchMediaItemsJsonData(res: HttpResponse, data: Buffer): BandcampFan$SearchMediaItemsPage {
+		// check for errors
+		this.parseFanCollectionItemsErrorJson(res, data);
+		// parse json
+		const dataString = data ? data.toString() : null;
+		if(!dataString) {
+			throw new Error("Missing data for fan collection items");
+		}
+		const json: PrivBandcampAPI$Fan$SearchItemsResult = JSON.parse(dataString);
+		// return items
+		return {
+			items: this.parseFanCollectionItemList((json.tralbums || []), (item, rawItem) => item)
 		};
 	}
 

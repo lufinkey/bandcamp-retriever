@@ -10,6 +10,7 @@ import { infoCommand } from './Info';
 import { downloadCommand } from './Download';
 import { searchCommand } from './Search';
 import { collectionCommand } from './Collection';
+import { searchCollectionCommand } from './SearchCollection';
 
 // set defaults for options
 let verbose = false;
@@ -89,6 +90,12 @@ const bandcamp = new Bandcamp({
 
 		case 'search':
 			await searchCommand(bandcamp, process.argv, argi, {
+				verbose
+			});
+			break;
+
+		case 'search-collection':
+			await searchCollectionCommand(bandcamp, process.argv, argi, {
 				verbose
 			});
 			break;

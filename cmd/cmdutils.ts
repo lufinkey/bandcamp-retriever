@@ -121,7 +121,7 @@ export function parseArgs(argv: string[], startIndex: number, options: ArgumentP
 							continue;
 						}
 					} else {
-						throw new Error(`Invalid flag ${flagName}`);
+						throw new Error(`Invalid long flag '${arg}' at position ${argi}`);
 					}
 				}
 			}
@@ -131,8 +131,8 @@ export function parseArgs(argv: string[], startIndex: number, options: ArgumentP
 			const argLen = arg.length;
 			if (argLen > 1) {
 				let nextArg: ({argIndex:number} | undefined) = undefined;
-				for (let i = 1 ; i < argLen ; i++ ) {
-					const flagName = arg.substring(i, 1);
+				for (let i = 1; i <argLen; i++) {
+					const flagName = arg.substring(i, i+1);
 					const shortFlagOpts = options.shortFlags[flagName];
 					let flagVal = undefined;
 					if(shortFlagOpts) {
@@ -186,7 +186,7 @@ export function parseArgs(argv: string[], startIndex: number, options: ArgumentP
 							nextArg = maybeNextArg as (undefined | {argIndex:number});
 							break;
 						} else {
-							throw new Error(`Invalid flag ${flagName}`);
+							throw new Error(`Invalid short flag '${flagName}' (index ${i}) at position ${argi}`);
 						}
 					}
 				}

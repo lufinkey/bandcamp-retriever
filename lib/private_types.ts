@@ -754,7 +754,7 @@ export type PrivBandcampAPI$Fan$CollectionSummary = {
 export type PrivBandcampAPI$Fan$CollectionMediaItem = {
 	fan_id: number,
 	item_id: number,
-	item_type: 'package' | 'track' | string,
+	item_type: 'album' | 'track' | string,
 	band_id: number,
 	added: string, // "01 Jan 2020 12:00:00 GMT",
 	updated: string, // "01 Jan 2020 12:00:00 GMT",
@@ -874,7 +874,7 @@ export type PrivBandcampAPI$Fan$CollectionItemsResult = {
 	items: PrivBandcampAPI$Fan$CollectionMediaItem[],
 	more_available: boolean,
 	tracklists: {
-		// map of item IDs to their tracklists
+		// map of item IDs to their (partial) tracklists
 		[id: string]: {
 			id: number,
 			title: string,
@@ -883,7 +883,7 @@ export type PrivBandcampAPI$Fan$CollectionItemsResult = {
 			duration: number,
 			file: {
 				// map of audio file types to URLs
-				[key: (PrivBandcampAudioFileType | string)]: string
+				[filetype: (PrivBandcampAudioFileType | string)]: string
 			}
 		}[],
 	},
@@ -914,7 +914,7 @@ export type PrivBandcampAPI$Fan$FollowingArtist = {
 	location: string,
 	date_followed: string, // "01 Jan 2017 12:00:00 GMT"
 	token: string // "xxxxxxxxx:xxxxxxxxxx"
-};
+}
 
 // https://bandcamp.com/api/fancollection/1/following_bands
 //  Referer: <FAN URL>/following/artists_and_labels
@@ -922,7 +922,7 @@ export type PrivBandcampAPI$Fan$FollowingArtistsResult = {
 	followeers: PrivBandcampAPI$Fan$FollowingArtist[],
 	more_available: boolean,
 	last_token: string // "xxxxxxxxxx:xxxxxxxxx"
-};
+}
 
 // FAN API FOLLOWING / FOLLOWER FANS TYPES
 
@@ -937,7 +937,7 @@ export type PrivBandcampAPI$FanFollowItem = {
 	location: string | null,
 	date_followed: string, // "01 Jan 2021 12:00:00 GMT",
 	token: string // "xxxxxxxxxx:xxxxxxx"
-};
+}
 
 // https://bandcamp.com/api/fancollection/1/following_fans
 //  Referer: <FAN URL>/following/fans
@@ -947,4 +947,38 @@ export type PrivBandcampAPI$Fan$FanFollowItemsResult = {
 	followeers: PrivBandcampAPI$FanFollowItem[],
 	more_available: boolean,
 	last_token: string // "xxxxxxxxxx:xxxxxxx"
-};
+}
+
+
+// FAN API SEARCH ITEMS TYPES
+
+// https://bandcamp.com/api/fancollection/1/search_items
+//  Referer: <FAN URL>/wishlist
+export type PrivBandcampAPI$Fan$SearchItemsResult = {
+	tralbums: PrivBandcampAPI$Fan$CollectionMediaItem[],
+	gifts: any[],
+	tracklists: {
+		// map of item IDs to their (partial) tracklists
+		[id: string]: {
+			id: number,
+			title: string,
+			artist: string,
+			track_number: number | null,
+			duration: number,
+			file: {
+				// map of audio file types to URLs
+				[filetype: (PrivBandcampAudioFileType | string)]: string
+			}
+		}[]
+	},
+	redownload_urls: {},
+	similar_gift_ids: any[],
+	item_lookup: {
+		// map of item IDs to their types and purchased states
+		[id: string]: {
+			item_type: 't' | 'a' | string,
+			purchased: boolean
+		}
+	},
+	search_key: string // the search term
+}

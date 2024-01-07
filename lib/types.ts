@@ -187,15 +187,15 @@ export type BandcampFan$WishlistSection = BandcampFan$PageSection<BandcampFan$Wi
 export type BandcampFan$ArtistSection = BandcampFan$PageSection<BandcampFan$FollowedArtistNode>
 export type BandcampFan$FanSection = BandcampFan$PageSection<BandcampFan$FollowedFanNode>
 
-export type BandcampFan$APIPage<T> = {
+export type BandcampFan$CollectionItemsPage<T> = {
 	hasMore: boolean
 	lastToken: string
 	items: T[]
 }
-export type BandcampFan$APICollectionPage = BandcampFan$APIPage<BandcampFan$CollectionNode>
-export type BandcampFan$APIWishlistPage = BandcampFan$APIPage<BandcampFan$WishlistNode>
-export type BandcampFan$APIFollowedArtistPage = BandcampFan$APIPage<BandcampFan$FollowedArtistNode>
-export type BandcampFan$APIFollowedFanPage = BandcampFan$APIPage<BandcampFan$FollowedFanNode>
+export type BandcampFan$CollectionPage = BandcampFan$CollectionItemsPage<BandcampFan$CollectionNode>
+export type BandcampFan$WishlistPage = BandcampFan$CollectionItemsPage<BandcampFan$WishlistNode>
+export type BandcampFan$FollowedArtistPage = BandcampFan$CollectionItemsPage<BandcampFan$FollowedArtistNode>
+export type BandcampFan$FollowedFanPage = BandcampFan$CollectionItemsPage<BandcampFan$FollowedFanNode>
 
 export type BandcampFan$CollectionNode = {
 	itemId: string
@@ -264,3 +264,9 @@ export type BandcampFan$CollectionFan = {
 	location?: string | null
 	images?: BandcampImage[]
 }
+
+export type BandcampFan$SearchItemsPage<T> = {
+	items: T[]
+}
+
+export type BandcampFan$SearchMediaItemsPage = BandcampFan$SearchItemsPage<BandcampFan$CollectionTrack | BandcampFan$CollectionAlbum>;
