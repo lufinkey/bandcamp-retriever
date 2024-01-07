@@ -191,9 +191,9 @@ bandcamp-retriever [<OPTION>]... <COMMAND> [<ARG>]...
 
 		Updates the cookies for the current session
 
-	- **logout()**
+	- **clearSession()**
 
-		Clear the current login session
+		Clear the current session cookies
 
 	- **session** *(read-only)*
 

@@ -89,7 +89,7 @@ export default class Bandcamp {
 		this._session.updateCookies(cookies);
 	}
 
-	logout() {
+	clearSession() {
 		this._clearFanData();
 		this._session.removeAllCookiesSync();
 	}
@@ -700,7 +700,7 @@ export default class Bandcamp {
 				return this._parser.parseFanSearchMediaItemsJsonData(res,data);
 			});
 	}
-	
+
 	async searchFanWishlistItems(query: string, fanURL: string, fanId: string | number): Promise<BandcampFan$SearchMediaItemsPage> {
 		return await this._searchFanSectionItems(query, {
 				searchType: 'wishlist',
