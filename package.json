@@ -1,5 +1,5 @@
 {
-	"name": "bandcamp-api",
+	"name": "bandcamp-retriever",
 	"version": "1.0.0",
 	"description": "An unofficial API for bandcamp",
 	"bin": {
@@ -10,9 +10,8 @@
 	"scripts": {
 		"test": "npm run build && node dist/test/test.js",
 		"clean": "rm -rf dist",
-		"build": "npm run build-ts",
-		"build-ts": "npx tsc",
-		"postinstall": "npm run build-ts"
+		"build": "npx tsc",
+		"prepare": "npm run build"
 	},
 	"author": "Luis Finke (luisfinke@gmail.com)",
 	"license": "UNLICENSED",
