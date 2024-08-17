@@ -159,7 +159,7 @@ bandcamp-retriever [<OPTION>]... <COMMAND> [<ARG>]...
 
 	Outputs the identity of the current user info, or nothing if there is no logged-in user.
 
-	--print-format *readable-brief* | *readable* | *json* | *json-pretty*
+	- --print-format *readable-brief* | *readable* | *json* | *json-pretty*
 		
 		The format to print the fetched info.
 

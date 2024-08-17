@@ -7,6 +7,10 @@
 	},
 	"main": "dist/lib/index.js",
 	"types": "dist/lib/index.d.ts",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/lufinkey/bandcamp-retriever.git"
+	},
 	"scripts": {
 		"test": "npm run build && node dist/test/test.js",
 		"clean": "rm -rf dist",
