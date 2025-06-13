@@ -1,14 +1,31 @@
 import { PrivBandcampAudioFileType } from "./private_types";
 
-export type BandcampItemType = 'artist' | 'label' | 'album' | 'track' | 'fan';
-export type BandcampItemTypeChar = 'b' | 'a' | 't' | 'f';
-export const BandcampItemTypes: (BandcampItemType[] & string[]) = [ 'artist', 'label', 'album', 'track', 'fan' ];
+export enum BandcampItemType {
+	Artist = 'artist',
+	Label = 'label',
+	Album = 'album',
+	Track = 'track',
+	Fan = 'fan',
+}
+export enum BandcampItemTypeChar {
+	Band = 'b',
+	Artist = 'a',
+	Track = 't',
+	Fan = 'f',
+}
+export const BandcampItemTypes: BandcampItemType[] = Object.values(BandcampItemType);
 
 export type BandcampAudioFileType = PrivBandcampAudioFileType;
 
+export enum BandcampImageSize {
+	Small = 'small',
+	Medium = 'medium',
+	Large = 'large',
+}
+
 export type BandcampImage = {
 	url: string
-	size: 'small' | 'medium' | 'large'
+	size: BandcampImageSize
 	width?: number
 	height?: number
 }
@@ -64,7 +81,7 @@ export type BandcampSearchResultsList = {
 
 export type BandcampTrack = {
 	id?: string
-	type: 'track'
+	type: BandcampItemType.Track
 	url: string
 	name: string
 	artistName: string
@@ -91,7 +108,7 @@ export type BandcampAudioSource = {
 
 export type BandcampAlbum = {
 	id?: string
-	type: 'album'
+	type: BandcampItemType.Album
 	url: string
 	name: string
 	artistName: string
@@ -106,7 +123,7 @@ export type BandcampAlbum = {
 
 export type BandcampAlbumTrack = {
 	id?: string
-	type: 'track'
+	type: BandcampItemType.Track
 	url: string
 	name: string
 	artistName: string
@@ -122,7 +139,7 @@ export type BandcampAlbumTrack = {
 
 export type BandcampArtist = {
 	id?: string
-	type: 'artist' | 'label'
+	type: (BandcampItemType.Artist | BandcampItemType.Label)
 	url: string
 	name: string
 	location?: string
@@ -145,7 +162,7 @@ export type BandcampArtistShow = {
 
 export type BandcampArtistPageItem = {
 	id: string
-	type: 'track' | 'album'
+	type: BandcampItemType.Track | BandcampItemType.Album
 	url: string
 	name: string
 	artistName: string
@@ -158,7 +175,7 @@ export type BandcampArtistPageItem = {
 
 export type BandcampFan = {
 	id: string
-	type: 'fan'
+	type: BandcampItemType.Fan
 	url: string
 	username: string
 	name: string
@@ -239,7 +256,7 @@ export type BandcampFan$CollectionTrack = {
 
 export type BandcampFan$CollectionAlbum = {
 	id: string
-	type: 'album'
+	type: BandcampItemType.Album
 	url: string
 	name: string
 	artistName: string
@@ -249,7 +266,7 @@ export type BandcampFan$CollectionAlbum = {
 
 export type BandcampFan$CollectionArtist = {
 	id: string
-	type: 'artist' | 'label'
+	type: (BandcampItemType.Artist | BandcampItemType.Label)
 	url: string
 	name: string
 	location?: string | null
@@ -258,7 +275,7 @@ export type BandcampFan$CollectionArtist = {
 
 export type BandcampFan$CollectionFan = {
 	id: string
-	type: 'fan'
+	type: BandcampItemType.Fan
 	url: string
 	name: string
 	location?: string | null

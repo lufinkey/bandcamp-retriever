@@ -13,7 +13,7 @@ type GetCookiesOptions = tough.CookieJar.GetCookiesOptions & {
 	sameSiteContext: 'none' | 'lax' | 'strict'
 }
 
-export default class BandcampSession {
+export class BandcampSession {
 	_cookieStore: tough.CookieJar
 
 	constructor(cookies?: (tough.Store | (tough.Cookie | string)[] | undefined)) {

@@ -6,8 +6,8 @@ import QueryString from 'querystring';
 import UrlUtils from 'url';
 import cheerio from 'cheerio';
 import tough from 'tough-cookie';
-import BandcampSession from './Session';
-import BandcampParser from './Parser';
+import { BandcampSession } from './Session';
+import { BandcampParser } from './Parser';
 import {
 	BandcampItemType,
 	BandcampItemTypeChar,
@@ -52,7 +52,7 @@ type FanInfo = {
 };
 
 
-export default class Bandcamp {
+export class Bandcamp {
 	static Session = BandcampSession;
 	static Parser = BandcampParser;
 
@@ -468,7 +468,7 @@ export default class Bandcamp {
 
 	async getTrack(trackURL: string, options: { fetchAdditionalData?: boolean, fetchAdditionalPages?: boolean } = {}): Promise<BandcampTrack> {
 		return await this.getItemFromURL(trackURL, {
-			forceType: 'track',
+			forceType: BandcampItemType.Track,
 			fetchAdditionalData: options.fetchAdditionalData ?? true,
 			fetchAdditionalPages: options.fetchAdditionalPages ?? options.fetchAdditionalData ?? true
 		}) as any as Promise<BandcampTrack>;
@@ -476,7 +476,7 @@ export default class Bandcamp {
 
 	async getAlbum(albumURL: string, options: { fetchAdditionalData?: boolean, fetchAdditionalPages?: boolean } = {}): Promise<BandcampAlbum> {
 		return await this.getItemFromURL(albumURL, {
-			forceType: 'album',
+			forceType: BandcampItemType.Album,
 			fetchAdditionalData: options.fetchAdditionalData ?? true,
 			fetchAdditionalPages: options.fetchAdditionalPages ?? options.fetchAdditionalData ?? true
 		}) as any as Promise<BandcampAlbum>;
@@ -484,7 +484,7 @@ export default class Bandcamp {
 
 	async getArtist(artistURL: string, options: { fetchAdditionalData?: boolean, fetchAdditionalPages?: boolean } = {}): Promise<BandcampArtist> {
 		return await this.getItemFromURL(UrlUtils.resolve(artistURL,'/music'), {
-			forceType: 'artist',
+			forceType: BandcampItemType.Artist,
 			fetchAdditionalData: options.fetchAdditionalData ?? true,
 			fetchAdditionalPages: options.fetchAdditionalPages ?? options.fetchAdditionalData ?? true
 		}) as any as Promise<BandcampArtist>;
@@ -506,7 +506,7 @@ export default class Bandcamp {
 
 	async getFan(fanURL: string, options: { fetchAdditionalData?: boolean, fetchAdditionalPages?: boolean } = {}): Promise<BandcampFan> {
 		return await this.getItemFromURL(fanURL, {
-			forceType: 'fan',
+			forceType: BandcampItemType.Fan,
 			fetchAdditionalData: options.fetchAdditionalData ?? true,
 			fetchAdditionalPages: options.fetchAdditionalPages ?? options.fetchAdditionalData ?? true
 		}) as any as Promise<BandcampFan>;
@@ -736,7 +736,7 @@ export default class Bandcamp {
 		}
 		// parse response
 		const $ = cheerio.load(dataString);
-		const artist = this._parser.parseItemFromURL(artistURL, 'artist', $);
+		const artist = this._parser.parseItemFromURL(artistURL, BandcampItemType.Artist, $);
 		if(artist == null) {
 			if(res.statusCode >= 200 && res.statusCode < 300) {
 				throw new Error("Failed to parse artist page");

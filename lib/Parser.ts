@@ -38,7 +38,8 @@ import {
 	BandcampFan$CollectionPage,
 	BandcampFan$FollowedArtistPage,
 	BandcampFan$FollowedFanPage,
-	BandcampFan$SearchMediaItemsPage } from './types';
+	BandcampFan$SearchMediaItemsPage, 
+	BandcampImageSize} from './types';
 import {
 	PrivBandcampTRAlbumData,
 	PrivBandcampTRAlbumDataTrack,
@@ -61,7 +62,7 @@ import {
 
 
 
-export default class BandcampParser {
+export class BandcampParser {
 	parseResponseHeaders(res: HttpResponse): {[key: string]: (string | string[])} {
 		const headers: {[key: string]: (string | string[])} = {};
 		const rawHeaders = res.rawHeaders;
@@ -134,21 +135,21 @@ export default class BandcampParser {
 		// parse type from URL
 		const urlObj = new URL(url);
 		if(urlObj.host != 'bandcamp.com' && (!urlObj.pathname || urlObj.pathname === '/' || urlObj.pathname === '')) {
-			return 'artist'
+			return BandcampItemType.Artist;
 		}
 		// parse from pathname
 		if(urlObj.pathname) {
 			if(urlObj.pathname === '/music' || urlObj.pathname === '/releases') {
-				return 'artist';
+				return BandcampItemType.Artist;
 			}
 			if(urlObj.pathname === '/artists') {
-				return 'label';
+				return BandcampItemType.Label;
 			}
 			else if(urlObj.pathname.startsWith('/album/') && urlObj.pathname.length > '/album/'.length) {
-				return 'album';
+				return BandcampItemType.Album;
 			}
 			else if(urlObj.pathname.startsWith('/track/') && urlObj.pathname.length > '/track/'.length) {
-				return 'track';
+				return BandcampItemType.Track;
 			}
 		}
 		// parse type from page
@@ -156,15 +157,15 @@ export default class BandcampParser {
 			const metaType = $('meta[property="og:type"]').attr('content');
 			if(metaType) {
 				if(metaType === 'band') {
-					return 'artist';
+					return BandcampItemType.Artist;
 				}
 				else if(metaType === 'song') {
-					return 'track';
+					return BandcampItemType.Track;
 				}
 				else if(metaType == 'profile') {
-					return 'fan';
+					return BandcampItemType.Fan;
 				}
-				else if(BandcampItemTypes.indexOf(metaType) !== -1) {
+				else if(BandcampItemTypes.indexOf(metaType as any) !== -1) {
 					return metaType as BandcampItemType;
 				}
 			}
@@ -243,19 +244,19 @@ export default class BandcampParser {
 		return [
 			{
 				url: `${baseURL}/${imageId}_10.jpg`,
-				size: 'large'
+				size: BandcampImageSize.Large,
 			},
 			{
 				url: `${baseURL}/${imageId}_16.jpg`,
-				size: 'large'
+				size: BandcampImageSize.Large,
 			},
 			{
 				url: `${baseURL}/${imageId}_9.jpg`,
-				size: 'medium'
+				size: BandcampImageSize.Medium,
 			},
 			{
 				url: `${baseURL}/${imageId}_6.jpg`,
-				size: 'small'
+				size: BandcampImageSize.Small,
 			}
 		];
 	}
@@ -347,12 +348,12 @@ export default class BandcampParser {
 			// get item type
 			let type = resultItemHtml.find('.itemtype').text().trim().toLowerCase();
 			if(type === 'song') {
-				type = 'track';
+				type = BandcampItemType.Track;
 			}
 			else if(type === 'band') {
-				type = 'artist';
+				type = BandcampItemType.Artist;
 			}
-			if(BandcampItemTypes.indexOf(type) === -1) {
+			if(BandcampItemTypes.indexOf(type as any) === -1) {
 				console.error(`Unrecognized item type ${type} from url ${url}`);
 			}
 
@@ -379,7 +380,7 @@ export default class BandcampParser {
 			};
 
 			// parse type-specific fields
-			if(item.type === 'track' || item.type === 'album') {
+			if(item.type === BandcampItemType.Track || item.type === BandcampItemType.Album) {
 				let artistName = subheads.find((subhead) => {
 					return subhead.startsWith('by ');
 				});
@@ -389,7 +390,7 @@ export default class BandcampParser {
 					item.artistURL = this.cleanUpURL(UrlUtils.resolve(item.url, '/'));
 				}
 			}
-			if(item.type === 'track') {
+			if(item.type === BandcampItemType.Track) {
 				let albumName = subheads.find((subhead) => {
 					return subhead.startsWith('from ');
 				});
@@ -408,10 +409,10 @@ export default class BandcampParser {
 					item.albumURL = item.url;
 				}
 			}
-			else if(item.type === 'artist') {
+			else if(item.type === BandcampItemType.Artist) {
 				item.location = (subheads.length > 0) ? subheads[0] : undefined;
 			}
-			else if(item.type === 'album') {
+			else if(item.type === BandcampItemType.Album) {
 				let artistName = subheads.find((subhead) => {
 					return subhead.startsWith('by ');
 				});
@@ -502,29 +503,29 @@ export default class BandcampParser {
 		}
 
 		// determine if track or album
-		let type: 'album' | 'track' | null = null;
+		let type: BandcampItemType.Album | BandcampItemType.Track | null = null;
 		if(ldJson) {
 			let ldType = ldJson['@type'];
 			if(ldType === 'MusicAlbum' || ldType === 'album' || ldType === 'Album') {
-				type = 'album';
+				type = BandcampItemType.Album;
 			}
 			else if(ldType === 'MusicRecording' || ldType === 'track' || ldType === 'Track') {
-				type = 'track';
+				type = BandcampItemType.Track;
 			}
 		}
 		if(trAlbumData) {
 			const trItemType = trAlbumData['item_type'];
-			if(trItemType === 'album' || trItemType === 'track') {
+			if(trItemType === BandcampItemType.Album || trItemType === BandcampItemType.Track) {
 				type = trItemType;
 			} else if(trItemType === 'song') {
-				type = 'track';
+				type = BandcampItemType.Track;
 			}
 		}
 		if(type == null) {
 			if(trackTable.index() === -1) {
-				type = 'track';
+				type = BandcampItemType.Track;
 			} else {
-				type = 'album';
+				type = BandcampItemType.Album;
 			}
 		}
 
@@ -820,7 +821,7 @@ export default class BandcampParser {
 		if(largeImageURL) {
 			item.images.push({
 				url: largeImageURL,
-				size: 'large'
+				size: BandcampImageSize.Large,
 			});
 		}
 		if(ldJson) {
@@ -834,7 +835,7 @@ export default class BandcampParser {
 						if(item.images.find((img) => (img.url == ldJsonImage)) == null) {
 							item.images.push({
 								url: ldJsonImage,
-								size: 'large'
+								size: BandcampImageSize.Large,
 							});
 						}
 					}
@@ -847,7 +848,7 @@ export default class BandcampParser {
 			if(linkImageURL && item.images.find((img) => (img.url == linkImageURL)) == null) {
 				item.images.push({
 					url: linkImageURL,
-					size: 'medium'
+					size: BandcampImageSize.Medium,
 				});
 			}
 		}
@@ -857,7 +858,7 @@ export default class BandcampParser {
 			if(metaImageURL && item.images.find((img) => (img.url == metaImageURL)) == null) {
 				item.images.push({
 					url: metaImageURL,
-					size: 'medium'
+					size: BandcampImageSize.Medium,
 				});
 			}
 		}
@@ -865,7 +866,7 @@ export default class BandcampParser {
 		if(mediumImageURL && item.images.find((img) => (img.url == mediumImageURL)) == null) {
 			item.images.push({
 				url: mediumImageURL,
-				size: 'medium'
+				size: BandcampImageSize.Medium,
 			});
 		}
 
@@ -1053,7 +1054,7 @@ export default class BandcampParser {
 				// create track object
 				const track: BandcampAlbumTrack = {
 					id: trackId,
-					type: 'track',
+					type: BandcampItemType.Track,
 					url: trackURL,
 					name: trackName,
 					images: album.images,
@@ -1150,7 +1151,7 @@ export default class BandcampParser {
 					url: imageURL,
 					width: popupImageWidth,
 					height: popupImageHeight,
-					size: 'large'
+					size: BandcampImageSize.Large,
 				});
 			}
 
@@ -1166,14 +1167,14 @@ export default class BandcampParser {
 					url: smallImageURL,
 					width: defaultImageWidth,
 					height: defaultImageHeight,
-					size: 'small'
+					size: BandcampImageSize.Small,
 				});
 			}
 		}
 
 		return {
 			id: artistID,
-			type: (isLabel) ? 'label' : 'artist',
+			type: (isLabel) ? BandcampItemType.Label : BandcampItemType.Artist,
 			url: this.cleanUpURL(UrlUtils.resolve(url, '/')),
 			name: bandNameLocation.find('.title').text().trim(),
 			location: bandNameLocation.find('.location').text().trim() || undefined,
@@ -1213,10 +1214,10 @@ export default class BandcampParser {
 			itemURL = (itemURL ? this.cleanUpURL(UrlUtils.resolve(url,itemURL)) : undefined);
 			// parse item type
 			const dataItemId = albumTag.attr('data-item-id');
-			let itemType: ('track' | 'album' | undefined) = dataItemId?.startsWith('track') ? 'track' : dataItemId?.startsWith('album') ? 'album' : undefined;
+			let itemType: (BandcampItemType.Track | BandcampItemType.Album | undefined) = dataItemId?.startsWith('track') ? BandcampItemType.Track : dataItemId?.startsWith('album') ? BandcampItemType.Album : undefined;
 			if(!itemType && itemURL) {
 				const urlParts = UrlUtils.parse(itemURL);
-				itemType = urlParts.pathname?.startsWith('/track/') ? 'track' : urlParts.pathname?.startsWith('/album/') ? 'album' : undefined;
+				itemType = urlParts.pathname?.startsWith('/track/') ? BandcampItemType.Track : urlParts.pathname?.startsWith('/album/') ? BandcampItemType.Album : undefined;
 			}
 			// parse art
 			const albumArtImage = albumTag.find('.art img');
@@ -1229,7 +1230,7 @@ export default class BandcampParser {
 			const artistURL = itemURL ? this.cleanUpURL(UrlUtils.resolve(itemURL, '/')) : undefined;
 			basicAlbumInfos.push({
 				id: dataItemId?.replace(/^(album|track)-/, '') as string,
-				type: itemType as ('track' | 'album'),
+				type: itemType as (BandcampItemType.Track | BandcampItemType.Album),
 				url: itemURL as string,
 				name: titleText,
 				artistName: artistNameText as string,
@@ -1237,7 +1238,7 @@ export default class BandcampParser {
 				images: albumArtURL ? [
 					{
 						url: albumArtURL,
-						size: 'small'
+						size: BandcampImageSize.Small,
 					}
 				] : []
 			});
@@ -1291,7 +1292,7 @@ export default class BandcampParser {
 		return this.parseItemFromURL(url, type, $);
 	}
 	parseItemFromURL(url: string, type: BandcampItemType, $: CheerioAPI): BandcampTrack | BandcampAlbum | BandcampArtist | BandcampFan | null {
-		if(type === 'track' || type === 'album') {
+		if(type === BandcampItemType.Track || type === BandcampItemType.Album) {
 			// parse track or album data
 			let item = this.parseTrackInfo(url, $);
 			if(!item) {
@@ -1300,10 +1301,10 @@ export default class BandcampParser {
 			item.artist = this.parseArtistInfo(url, $) || undefined;
 			// if item is a single, and we were requesting an album, mutate into an album
 			const itemAsTrack = item as BandcampTrack;
-			if(itemAsTrack.type === 'track' && type === 'album' && ((!itemAsTrack.albumName && !itemAsTrack.albumURL) || (itemAsTrack.url && itemAsTrack.albumURL === itemAsTrack.url))) {
+			if(itemAsTrack.type === BandcampItemType.Track && type === BandcampItemType.Album && ((!itemAsTrack.albumName && !itemAsTrack.albumURL) || (itemAsTrack.url && itemAsTrack.albumURL === itemAsTrack.url))) {
 				item = {
 					//id: itemAsTrack.id, // TODO figure out if we should use the same ID for the album
-					type: 'album',
+					type: BandcampItemType.Album,
 					url: itemAsTrack.url,
 					name: itemAsTrack.name,
 					images: itemAsTrack.images,
@@ -1317,7 +1318,7 @@ export default class BandcampParser {
 			}
 			return item;
 		}
-		else if(type === 'artist') {
+		else if(type === BandcampItemType.Artist) {
 			const artist = this.parseArtistInfo(url, $);
 			if(!artist) {
 				throw new Error("Unable to parse artist data");
@@ -1335,7 +1336,7 @@ export default class BandcampParser {
 			}
 			return artist;
 		}
-		else if(type === 'fan') {
+		else if(type === BandcampItemType.Fan) {
 			const fan = this.parseFanHtml(url, $, null);
 			return fan;
 		}
@@ -1508,7 +1509,7 @@ export default class BandcampParser {
 					images = [
 						{
 							url: fanIdentity.photo,
-							size: 'medium'
+							size: BandcampImageSize.Medium,
 						}
 					];
 				} else if(typeof fanIdentity.photo === 'string' || typeof fanIdentity.photo === 'number') {
@@ -1631,9 +1632,9 @@ export default class BandcampParser {
 				itemType = this.parseType(itemData.item_url);
 			}
 			if(itemType === 'song') {
-				itemType = 'track';
+				itemType = BandcampItemType.Track;
 			} else if(itemType == 'band') {
-				itemType = 'artist';
+				itemType = BandcampItemType.Artist;
 			}
 			// parse item url
 			const itemURL = itemData.item_url ? this.cleanUpURL(itemData.item_url) : undefined;
@@ -1656,7 +1657,7 @@ export default class BandcampParser {
 			}
 			// attach basic item data
 			if(itemType) {
-				item.type = itemType as ('album' | 'track');
+				item.type = itemType as (BandcampItemType.Album | BandcampItemType.Track);
 			}
 			if(itemURL) {
 				item.url = itemURL;
@@ -1775,7 +1776,7 @@ export default class BandcampParser {
 			}
 			// build basic item data
 			let item: BandcampFan$CollectionArtist = {
-				type: 'artist',
+				type: BandcampItemType.Artist,
 				url: this.artistURLHintsToURL(itemData.url_hints) as string,
 				id: itemData.band_id,
 				name: itemData.name,
@@ -1819,7 +1820,7 @@ export default class BandcampParser {
 			}
 			// build basic item data
 			let item: BandcampFan$CollectionFan = {
-				type: 'fan',
+				type: BandcampItemType.Fan,
 				id: ''+itemData.fan_id,
 				url: itemData.trackpipe_url,
 				name: itemData.name,
@@ -1877,9 +1878,9 @@ export default class BandcampParser {
 				// parse item type
 				let itemType = html.attr('data-itemtype');
 				if(itemType === 'song') {
-					itemType = 'track';
+					itemType = BandcampItemType.Track;
 				} else if(itemType == 'band') {
-					itemType = 'artist';
+					itemType = BandcampItemType.Artist;
 				}
 				// parse item id
 				let itemId = html.attr('data-itemid');
@@ -1924,7 +1925,7 @@ export default class BandcampParser {
 				// build basic item data
 				let item: BandcampFan$CollectionTrack | BandcampFan$CollectionAlbum = {
 					id: itemId as string,
-					type: itemType as ('album' | 'track'),
+					type: itemType as (BandcampItemType.Album | BandcampItemType.Track),
 					url: url,
 					name: itemName as string,
 					artistName,
@@ -1938,7 +1939,7 @@ export default class BandcampParser {
 					item.images = [
 						{
 							url: imageURL,
-							size: 'large'
+							size: BandcampImageSize.Large,
 						}
 					];
 				}
@@ -2015,14 +2016,14 @@ export default class BandcampParser {
 		if(fanImagePopupLink) {
 			images.push({
 				url: fanImagePopupLink,
-				size: 'large'
+				size: BandcampImageSize.Large,
 			});
 		}
 		const fanBioPicSrc = $('#fan-container .fan-bio-pic img').first().attr('src');
 		if(fanBioPicSrc) {
 			images.push({
 				url: fanBioPicSrc,
-				size: 'small'
+				size: BandcampImageSize.Small,
 			});
 		}
 		if(images.length > 0) {
@@ -2129,7 +2130,7 @@ export default class BandcampParser {
 		return items.map((itemJson) => {
 			let itemType = itemJson.item_type;
 			if(itemType === 'song') {
-				itemType = 'track';
+				itemType = BandcampItemType.Track;
 			}
 			let itemId: string | undefined = undefined;
 			if(itemJson.item_id) {
@@ -2137,7 +2138,7 @@ export default class BandcampParser {
 			}
 			const item: BandcampFan$CollectionTrack | BandcampFan$CollectionAlbum = {
 				id: itemId as string,
-				type: itemType as ('track' | 'album'),
+				type: itemType as (BandcampItemType.Track | BandcampItemType.Album),
 				url: itemJson.item_url,
 				name: itemJson.item_title,
 				artistName: itemJson.band_name,
@@ -2203,7 +2204,7 @@ export default class BandcampParser {
 					dateFollowed: this.formatDate(itemJson.date_followed),
 					item: {
 						id: itemJson.band_id,
-						type: 'artist',
+						type: BandcampItemType.Artist,
 						url: url,
 						name: itemJson.name,
 						location: itemJson.location,
@@ -2238,7 +2239,7 @@ export default class BandcampParser {
 					dateFollowed: this.formatDate(itemJson.date_followed),
 					item: {
 						id: itemJson.fan_id,
-						type: 'fan',
+						type: BandcampItemType.Fan,
 						url: url,
 						name: itemJson.name,
 						location: itemJson.location,
