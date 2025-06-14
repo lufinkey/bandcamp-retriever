@@ -42,7 +42,7 @@ export async function infoCommand(bandcamp: Bandcamp, argv: string[], argi: numb
 	const itemTypeFlagOpts: FlagOptions = {
 		value: 'required',
 		parseValue: (val): BandcampItemType => {
-			if(BandcampItemTypes.indexOf(val) == -1) {
+			if(BandcampItemTypes.indexOf(val as any) == -1) {
 				throw new Error(`Invalid item type ${val}`);
 			}
 			return val as BandcampItemType;

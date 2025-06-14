@@ -544,8 +544,8 @@ export class BandcampParser {
 		if(itemId == null && ldJson && ldJson.additionalProperty instanceof Array) {
 			const idProp = ldJson.additionalProperty.find((prop: any) => (
 				prop.name === 'item_id'
-				|| (type === 'track' && prop.name === 'track_id')
-				|| (type === 'album' && prop.name === 'album_id')));
+				|| (type === BandcampItemType.Track && prop.name === 'track_id')
+				|| (type === BandcampItemType.Album && prop.name === 'album_id')));
 			if(idProp && idProp.value) {
 				itemId = ''+idProp.value;
 			}
@@ -765,7 +765,7 @@ export class BandcampParser {
 
 		// get track num
 		let trackNumber: number | undefined = undefined;
-		if(type === 'track') {
+		if(type === BandcampItemType.Track) {
 			if (ldJson != null && ldJson.additionalProperty instanceof Array) {
 				const tracknumProp = ldJson.additionalProperty.find((prop: any) => (prop.name === 'tracknum'));
 				if(tracknumProp && typeof tracknumProp.value === 'number') {
@@ -778,7 +778,7 @@ export class BandcampParser {
 		}
 		
 		// if item is a single, set album name / url as self
-		if(type === 'track' && (subAlbumTag == null || subAlbumTag.index() === -1)
+		if(type === BandcampItemType.Track && (subAlbumTag == null || subAlbumTag.index() === -1)
 			&& (fromAlbumTag == null || fromAlbumTag.index() === -1)
 			&& (albumName == null || albumName === itemName) && albumURL == null
 			&& (trackNumber == null || trackNumber === 1 || trackNumber === 0)) {
@@ -802,7 +802,7 @@ export class BandcampParser {
 		};
 
 		// add optional properties
-		if(type === 'track') {
+		if(type === BandcampItemType.Track) {
 			const track = item as BandcampTrack;
 			if(trackNumber != null) {
 				track.trackNumber = trackNumber;
@@ -891,7 +891,7 @@ export class BandcampParser {
 		};
 
 		// parse type-specific data
-		if(item.type === 'album') {
+		if(item.type === BandcampItemType.Album) {
 			// ALBUM
 			const album = item as BandcampAlbum;
 			// construct tracks
@@ -1073,7 +1073,7 @@ export class BandcampParser {
 			album.tracks = tracks;
 			return album;
 		}
-		else if(item.type === 'track') {
+		else if(item.type === BandcampItemType.Track) {
 			// TRACK
 			const track = item as BandcampTrack;
 			// get properties from data-tralbum
@@ -1678,7 +1678,7 @@ export class BandcampParser {
 				item.images = this.createImagesFromImageId(imageId);
 			}
 			// attach audio sources if item is a track
-			if(item.type === 'track' && trackLists) {
+			if(item.type === BandcampItemType.Track && trackLists) {
 				const track = item as BandcampFan$CollectionTrack;
 				const trackList = trackLists[itemIdentifier];
 				if(trackList && track.id) {
@@ -1710,7 +1710,7 @@ export class BandcampParser {
 				}
 			}
 			// attach album info if needed
-			if(item.type === 'track') {
+			if(item.type === BandcampItemType.Track) {
 				const track = item as BandcampFan$CollectionTrack;
 				if(itemData.album_id === null && (!itemData.url_hints || itemData.url_hints.item_type === 't')) {
 					// item is a "single", so make album the same as item
@@ -2148,7 +2148,7 @@ export class BandcampParser {
 				const imageId = 'a'+this.padImageId(itemJson.item_art_id);
 				item.images = this.createImagesFromImageId(imageId);
 			}
-			if(item.type === 'track') {
+			if(item.type === BandcampItemType.Track) {
 				const track = item as BandcampFan$CollectionTrack;
 				if(itemJson.featured_track_duration) {
 					track.duration = itemJson.featured_track_duration;

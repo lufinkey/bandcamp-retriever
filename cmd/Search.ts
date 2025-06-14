@@ -15,11 +15,11 @@ import {
 
 const SearchableItemTypes: { [key: (BandcampItemType | 'any' | string)]: (BandcampItemTypeChar | undefined) } = {
 	'any': undefined,
-	'album': 'a',
-	'artist': 'b',
-	'label': 'b',
-	'track': 't',
-	'fan': 'f'
+	[BandcampItemType.Album]: BandcampItemTypeChar.Album,
+	[BandcampItemType.Artist]: BandcampItemTypeChar.Band,
+	[BandcampItemType.Label]: BandcampItemTypeChar.Band,
+	[BandcampItemType.Track]: BandcampItemTypeChar.Track,
+	[BandcampItemType.Fan]: BandcampItemTypeChar.Fan,
 };
 
 export async function searchCommand(bandcamp: Bandcamp, argv: string[], argi: number, options: { verbose: boolean }) {
@@ -40,7 +40,7 @@ export async function searchCommand(bandcamp: Bandcamp, argv: string[], argi: nu
 	const itemTypeFlagOpts: FlagOptions = {
 		value: 'required',
 		parseValue: (val): (BandcampItemType | 'any') => {
-			if(val != 'any' && BandcampItemTypes.indexOf(val) == -1) {
+			if(val != 'any' && BandcampItemTypes.indexOf(val as any) == -1) {
 				throw new Error(`Invalid item type ${val}`);
 			}
 			return val as (BandcampItemType | 'any');

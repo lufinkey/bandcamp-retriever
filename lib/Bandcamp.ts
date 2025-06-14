@@ -359,7 +359,7 @@ export class Bandcamp {
 		const $ = cheerio.load(dataString);
 		const type = options.forceType ? options.forceType : this._parser.parseType(url, $);
 		// parse data by type
-		if(type === 'fan') {
+		if(type === BandcampItemType.Fan) {
 			// handle fan
 			// check if this is actually the root fan page
 			let fanURL = this._parser.parseMetaURL($);
@@ -411,20 +411,20 @@ export class Bandcamp {
 				const itemAsTrack = item as BandcampTrack;
 				const itemAsAlbum = item as BandcampAlbum;
 				if(this._session.isLoggedIn && !isBandcampDomain
-				&& (item.type === 'track'
-					|| (item.type === 'album' && itemAsAlbum.tracks && itemAsAlbum.tracks.length > 0))) {
+				&& (item.type === BandcampItemType.Track
+					|| (item.type === BandcampItemType.Album && itemAsAlbum.tracks && itemAsAlbum.tracks.length > 0))) {
 					let missingAudioSources = false;
-					if((item.type === 'track' && (!itemAsTrack.audioSources || itemAsTrack.audioSources.length === 0))
-					|| (item.type === 'album' && itemAsAlbum.tracks && itemAsAlbum.tracks.find((track) => (!track.audioSources || track.audioSources.length === 0)))) {
+					if((item.type === BandcampItemType.Track && (!itemAsTrack.audioSources || itemAsTrack.audioSources.length === 0))
+					|| (item.type === BandcampItemType.Album && itemAsAlbum.tracks && itemAsAlbum.tracks.find((track) => (!track.audioSources || track.audioSources.length === 0)))) {
 						missingAudioSources = true;
 					}
 					if(missingAudioSources) {
 						const cdUIURL = this._parser.parseCDUILink($);
 						const streams = cdUIURL ? (await this._fetchItemStreamsFromCDUI(cdUIURL, url)) : null;
 						if(streams) {
-							if(item.type === 'track') {
+							if(item.type === BandcampItemType.Track) {
 								this._parser.attachStreamsToTracks([item], streams);
-							} else if(item.type === 'album' && itemAsAlbum.tracks) {
+							} else if(item.type === BandcampItemType.Album && itemAsAlbum.tracks) {
 								this._parser.attachStreamsToTracks(itemAsAlbum.tracks, streams);
 							}
 						}

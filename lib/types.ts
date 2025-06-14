@@ -9,7 +9,7 @@ export enum BandcampItemType {
 }
 export enum BandcampItemTypeChar {
 	Band = 'b',
-	Artist = 'a',
+	Album = 'a',
 	Track = 't',
 	Fan = 'f',
 }
@@ -240,7 +240,7 @@ export type BandcampFan$FollowedFanNode = BandcampFan$FollowedNode<BandcampFan$C
 
 export type BandcampFan$CollectionTrack = {
 	id: string
-	type: 'track'
+	type: BandcampItemType.Track
 	url: string
 	name: string
 	artistName: string

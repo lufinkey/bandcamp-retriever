@@ -4,7 +4,8 @@ import {
 	BandcampTrack,
 	BandcampAlbumTrack,
 	BandcampAudioFileType,
-	BandcampAudioSource } from '../lib';
+	BandcampAudioSource,
+	BandcampItemType } from '../lib';
 import {
 	FlagOptions,
 	parseArgs,
@@ -14,8 +15,11 @@ import {
 	popAudioSourceOfType,
 	popHighestPriorityAudioSource } from '../lib/media_utils';
 
-type DownloadableItemType = 'track' | 'album';
-const DownloadableItemTypes = [ 'track', 'album' ];
+type DownloadableItemType = BandcampItemType.Track | BandcampItemType.Album;
+const DownloadableItemTypes: DownloadableItemType[] = [
+	BandcampItemType.Track,
+	BandcampItemType.Album
+];
 
 const DefaultFileTypePriorityList = [
 	'flac',
@@ -69,7 +73,7 @@ export async function downloadCommand(bandcamp: Bandcamp, argv: string[], argi: 
 	const itemTypeFlagOpts: FlagOptions = {
 		value: 'required',
 		parseValue: (val): DownloadableItemType => {
-			if(DownloadableItemTypes.indexOf(val) == -1) {
+			if(DownloadableItemTypes.indexOf(val as any) == -1) {
 				throw new Error(`Invalid item type ${val}`);
 			}
 			return val as DownloadableItemType;
