@@ -3,9 +3,11 @@ import tough from 'tough-cookie';
 
 export const BANDCAMP_COOKIES_URL = "https://bandcamp.com/"
 
-export const COOKIE_NAME_CLIENT_ID = "client_id";
-export const COOKIE_NAME_IDENTITY = "identity";
-export const COOKIE_NAME_SESSION = "session";
+export enum CookieName {
+	PlaylimitClientID = 'playlimit_client_id',
+	CartClientID = 'cart_client_id',
+	Identity = 'identity',
+}
 
 
 type GetCookiesOptions = tough.CookieJar.GetCookiesOptions & {
@@ -23,87 +25,81 @@ export class BandcampSession {
 			this._cookieStore = new tough.CookieJar();
 			if(cookies) {
 				for(const cookie of cookies) {
-					this._cookieStore.setCookieSync(cookie, BANDCAMP_COOKIES_URL);
+					this._cookieStore.setCookie(cookie, BANDCAMP_COOKIES_URL).catch((error) => {
+						console.error(error);
+					});
 				}
 			}
 		}
 	}
 
-	getBandcampCookiesSync(): tough.Cookie[] {
-		return this.getURLCookiesSync(BANDCAMP_COOKIES_URL);
+	async getBandcampCookies(): Promise<tough.Cookie[]> {
+		return await this.getURLCookies(BANDCAMP_COOKIES_URL);
 	}
 	
-	getURLCookiesSync(url: string, options?: GetCookiesOptions): tough.Cookie[] {
+	async getURLCookies(url: string, options?: GetCookiesOptions): Promise<tough.Cookie[]> {
 		if(options) {
-			return this._cookieStore.getCookiesSync(url, options);
+			return await this._cookieStore.getCookies(url, options);
 		} else {
-			return this._cookieStore.getCookiesSync(url);
+			return await this._cookieStore.getCookies(url);
 		}
 	}
 
-	getCookie(cookieName: string) {
-		return findCookie(this.getBandcampCookiesSync(), cookieName);
+	async getCookie(cookieName: string): Promise<tough.Cookie | null> {
+		const cookies = await this.getBandcampCookies();
+		return await findCookie(cookies, cookieName);
 	}
 
-	get clientIdCookie(): tough.Cookie | null {
-		return this.getCookie(COOKIE_NAME_CLIENT_ID);
+	getPlaylimitClientIdCookie(): Promise<tough.Cookie | null> {
+		return this.getCookie(CookieName.PlaylimitClientID);
 	}
 
-	get identityCookie(): tough.Cookie | null {
-		return this.getCookie(COOKIE_NAME_IDENTITY);
+	getCartClientIdCookie(): Promise<tough.Cookie | null> {
+		return this.getCookie(CookieName.CartClientID);
 	}
 
-	get sessionCookie(): tough.Cookie | null {
-		return this.getCookie(COOKIE_NAME_SESSION);
+	getIdentityCookie(): Promise<tough.Cookie | null> {
+		return this.getCookie(CookieName.Identity);
 	}
 
-	get isLoggedIn(): boolean {
-		const cookies = this.getBandcampCookiesSync();
-		if(findCookie(cookies, COOKIE_NAME_CLIENT_ID) && findCookie(cookies, COOKIE_NAME_IDENTITY)) {
+	async getLoggedInStatus(): Promise<boolean> {
+		const cookies = await this.getBandcampCookies();
+		if(findCookie(cookies, CookieName.PlaylimitClientID) && findCookie(cookies, CookieName.Identity)) {
 			return true;
 		}
 		return false;
 	}
 
-	removeAllCookiesSync() {
-		this._cookieStore.removeAllCookiesSync();
+	async removeAllCookies() {
+		await this._cookieStore.removeAllCookies();
 	}
 
-	getSameSiteRequestHeaders(url: string): {[key: string]: string} {
+	static requestHeadersFromCookies(cookies: tough.Cookie[]): {[key: string]: string} {
 		return {
-			'Cookie': this.getURLCookiesSync(url).map((cookie) => {
+			'Cookie': cookies.map((cookie) => {
 					return cookie.cookieString();
 				}).join('; ')
 		};
 	}
 
-	getCrossSiteRequestHeaders(url: string): {[key: string]: string} {
-		return {
-			'Cookie': this.getURLCookiesSync(url, {
-					sameSiteContext: 'none'
-				}).map((cookie) => {
-					return cookie.cookieString();
-				}).join('; ')
-		};
+	async getSameSiteRequestHeaders(url: string): Promise<{[key: string]: string}> {
+		const cookies = await this.getURLCookies(url);
+		return BandcampSession.requestHeadersFromCookies(cookies);
 	}
 
-	updateCookies(cookies: (string | tough.Cookie)[]) {
-		for(const cookie of cookies) {
-			this._cookieStore.setCookieSync(cookie, BANDCAMP_COOKIES_URL);
-		}
-	}
-
-	serialize(): string {
-		const cookies = this.getBandcampCookiesSync();
-		const clientIdCookie = findCookie(cookies, COOKIE_NAME_CLIENT_ID);
-		const identityCookie = findCookie(cookies, COOKIE_NAME_IDENTITY);
-		return JSON.stringify({
-			clientId: (clientIdCookie != null) ? clientIdCookie.value : null,
-			identity: (identityCookie != null) ? identityCookie.value : null,
-			cookies: cookies.map((cookie) => {
-				return cookie.toString()
-			})
+	async getCrossSiteRequestHeaders(url: string): Promise<{[key: string]: string}> {
+		const cookies = await this.getURLCookies(url, {
+			sameSiteContext: 'none'
 		});
+		return BandcampSession.requestHeadersFromCookies(cookies);
+	}
+
+	async updateBandcampCookies(cookies: (string | tough.Cookie)[]) {
+		let firstError: Error | undefined = undefined;
+		await Promise.all(cookies.map((cookie) => (this._cookieStore.setCookie(cookie, BANDCAMP_COOKIES_URL))));
+		if(firstError !== undefined) {
+			throw firstError;
+		}
 	}
 }
 

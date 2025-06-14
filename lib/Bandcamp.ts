@@ -85,31 +85,31 @@ export class Bandcamp {
 		return this._parser.slugify(str);
 	}
 	
-	updateSessionCookies(cookies: (string | tough.Cookie)[]) {
-		this._session.updateCookies(cookies);
+	async updateSessionCookies(cookies: (string | tough.Cookie)[]) {
+		await this._session.updateBandcampCookies(cookies);
 	}
 
-	clearSession() {
+	async clearSession() {
 		this._clearFanData();
-		this._session.removeAllCookiesSync();
+		await this._session.removeAllCookies();
 	}
 
 	get session(): BandcampSession | null {
 		return this._session;
 	}
 
-	get isLoggedIn(): boolean {
-		return this._session.isLoggedIn;
+	async getLoggedInStatus(): Promise<boolean> {
+		return await this._session.getLoggedInStatus();
 	}
 
-	_updateSessionFromResponse(res: HttpResponse) {
+	async _updateSessionFromResponse(res: HttpResponse) {
 		const headers = this._parser.parseResponseHeaders(res);
 		let setCookiesHeaders = headers["Set-Cookie"];
 		if(setCookiesHeaders) {
 			if(!(setCookiesHeaders instanceof Array)) {
 				setCookiesHeaders = [ setCookiesHeaders ];
 			}
-			this._session.updateCookies(setCookiesHeaders);
+			await this._session.updateBandcampCookies(setCookiesHeaders);
 		}
 	}
 
@@ -164,7 +164,9 @@ export class Bandcamp {
 		});
 		// update session if needed
 		if(isBandcampDomain) {
-			this._updateSessionFromResponse(res);
+			this._updateSessionFromResponse(res).catch((error) => {
+				console.error(error);
+			});
 		}
 		// return result
 		return { res, data };
@@ -178,7 +180,9 @@ export class Bandcamp {
 		}, (res, resolve, reject) => {
 			// update session if needed
 			if(isBandcampDomain) {
-				this._updateSessionFromResponse(res);
+				this._updateSessionFromResponse(res).catch((error) => {
+					console.error(error);
+				});
 			}
 			// open file stream
 			let file: fs.WriteStream;
@@ -222,7 +226,7 @@ export class Bandcamp {
 	}
 
 	async _getCurrentFanInfo(): Promise<FanInfo | null> {
-		if(!this._session.isLoggedIn) {
+		if(!await this._session.getLoggedInStatus()) {
 			return null;
 		}
 		if(this._fan) {
@@ -410,7 +414,7 @@ export class Bandcamp {
 			if(options.fetchAdditionalData ?? true) {
 				const itemAsTrack = item as BandcampTrack;
 				const itemAsAlbum = item as BandcampAlbum;
-				if(this._session.isLoggedIn && !isBandcampDomain
+				if(await this._session.getLoggedInStatus() && !isBandcampDomain
 				&& (item.type === BandcampItemType.Track
 					|| (item.type === BandcampItemType.Album && itemAsAlbum.tracks && itemAsAlbum.tracks.length > 0))) {
 					let missingAudioSources = false;
@@ -547,7 +551,15 @@ export class Bandcamp {
 		} else if(fanId == null) {
 			throw new Error("missing required fanId for _getFanSectionItems");
 		}
-		if(this._session.getBandcampCookiesSync().length == 0) {
+		// check if we have any cookies
+		let cookies: tough.Cookie[];
+		try {
+			cookies = await this._session.getBandcampCookies();
+		} catch(error) {
+			console.error(error);
+			cookies = [];
+		}
+		if(cookies.length == 0) {
 			// go to fan page first to acquire cookies
 			await this.getFan(fanURL, {
 				fetchAdditionalData: false
@@ -653,7 +665,15 @@ export class Bandcamp {
 		} else if(options.fanId == null) {
 			throw new Error("missing required fanId for _searchFanSectionItems");
 		}
-		if(this._session.getBandcampCookiesSync().length == 0) {
+		// check if we have any cookies
+		let cookies: tough.Cookie[];
+		try {
+			cookies = await this._session.getBandcampCookies();
+		} catch(error) {
+			console.error(error);
+			cookies = [];
+		}
+		if(cookies.length == 0) {
 			// go to fan page first to acquire cookies
 			await this.getFan(options.fanURL, {
 				fetchAdditionalData: false
@@ -716,7 +736,7 @@ export class Bandcamp {
 
 
 	async _performArtistFollowAction(artistURL: string, action: ('follow' | 'unfollow')) {
-		if(!this._session.isLoggedIn) {
+		if(!await this._session.getLoggedInStatus()) {
 			throw new Error("not logged in");
 		}
 		artistURL = this._parser.cleanUpURL(artistURL);
@@ -815,7 +835,7 @@ export class Bandcamp {
 
 
 	async _performFanFollowAction(fanURL: string, action: ('follow' | 'unfollow')) {
-		if(!this._session.isLoggedIn) {
+		if(!await this._session.getLoggedInStatus()) {
 			throw new Error("not logged in");
 		}
 		fanURL = this._parser.cleanUpURL(fanURL);
@@ -894,7 +914,7 @@ export class Bandcamp {
 
 
 	async _performWishlistItemAction(itemURL: string, action: ('collect' | 'uncollect')) {
-		if(!this._session.isLoggedIn) {
+		if(!await this._session.getLoggedInStatus()) {
 			throw new Error("not logged in");
 		}
 		itemURL = this._parser.cleanUpURL(itemURL);
@@ -1019,7 +1039,7 @@ export class Bandcamp {
 
 
 	async _performCollectionHideAction(itemURL: string, action: ('hide' | 'unhide')) {
-		if(!this._session.isLoggedIn) {
+		if(!await this._session.getLoggedInStatus()) {
 			throw new Error("not logged in");
 		}
 		const apiEndpoint = 'api/collectionowner/1/hide_unhide_item';
@@ -1115,7 +1135,7 @@ export class Bandcamp {
 
 
 	async _performSaveItemAction(itemURL: string, action: ('save' | 'unsave')) {
-		if(!this._session.isLoggedIn) {
+		if(!await this._session.getLoggedInStatus()) {
 			throw new Error("not logged in");
 		}
 		const fanInfo = await this._getCurrentFanInfo();
