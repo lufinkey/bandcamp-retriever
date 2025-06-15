@@ -102,20 +102,21 @@ export class Bandcamp {
 		return await this._session.getLoggedInStatus();
 	}
 
-	async _updateSessionFromResponse(res: HttpResponse) {
+	async _updateSessionFromResponse(res: HttpResponse, session: (BandcampSession | undefined)) {
 		const headers = this._parser.parseResponseHeaders(res);
 		let setCookiesHeaders = headers["Set-Cookie"];
 		if(setCookiesHeaders) {
 			if(!(setCookiesHeaders instanceof Array)) {
 				setCookiesHeaders = [ setCookiesHeaders ];
 			}
-			await this._session.updateBandcampCookies(setCookiesHeaders);
+			await (session || this._session).updateBandcampCookies(setCookiesHeaders);
 		}
 	}
 
 
 
-	_createRequestHeaders(url: string, options: { headers?: http.OutgoingHttpHeaders }): { isBandcampDomain: boolean, headers: http.OutgoingHttpHeaders } {
+	async _createRequestHeaders(url: string, options: { headers?: http.OutgoingHttpHeaders, session?: BandcampSession }): Promise<{ isBandcampDomain: boolean, headers: http.OutgoingHttpHeaders }> {
+		const session = options?.session || this._session;
 		// add auth headers
 		const isBandcampDomain = this._parser.isUrlBandcampDomain(url);
 		let refererURL = (options.headers ? options.headers['Referer'] : null);
@@ -134,12 +135,12 @@ export class Bandcamp {
 			if(sameSiteReferrer) {
 				headers = {
 					...headers,
-					...this._session.getSameSiteRequestHeaders(url)
+					...(await session.getSameSiteRequestHeaders(url))
 				};
 			} else {
 				headers = {
 					...headers,
-					...this._session.getCrossSiteRequestHeaders(url)
+					...(await session.getCrossSiteRequestHeaders(url))
 				};
 			}
 		}
@@ -155,16 +156,22 @@ export class Bandcamp {
 		};
 	}
 
-	async sendHttpRequest(url: string, options: SendHttpRequestOptions = {}): Promise<{res: HttpResponse, data: Buffer}> {
-		const { isBandcampDomain, headers } = this._createRequestHeaders(url, { headers: options.headers });
-		// send request
-		const { res, data } = await sendHttpRequest(url, {
-			...options,
-			headers
+	async sendHttpRequest(url: string, options?: (SendHttpRequestOptions & {session?: BandcampSession})): Promise<{res: HttpResponse, data: Buffer}> {
+		// create options
+		const { isBandcampDomain, headers } = await this._createRequestHeaders(url, {
+			headers: options?.headers,
+			session: options?.session,
 		});
+		const httpOptions = {
+			...options,
+			headers,
+		};
+		delete httpOptions.session;
+		// send request
+		const { res, data } = await sendHttpRequest(url, httpOptions);
 		// update session if needed
 		if(isBandcampDomain) {
-			this._updateSessionFromResponse(res).catch((error) => {
+			this._updateSessionFromResponse(res, options?.session).catch((error) => {
 				console.error(error);
 			});
 		}
@@ -172,15 +179,18 @@ export class Bandcamp {
 		return { res, data };
 	}
 
-	downloadFile(url: string, filepath: string, options: { headers?: http.OutgoingHttpHeaders } = {}): Promise<void> {
-		const { isBandcampDomain, headers } = this._createRequestHeaders(url, { headers: options.headers });
-		return performHttpRequest(url, {
+	async downloadFile(url: string, filepath: string, options?: { headers?: http.OutgoingHttpHeaders, session?: BandcampSession }): Promise<void> {
+		const { isBandcampDomain, headers } = await this._createRequestHeaders(url, {
+			headers: options?.headers,
+			session: options?.session,
+		});
+		await performHttpRequest<void>(url, {
 			method: 'GET',
 			headers
 		}, (res, resolve, reject) => {
 			// update session if needed
 			if(isBandcampDomain) {
-				this._updateSessionFromResponse(res).catch((error) => {
+				this._updateSessionFromResponse(res, options?.session).catch((error) => {
 					console.error(error);
 				});
 			}
