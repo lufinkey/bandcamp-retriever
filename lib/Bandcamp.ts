@@ -67,8 +67,8 @@ export class Bandcamp {
 	_fanCrumbsLoadNode: LoadNode | null
 	_fanCrumbsPromise: Promise<{[key: string]: string} | null> | null
 
-	constructor(options: BandcampOptions = {}) {
-		this._session = new BandcampSession(options.cookies);
+	constructor(options?: BandcampOptions) {
+		this._session = new BandcampSession(options?.cookies);
 		this._parser = new BandcampParser();
 
 		this._fan = null;
