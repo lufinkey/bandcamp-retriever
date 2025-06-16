@@ -23,8 +23,12 @@ import {
 	BandcampFan$SearchMediaItemsPage,
 	BandcampSearchResultsList,
 	BandcampIdentities,
-	BandcampAudioSource } from './types';
-import { PrivBandcampAPI$Fan$CollectionSummary } from './private_types';
+	BandcampAudioSource,
+	BandcampFanFeedPage } from './types';
+import {
+	PrivBandcampAPI$FanDashFeedUpdates,
+	PrivBandcampAPI$Fan$CollectionSummary,
+	PrivBandcampFanFeedPage } from './private_types';
 import {
 	HttpResponse,
 	sendHttpRequest,
@@ -324,6 +328,81 @@ export class Bandcamp {
 			this._fanCrumbsPromise = null;
 		});
 		return await this._fanCrumbsPromise;
+	}
+
+
+
+	async getFanFeed(options?: {olderThan?: string}): Promise<BandcampFanFeedPage> {
+		if(options?.olderThan) {
+			const page = await this._getFanDashFeedUpdates(options?.olderThan);
+			return this._parser.parseFanFeedUpdate(page);
+		} else {
+			const page = await this._getFanFeedPage();
+			return this._parser.parseFanFeedPage(page);
+		}
+	}
+
+	async _getFanFeedPage(): Promise<PrivBandcampFanFeedPage> {
+		const currentFan = await this._getCurrentFanInfo();
+		if(!currentFan) {
+			throw new Error(`Not logged in`);
+		}
+		let feedURL = currentFan.url;
+		if(!feedURL.endsWith('/')) {
+			feedURL += '/';
+		}
+		feedURL += 'feed';
+		const { res, data } = await sendHttpRequest(feedURL);
+		if(res.statusCode < 200 || res.statusCode >= 300) {
+			throw new Error(res.statusMessage);
+		}
+		if(!data) {
+			throw new Error("No data in response");
+		}
+		const dataString = data.toString();
+		if(!dataString) {
+			throw new Error("Empty response");
+		}
+		const $ = cheerio.load(dataString);
+		const pageData = $('#pagedata').attr('data-blob');
+		if(!pageData) {
+			throw new Error("No page data");
+		}
+		const storiesVM = $('#stories-vm').attr('data-initial-values');
+		if(!storiesVM) {
+			throw new Error("No stories VM");
+		}
+		return {
+			pageData: JSON.parse(pageData),
+			storiesVM: JSON.parse(storiesVM),
+		};
+	}
+
+	async _getFanDashFeedUpdates(olderThan: string): Promise<PrivBandcampAPI$FanDashFeedUpdates> {
+		const currentFan = await this._getCurrentFanInfo();
+		if(!currentFan) {
+			throw new Error(`Not logged in`);
+		}
+		const url = `https://bandcamp.com/fan_dash_feed_updates`;
+		const jsonBody = JSON.stringify({
+			fan_id: currentFan.id,
+			older_than: olderThan,
+		});
+		const { res, data } = await this.sendHttpRequest(url, {
+			method: 'POST',
+			body: jsonBody,
+		});
+		if(res.statusCode < 200 || res.statusCode >= 300) {
+			throw new Error(res.statusMessage);
+		}
+		if(!data) {
+			throw new Error("No data in response");
+		}
+		const dataString = data.toString();
+		if(!dataString) {
+			throw new Error("Empty response");
+		}
+		return JSON.parse(dataString);
 	}
 
 

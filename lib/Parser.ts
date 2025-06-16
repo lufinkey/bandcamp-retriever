@@ -38,8 +38,15 @@ import {
 	BandcampFan$CollectionPage,
 	BandcampFan$FollowedArtistPage,
 	BandcampFan$FollowedFanPage,
-	BandcampFan$SearchMediaItemsPage, 
-	BandcampImageSize} from './types';
+	BandcampFan$SearchMediaItemsPage,
+	BandcampImageSize,
+	BandcampFanFeedPage,
+	BandcampFanFeed$Story,
+	BandcampFanFeed$StoryType,
+	BandcampFanFeed$Fan,
+	BandcampFanFeed$Album,
+	BandcampItemTypeChar,
+	BandcampFanFeed$Track,} from './types';
 import {
 	PrivBandcampTRAlbumData,
 	PrivBandcampTRAlbumDataTrack,
@@ -49,7 +56,7 @@ import {
 	PrivBandcampFan$CollectionBatchData,
 	PrivBandcampFan$CollectionItemInfo,
 	PrivBandcampFan$FanData,
-	PrivBandcampFanPageData,
+	PrivBandcampFan$PageData,
 	PrivBandcampAPI$Fan$CollectionSummary,
 	PrivBandcampAPI$Fan$CollectionSummary$TRAlbumLookup,
 	PrivBandcampAlbumLDJsonTrack,
@@ -58,7 +65,12 @@ import {
 	PrivBandcampAPI$Fan$FanFollowItemsResult,
 	PrivBandcampAPI$Fan$CollectionMediaItem,
 	PrivBandcampAPI$Fan$SearchItemsResult,
-	PrivBandcampIdentities } from './private_types';
+	PrivBandcampIdentities,
+	PrivBandcampFanFeedPage,
+	PrivBandcampFanFeed$Story,
+	PrivBandcampFanFeed$Fan,
+	PrivBandcampFanFeed$Track,
+	PrivBandcampAPI$FanDashFeedUpdates} from './private_types';
 
 
 
@@ -2004,7 +2016,7 @@ export class BandcampParser {
 
 		// create bandcamp fan
 		let fan: BandcampFan = {
-			type: 'fan',
+			type: BandcampItemType.Fan,
 			url: fanURL,
 			username,
 			name: fanName
@@ -2035,7 +2047,7 @@ export class BandcampParser {
 		fan.wishlist = this.parseFanCollectionHtml($,'wishlist');
 		
 		// parse pageData json
-		let pageData: null | PrivBandcampFanPageData = null;
+		let pageData: null | PrivBandcampFan$PageData = null;
 		try {
 			const pageDataString = $('#pagedata').attr('data-blob');
 			if(pageDataString) {
@@ -2281,6 +2293,142 @@ export class BandcampParser {
 		}
 	}
 
+
+	parseFanFeedPage(page: PrivBandcampFanFeedPage): BandcampFanFeedPage {
+		const trackInfos: {[trackId: string]: PrivBandcampFanFeed$Track} = {};
+		if(page.storiesVM.track_list) {
+			for(const track of page.storiesVM.track_list) {
+				if(track.track_id && !trackInfos[track.track_id]) {
+					trackInfos[track.track_id] = track;
+				}
+			}
+		}
+		if(page.pageData.track_list) {
+			for(const track of page.pageData.track_list) {
+				if(track.track_id && !trackInfos[track.track_id]) {
+					trackInfos[track.track_id] = track;
+				}
+			}
+		}
+		return {
+			oldestStoryDate: page.pageData.feed?.oldest_story_date,
+			newestStoryDate: page.pageData.feed?.newest_story_date,
+			stories: page.storiesVM?.stories?.map((story) => {
+				return this.parseFanFeedStory(story, page.storiesVM.fan_info, trackInfos);
+			})
+		};
+	}
+
+	parseFanFeedUpdate(page: PrivBandcampAPI$FanDashFeedUpdates): BandcampFanFeedPage {
+		const trackInfos: {[trackId: string]: PrivBandcampFanFeed$Track} = {};
+		if(page.stories?.track_list) {
+			for(const track of page.stories.track_list) {
+				if(track.track_id && !trackInfos[track.track_id]) {
+					trackInfos[track.track_id] = track;
+				}
+			}
+		}
+		return {
+			oldestStoryDate: page.stories?.oldest_story_date,
+			newestStoryDate: page.stories?.newest_story_date,
+			stories: page.stories?.entries?.map((story) => {
+				return this.parseFanFeedStory(story, page.fan_info, trackInfos);
+			})
+		};
+	}
+
+	parseFanFeedStory(
+		story: PrivBandcampFanFeed$Story,
+		fanInfos: {[fanId: string]: PrivBandcampFanFeed$Fan},
+		trackInfos: {[trackId: string]: PrivBandcampFanFeed$Track}
+	): BandcampFanFeed$Story {
+		let item: (BandcampFanFeed$Album | BandcampFanFeed$Track | undefined) = undefined;
+		let images: BandcampImage[] = [];
+		if(story.item_art?.url) {
+			images.push({
+				url: story.item_art.url,
+				size: BandcampImageSize.Medium,
+			});
+		}
+		if(story.item_art?.thumb_url) {
+			images.push({
+				url: story.item_art.thumb_url,
+				size: BandcampImageSize.Small,
+			});
+		}
+		if(story.item_type == BandcampItemTypeChar.Album || story.item_type == BandcampItemType.Album) {
+			const trackId = story.featured_track;
+			const track = trackId != null ? trackInfos[trackId] : null;
+			item = {
+				id: story.item_id,
+				type: BandcampItemType.Album,
+				url: story.item_url,
+				name: story.item_title,
+				artistName: story.band_name,
+				artistURL: story.band_url,
+				images,
+				featuredTrack: track ? {
+					id: trackId,
+					name: track.title,
+					type: BandcampItemType.Track,
+					url: story.featured_track_url ?? undefined,
+					trackNumber: story.featured_track_number ?? track.track_num,
+					audioSources: track.streaming_url ? this.parseAudioSourcesFromURLMap(track.streaming_url) : undefined,
+				} : undefined,
+			} satisfies BandcampFanFeed$Album;
+		}
+		else if(story.item_type == BandcampItemTypeChar.Track || story.item_type == BandcampItemType.Track) {
+			const trackId = story.item_id;
+			const track = trackId != null ? trackInfos[trackId] : null;
+			item = {
+				id: trackId,
+				type: BandcampItemType.Track,
+				url: story.item_url,
+				name: story.item_title,
+				artistName: story.band_name,
+				artistURL: story.band_url,
+				images,
+				audioSources: track?.streaming_url ? this.parseAudioSourcesFromURLMap(track.streaming_url) : undefined,
+			} satisfies BandcampFanFeed$Track;
+		}
+		return {
+			date: story.story_date,
+			type: story.story_type as BandcampFanFeed$StoryType,
+			why: story.why,
+			fan: this.parseFanFeedFan(story, fanInfos),
+			item,
+		};
+	}
+
+	parseFanFeedFan(
+		story: PrivBandcampFanFeed$Story,
+		fanInfos: {[fanId: string]: PrivBandcampFanFeed$Fan}
+	): BandcampFanFeed$Fan {
+		const fanId = story.fan_id;
+		const fan = fanInfos[fanId];
+		const imageId = this.padImageId(fan.image_id);
+		const images = this.createImagesFromImageId(imageId);
+		return {
+			id: fanId,
+			type: BandcampItemType.Fan,
+			url: fan.trackpipe_url,
+			name: fan.name,
+			username: fan.username,
+			images
+		};
+	}
+
+
+	parseAudioSourcesFromURLMap(urls: {[type: string]: string}): BandcampAudioSource[] {
+		const audioSources: BandcampAudioSource[] = [];
+		for(const type in urls) {
+			audioSources.push({
+				type,
+				url: urls[type],
+			});
+		}
+		return audioSources;
+	}
 
 	parseReferrerToken($: CheerioAPI): string | undefined {
 		let referrerToken = $('script[data-referrer-token]').attr('data-referrer-token')?.trim();
