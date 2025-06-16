@@ -143,4 +143,6 @@ const tests: { [key: string]: any } = {
 		console.log();
 		console.log();
 	}
-})();
+})().catch((error) => {
+	console.error(error);
+});
