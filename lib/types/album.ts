@@ -1,8 +1,8 @@
-import { BandcampArtist } from './artist';
 import type {
 	BandcampImage,
 	BandcampItemType
 } from './common';
+import type { BandcampArtist } from './artist';
 import type {
 	BandcampAudioSource
 } from './track';
