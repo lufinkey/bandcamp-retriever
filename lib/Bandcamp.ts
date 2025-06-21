@@ -28,7 +28,7 @@ import {
 import {
 	PrivBandcampAPI$FanDashFeedUpdates,
 	PrivBandcampAPI$Fan$CollectionSummary,
-	PrivBandcampFanFeedPage } from './private_types';
+	PrivBandcampFanFeedPage } from './types/private';
 import {
 	HttpResponse,
 	sendHttpRequest,

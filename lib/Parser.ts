@@ -70,7 +70,7 @@ import {
 	PrivBandcampFanFeed$Story,
 	PrivBandcampFanFeed$Fan,
 	PrivBandcampFanFeed$Track,
-	PrivBandcampAPI$FanDashFeedUpdates} from './private_types';
+	PrivBandcampAPI$FanDashFeedUpdates} from './types/private';
 
 
 
