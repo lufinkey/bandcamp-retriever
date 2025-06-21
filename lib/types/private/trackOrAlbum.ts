@@ -3,7 +3,13 @@ import type {
 	PrivBandcampCurrencyCode
 } from './common';
 
-export type PrivBandcampMediaLDJsonType = 'MusicRecording' | 'MusicGroup' | 'MusicAlbum' | 'MusicRelease' | 'Product';
+export enum PrivBandcampMediaLDJsonType {
+	MusicRecording = 'MusicRecording',
+	MusicGroup = 'MusicGroup',
+	MusicAlbum = 'MusicAlbum',
+	MusicRelease = 'MusicRelease',
+	Product = 'Product',
+}
 
 export type PrivBandcampMediaLDJsonAdditionalProp = {
 	"@type": ('PropertyValue' | string),
@@ -12,13 +18,14 @@ export type PrivBandcampMediaLDJsonAdditionalProp = {
 }
 
 export type PrivBandcampMediaLDJsonItem = {
-	"@type": (PrivBandcampMediaLDJsonType | string) | (PrivBandcampMediaLDJsonType | string),
+	"@type": (PrivBandcampMediaLDJsonType | PrivBandcampMediaLDJsonType[]),
 	"@id": string, // URL of item
 	additionalProperty: PrivBandcampMediaLDJsonAdditionalProp[],
 }
 
 export type PrivBandcampMediaLDJsonAlbumReleaseItem = PrivBandcampMediaLDJsonItem & {
-	"@type": ('MusicRelease' | string) | ('MusicRelease' | 'Product' | string)[],
+	"@type": (PrivBandcampMediaLDJsonType.MusicRelease | string)
+		| (PrivBandcampMediaLDJsonType.MusicRelease | PrivBandcampMediaLDJsonType.Product | string)[],
 	name: string,
 	description?: (string | null),
 	offers?: {
@@ -36,7 +43,7 @@ export type PrivBandcampMediaLDJsonAlbumReleaseItem = PrivBandcampMediaLDJsonIte
 };
 
 export type PrivBandcampMediaLDJsonPublisher = PrivBandcampMediaLDJsonItem & {
-	"@type": ('MusicGroup' | string),
+	"@type": PrivBandcampMediaLDJsonType.MusicGroup,
 	name: string,
 	image: string, // image URL
 	genre: string, // genre URL "https://bandcamp.com/discover/folk"
@@ -57,13 +64,13 @@ export type PrivBandcampMediaLDJsonPublisher = PrivBandcampMediaLDJsonItem & {
 		}[]
 	})[],
 	foundingLocation: {
-		"@type": ('Place' | string),
+		"@type": 'Place',
 		name: string
 	}
 }
 
 export type PrivBandcampMediaLDJsonPerson = {
-	"@type": ('Person' | string),
+	"@type": 'Person',
 	url: string, // URL of the person
 	image: string,
 	additionalProperty: PrivBandcampMediaLDJsonAdditionalProp[],
@@ -71,13 +78,13 @@ export type PrivBandcampMediaLDJsonPerson = {
 }
 
 export type PrivBandcampMediaLDJsonArtist = {
-	"@type": ('MusicGroup' | string),
+	"@type": PrivBandcampMediaLDJsonType.MusicGroup,
 	name: string,
 	"@id": string // artist page URL
 }
 
 export type PrivBandcampMediaLDJsonComment = {
-	"@type": ('Comment' | string),
+	"@type": 'Comment',
 	author: PrivBandcampMediaLDJsonPerson,
 	text: string | string[]
 }
@@ -85,7 +92,7 @@ export type PrivBandcampMediaLDJsonComment = {
 // the root LDJson structure for a track page
 // $('script[type="application/ld+json"]').html()
 export type PrivBandcampTrackLDJson = PrivBandcampMediaLDJsonItem & {
-	"@type": ('MusicRecording' | string),
+	"@type": PrivBandcampMediaLDJsonType.MusicRecording,
 	name: string,
 	duration: string, // "P00H02M20S"
 	dateModified: string, // "01 Jan 2020 12:00:00 GMT"
@@ -118,7 +125,7 @@ export type PrivBandcampAlbumLDJsonTrack = {
 	"@type": ('ListItem' | string),
 	position: number, // 1
 	item: PrivBandcampMediaLDJsonItem & {
-		"@type": ('MusicRecording' | string),
+		"@type": PrivBandcampMediaLDJsonType.MusicRecording,
 		name: string,
 		duration: string, // "P00H02M20S"
 		copyrightNotice: string, // "All Rights Reserved"
@@ -136,7 +143,7 @@ export type PrivBandcampAlbumLDJsonTrack = {
 // the root LDJson structure for an album page
 // $('script[type="application/ld+json"]').html()
 export type PrivBandcampAlbumLDJson = PrivBandcampMediaLDJsonItem & {
-	"@type": ('MusicAlbum' | string),
+	"@type": PrivBandcampMediaLDJsonType.MusicAlbum,
 	name: string,
 	mainEntityOfPage: string,
 	dateModified: string, // "01 Jan 2020 12:00:00 GMT"
@@ -208,7 +215,7 @@ export type PrivBandcampTRAlbumData = {
 	"for the curious": string, // "https://bandcamp.com/help/audio_basics#steal https://bandcamp.com/terms_of_use",
 	current: {
 		audit: 0,
-		title: "tell me im wrong",
+		title: string, // "tell me im wrong"
 		new_date: string, // "01 Jan 2020 12:00:00 GMT"
 		mod_date: string, // "01 Jan 2020 12:00:00 GMT"
 		publish_date: string, // "01 Jan 2020 12:00:00 GMT"
