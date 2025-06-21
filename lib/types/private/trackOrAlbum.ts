@@ -92,7 +92,7 @@ export type PrivBandcampMediaLDJsonComment = {
 // the root LDJson structure for a track page
 // $('script[type="application/ld+json"]').html()
 export type PrivBandcampTrackLDJson = PrivBandcampMediaLDJsonItem & {
-	"@type": PrivBandcampMediaLDJsonType.MusicRecording,
+	"@type": (PrivBandcampMediaLDJsonType.MusicRecording | string),
 	name: string,
 	duration: string, // "P00H02M20S"
 	dateModified: string, // "01 Jan 2020 12:00:00 GMT"
@@ -143,7 +143,7 @@ export type PrivBandcampAlbumLDJsonTrack = {
 // the root LDJson structure for an album page
 // $('script[type="application/ld+json"]').html()
 export type PrivBandcampAlbumLDJson = PrivBandcampMediaLDJsonItem & {
-	"@type": PrivBandcampMediaLDJsonType.MusicAlbum,
+	"@type": (PrivBandcampMediaLDJsonType.MusicAlbum | string),
 	name: string,
 	mainEntityOfPage: string,
 	dateModified: string, // "01 Jan 2020 12:00:00 GMT"

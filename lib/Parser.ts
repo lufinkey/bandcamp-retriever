@@ -46,7 +46,8 @@ import {
 	BandcampFanFeed$Fan,
 	BandcampFanFeed$Album,
 	BandcampItemTypeChar,
-	BandcampFanFeed$Track,} from './types';
+	BandcampFanFeed$Track
+} from './types';
 import {
 	PrivBandcampTRAlbumData,
 	PrivBandcampTRAlbumDataTrack,
@@ -70,7 +71,9 @@ import {
 	PrivBandcampFanFeed$Story,
 	PrivBandcampFanFeed$Fan,
 	PrivBandcampFanFeed$Track,
-	PrivBandcampAPI$FanDashFeedUpdates} from './types/private';
+	PrivBandcampAPI$FanDashFeedUpdates,
+	PrivBandcampMediaLDJsonType
+} from './types/private';
 
 
 
@@ -518,10 +521,10 @@ export class BandcampParser {
 		let type: BandcampItemType.Album | BandcampItemType.Track | null = null;
 		if(ldJson) {
 			let ldType = ldJson['@type'];
-			if(ldType === 'MusicAlbum' || ldType === 'album' || ldType === 'Album') {
+			if(ldType === PrivBandcampMediaLDJsonType.MusicAlbum || ldType === 'album' || ldType === 'Album') {
 				type = BandcampItemType.Album;
 			}
-			else if(ldType === 'MusicRecording' || ldType === 'track' || ldType === 'Track') {
+			else if(ldType === PrivBandcampMediaLDJsonType.MusicRecording || ldType === 'track' || ldType === 'Track') {
 				type = BandcampItemType.Track;
 			}
 		}
