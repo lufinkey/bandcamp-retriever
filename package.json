@@ -14,7 +14,7 @@
 	"scripts": {
 		"test": "npm run build && node dist/test/test.js",
 		"clean": "rm -rf dist",
-		"build": "npx tsc",
+		"build": "tsc",
 		"prepare": "npm run build"
 	},
 	"author": "Luis Finke (luisfinke@gmail.com)",
