@@ -20,7 +20,7 @@
 	"author": "Luis Finke (luisfinke@gmail.com)",
 	"license": "UNLICENSED",
 	"dependencies": {
-		"cheerio": "^1.0.0-rc.10",
+		"cheerio": "^1.1.0",
 		"file-cookie-store": "^0.1.1",
 		"tough-cookie": "^4.1.3"
 	},

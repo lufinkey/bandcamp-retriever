@@ -3,11 +3,10 @@ import {
 	HttpResponse
 } from './network_utils';
 import UrlUtils, {
-	URL } from 'url';
-import cheerio, {
-	Cheerio,
-	CheerioAPI,
-	Element } from 'cheerio';
+	URL
+} from 'url';
+import * as cheerio from 'cheerio';
+import type { Element } from 'domhandler';
 import {
 	BandcampItemType,
 	BandcampItemTypes,
@@ -146,7 +145,7 @@ export class BandcampParser {
 
 
 
-	parseType(url: string, $: CheerioAPI | null = null): BandcampItemType {
+	parseType(url: string, $: cheerio.CheerioAPI | null = null): BandcampItemType {
 		// parse type from URL
 		const urlObj = new URL(url);
 		if(urlObj.host != 'bandcamp.com' && (!urlObj.pathname || urlObj.pathname === '/' || urlObj.pathname === '')) {
@@ -191,7 +190,7 @@ export class BandcampParser {
 		throw new Error("failed to parse item type");
 	}
 
-	parseMetaURL($: CheerioAPI): (string | undefined) {
+	parseMetaURL($: cheerio.CheerioAPI): (string | undefined) {
 		const metaURL = $('meta[property="og:url"]').attr('content');
 		if(metaURL && metaURL.length == 0) {
 			return undefined;
@@ -344,7 +343,7 @@ export class BandcampParser {
 		const $ = cheerio.load(dataString);
 		return this.parseSearchResults(url, $);
 	}
-	parseSearchResults(url: string, $: CheerioAPI): BandcampSearchResultsList {
+	parseSearchResults(url: string, $: cheerio.CheerioAPI): BandcampSearchResultsList {
 		const resultItems = $('ul.result-items > li');
 		let items: BandcampSearchResult[] = [];
 		// parse each result item
@@ -476,7 +475,7 @@ export class BandcampParser {
 
 
 
-	parseTrackInfo(url: string, $: CheerioAPI): BandcampAlbum | BandcampTrack | null {
+	parseTrackInfo(url: string, $: cheerio.CheerioAPI): BandcampAlbum | BandcampTrack | null {
 		const trackInfo = $('#trackInfo');
 		if(trackInfo.index() === -1) {
 			return null;
@@ -618,8 +617,8 @@ export class BandcampParser {
 		let albumName: string | undefined = undefined;
 		let albumURL: string | undefined = undefined;
 		const subtitleTag = nameSection.find('h2 + h3');
-		let subArtistTag: (Cheerio<Element> | null) = null;
-		let subAlbumTag: (Cheerio<Element> | null) = null;
+		let subArtistTag: (cheerio.Cheerio<Element> | null) = null;
+		let subAlbumTag: (cheerio.Cheerio<Element> | null) = null;
 		const subtitleTagContents = subtitleTag.contents();
 		subtitleTag.find('span a').each((index, tagHtml) => {
 			let tagHtmlParent = $(tagHtml).parent();
@@ -643,12 +642,12 @@ export class BandcampParser {
 				subArtistTag = $(tagHtml);
 			}
 		});
-		subArtistTag = subArtistTag as any as (Cheerio<Element> | null);
+		subArtistTag = subArtistTag as any as (cheerio.Cheerio<Element> | null);
 		if(subArtistTag != null && subArtistTag.index() !== -1) {
 			artistName = subArtistTag.text().trim();
 			artistURL = subArtistTag.attr('href');
 		}
-		subAlbumTag = subAlbumTag as any as (Cheerio<Element> | null);
+		subAlbumTag = subAlbumTag as any as (cheerio.Cheerio<Element> | null);
 		if(subAlbumTag != null && subAlbumTag.index() !== -1) {
 			albumName = subAlbumTag.text().trim();
 			albumURL = subAlbumTag.attr('href');
@@ -910,7 +909,7 @@ export class BandcampParser {
 			// ALBUM
 			const album = item as BandcampAlbum;
 			// construct tracks
-			let trackHtmls: Cheerio<Element>[] = [];
+			let trackHtmls: cheerio.Cheerio<Element>[] = [];
 			if(trackTable.index() !== -1) {
 				trackTable.find('.track_row_view').each((index, trackHtml) => {
 					trackHtmls.push($(trackHtml));
@@ -1129,7 +1128,7 @@ export class BandcampParser {
 
 
 
-	parseArtistInfo(url: string, $: CheerioAPI): BandcampArtist | null {
+	parseArtistInfo(url: string, $: cheerio.CheerioAPI): BandcampArtist | null {
 		// band_id
 		const artistID: string | undefined = $('#contact-tracker-data[data-band-id]').attr('data-band-id') || undefined;
 
@@ -1218,7 +1217,7 @@ export class BandcampParser {
 
 
 
-	parseAlbumList(url: string, $: CheerioAPI): BandcampArtistPageItem[] | null {
+	parseAlbumList(url: string, $: cheerio.CheerioAPI): BandcampArtistPageItem[] | null {
 		const albumsArtistName = $('#bio-container #band-name-location .title').text().trim() || undefined;
 		const basicAlbumInfos: BandcampArtistPageItem[] = [];
 		const musicGrid = $('.music-grid');
@@ -1306,7 +1305,7 @@ export class BandcampParser {
 		const $ = cheerio.load(dataString);
 		return this.parseItemFromURL(url, type, $);
 	}
-	parseItemFromURL(url: string, type: BandcampItemType, $: CheerioAPI): BandcampTrack | BandcampAlbum | BandcampArtist | BandcampFan | null {
+	parseItemFromURL(url: string, type: BandcampItemType, $: cheerio.CheerioAPI): BandcampTrack | BandcampAlbum | BandcampArtist | BandcampFan | null {
 		if(type === BandcampItemType.Track || type === BandcampItemType.Album) {
 			// parse track or album data
 			let item = this.parseTrackInfo(url, $);
@@ -1396,8 +1395,8 @@ export class BandcampParser {
 
 
 
-	parseCDUILink($: CheerioAPI): string | null {
-		let scriptTags: Cheerio<Element>[] = [];
+	parseCDUILink($: cheerio.CheerioAPI): string | null {
+		let scriptTags: cheerio.Cheerio<Element>[] = [];
 		$('script').each((index, scriptHtml) => {
 			const tag = $(scriptHtml);
 			const src = tag.attr('src');
@@ -1501,7 +1500,7 @@ export class BandcampParser {
 
 
 
-	parseIdentitiesFromPage($: CheerioAPI): BandcampIdentities {
+	parseIdentitiesFromPage($: cheerio.CheerioAPI): BandcampIdentities {
 		const homePageDataJson = $('#pagedata').attr('data-blob');
 		if(!homePageDataJson) {
 			throw new Error("could not get page data to scrape identities");
@@ -1869,12 +1868,12 @@ export class BandcampParser {
 
 
 
-	parseFanTabItemCount($: CheerioAPI, sectionSlug: string): number {
+	parseFanTabItemCount($: cheerio.CheerioAPI, sectionSlug: string): number {
 		return Number.parseInt($(`#grid-tabs li[data-tab="${sectionSlug}"] .count`).text().trim());
 	}
 
 
-	parseFanCollectionHtml($: CheerioAPI, sectionSlug='collection'): BandcampFan$CollectionSection | null {
+	parseFanCollectionHtml($: cheerio.CheerioAPI, sectionSlug='collection'): BandcampFan$CollectionSection | null {
 		// get count
 		const count = this.parseFanTabItemCount($, sectionSlug);
 		// get section items html
@@ -2000,7 +1999,7 @@ export class BandcampParser {
 		return this.parseFanHtml(url, $, collectionSummary);
 	}
 
-	parseFanHtml(url: string, $: CheerioAPI, collectionSummary: PrivBandcampAPI$Fan$CollectionSummary | null): BandcampFan {
+	parseFanHtml(url: string, $: cheerio.CheerioAPI, collectionSummary: PrivBandcampAPI$Fan$CollectionSummary | null): BandcampFan {
 		// parse fan username from url
 		let urlParts = UrlUtils.parse(url);
 		let username = urlParts.pathname;
@@ -2433,7 +2432,7 @@ export class BandcampParser {
 		return audioSources;
 	}
 
-	parseReferrerToken($: CheerioAPI): string | undefined {
+	parseReferrerToken($: cheerio.CheerioAPI): string | undefined {
 		let referrerToken = $('script[data-referrer-token]').attr('data-referrer-token')?.trim();
 		if(referrerToken && referrerToken.startsWith('"')) {
 			referrerToken = referrerToken.substring(1);
@@ -2444,7 +2443,7 @@ export class BandcampParser {
 		return referrerToken;
 	}
 
-	parsePageData($: CheerioAPI): any | null | undefined {
+	parsePageData($: cheerio.CheerioAPI): any | null | undefined {
 		const pageData = $('#pagedata').attr('data-blob');
 		if(!pageData) {
 			return null;
@@ -2452,7 +2451,7 @@ export class BandcampParser {
 		return JSON.parse(pageData);
 	}
 
-	parseCrumbs($: CheerioAPI): {[key: string]: string} | null {
+	parseCrumbs($: cheerio.CheerioAPI): {[key: string]: string} | null {
 		const crumbData = $('#js-crumbs-data').attr('data-crumbs');
 		if(!crumbData) {
 			return null;

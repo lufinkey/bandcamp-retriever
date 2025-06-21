@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import QueryString from 'querystring';
 import UrlUtils from 'url';
-import cheerio from 'cheerio';
+import * as cheerio from 'cheerio';
 import tough from 'tough-cookie';
 import { BandcampSession } from './Session';
 import { BandcampParser } from './Parser';
