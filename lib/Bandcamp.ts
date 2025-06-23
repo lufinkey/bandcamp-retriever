@@ -332,7 +332,7 @@ export class Bandcamp {
 
 
 
-	async getFanFeed(options?: {olderThan?: string}): Promise<BandcampFanFeedPage> {
+	async getFanFeed(options?: {olderThan?: number}): Promise<BandcampFanFeedPage> {
 		if(options?.olderThan) {
 			const page = await this._getFanDashFeedUpdates(options?.olderThan);
 			return this._parser.parseFanFeedUpdate(page);
@@ -378,19 +378,22 @@ export class Bandcamp {
 		};
 	}
 
-	async _getFanDashFeedUpdates(olderThan: string): Promise<PrivBandcampAPI$FanDashFeedUpdates> {
+	async _getFanDashFeedUpdates(olderThan: number): Promise<PrivBandcampAPI$FanDashFeedUpdates> {
 		const currentFan = await this._getCurrentFanInfo();
 		if(!currentFan) {
 			throw new Error(`Not logged in`);
 		}
 		const url = `https://bandcamp.com/fan_dash_feed_updates`;
-		const jsonBody = JSON.stringify({
+		const jsonBody = QueryString.stringify({
 			fan_id: currentFan.id,
 			older_than: olderThan,
 		});
 		const { res, data } = await this.sendHttpRequest(url, {
 			method: 'POST',
 			body: jsonBody,
+			headers: {
+				'content-type': 'application/x-www-form-urlencoded'
+			}
 		});
 		if(res.statusCode < 200 || res.statusCode >= 300) {
 			throw new Error(res.statusMessage);
