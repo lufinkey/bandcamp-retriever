@@ -12,12 +12,14 @@ export type BandcampFanFeedPage = {
 	stories: BandcampFanFeed$Story[]
 }
 
+export type BandcampFanFeed$Item = BandcampFanFeed$Track | BandcampFanFeed$Album;
+
 export type BandcampFanFeed$Story = {
 	type: BandcampFanFeed$StoryType
 	date: string
 	why?: string | null
 	fan: BandcampFanFeed$Fan
-	item?: BandcampFanFeed$Track | BandcampFanFeed$Album
+	item?: BandcampFanFeed$Item
 }
 
 export enum BandcampFanFeed$StoryType {
