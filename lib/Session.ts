@@ -1,5 +1,5 @@
 
-import tough from 'tough-cookie';
+import * as tough from 'tough-cookie';
 
 export const BANDCAMP_COOKIES_URL = "https://bandcamp.com/"
 
@@ -9,8 +9,7 @@ export enum CookieName {
 	Identity = 'identity',
 }
 
-
-type GetCookiesOptions = tough.CookieJar.GetCookiesOptions & {
+type GetCookiesOptions = tough.GetCookiesOptions & {
 	// this property is in the tough-cookie docs, but missing from the actual type
 	sameSiteContext: 'none' | 'lax' | 'strict'
 }
