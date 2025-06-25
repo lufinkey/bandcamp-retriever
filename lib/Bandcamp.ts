@@ -53,6 +53,7 @@ type FanInfo = {
 	id: string
 	url: string
 	name: string
+	username: string
 };
 
 
@@ -264,7 +265,8 @@ export class Bandcamp {
 			const fanInfo = {
 				id: fan.id,
 				url: fan.url,
-				name: fan.name
+				name: fan.name,
+				username: fan.username,
 			};
 			// apply data
 			this._fan = fanInfo;
