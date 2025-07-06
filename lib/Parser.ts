@@ -45,7 +45,8 @@ import {
 	BandcampFanFeed$Fan,
 	BandcampFanFeed$Album,
 	BandcampItemTypeChar,
-	BandcampFanFeed$Track
+	BandcampFanFeed$Track,
+	BandcampAudioFileType
 } from './types';
 import {
 	PrivBandcampTRAlbumData,
@@ -893,10 +894,7 @@ export class BandcampParser {
 				for(const trFileType of trFileTypes) {
 					const fileURL = trTrackFile[trFileType];
 					if(typeof fileURL === 'string' && fileURL) {
-						audioSources.push({
-							type: trFileType,
-							url: fileURL
-						});
+						audioSources.push(this.createAudioSource(trFileType, fileURL));
 					}
 				}
 				return audioSources;
@@ -1461,10 +1459,7 @@ export class BandcampParser {
 					if(track.audioSources.find((source) => (source.url === url || source.type === streamFileType))) {
 						continue;
 					}
-					track.audioSources.push({
-						type: streamFileType,
-						url: url
-					});
+					track.audioSources.push(this.createAudioSource(streamFileType, url));
 				}
 				if(track.audioSources.length > 0) {
 					track.playable = true;
@@ -1714,10 +1709,7 @@ export class BandcampParser {
 						}
 						if(typeof trackData.file === 'object' && trackData.file) {
 							track.audioSources = Object.keys(trackData.file).map((fileType) => {
-								return {
-									type: fileType,
-									url: trackData.file[fileType]
-								};
+								return this.createAudioSource(fileType, trackData.file[fileType]);
 							});
 						}
 					}
@@ -2421,13 +2413,34 @@ export class BandcampParser {
 	}
 
 
+	createAudioSource(type: string, url: string): BandcampAudioSource {
+		const dashIndex = type.lastIndexOf('-');
+		let fileType: string;
+		let bitrate: number | undefined;
+		if(dashIndex !== -1) {
+			const bitrateString = type.substring(dashIndex+1);
+			bitrate = Number.parseInt(bitrateString);
+			if(bitrate) {
+				fileType = type.substring(0, dashIndex);
+			} else {
+				bitrate = undefined;
+				fileType = type;
+			}
+		} else {
+			fileType = type;
+		}
+		return {
+			type,
+			fileType,
+			bitrate,
+			url
+		};
+	}
+
 	parseAudioSourcesFromURLMap(urls: {[type: string]: string}): BandcampAudioSource[] {
 		const audioSources: BandcampAudioSource[] = [];
 		for(const type in urls) {
-			audioSources.push({
-				type,
-				url: urls[type],
-			});
+			audioSources.push(this.createAudioSource(type, urls[type]));
 		}
 		return audioSources;
 	}

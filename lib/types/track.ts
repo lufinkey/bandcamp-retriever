@@ -27,5 +27,7 @@ export type BandcampTrack = {
 
 export type BandcampAudioSource = {
 	type: BandcampAudioFileType | string
+	fileType: string;
+	bitrate?: number;
 	url: string
 }
