@@ -1,4 +1,5 @@
 export * from './common';
+export * from './error';
 export * from './album';
 export * from './artist';
 export * from './fan';

@@ -27,11 +27,6 @@ type HttpResult = {
 	data: Buffer
 }
 
-
-export const createRequestHeaders = (options: { headers: string[] }) => {
-	
-};
-
 export const createHTTPRequest = (url: string, options: SendHttpRequestOptions): { request: https.RequestOptions, client: HttpClient } => {
 	// build request data
 	const urlObj = new URL(url);
@@ -120,30 +115,5 @@ export const performHttpRequest = <T>(url: string, options: SendHttpRequestOptio
 
 		// send
 		req.end();
-	});
-}
-
-export const sendHttpRequest = (url: string, options: SendHttpRequestOptions = {}): Promise<HttpResult> => {
-	return performHttpRequest(url, options, (res, resolve, reject) => {
-		// build response
-		let buffers: Buffer[] = [];
-		res.on('data', (chunk: Buffer) => {
-			buffers.push(chunk);
-		});
-
-		res.on('end', () => {
-			// parse response
-			let data: (Buffer | null) = null;
-			try {
-				data = Buffer.concat(buffers);
-			}
-			catch(error: any) {
-				error.response = res;
-				error.data = null;
-				reject(error);
-				return;
-			}
-			resolve({ res: res as HttpResponse, data });
-		});
 	});
 }

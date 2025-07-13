@@ -1,6 +1,5 @@
-
-import http from 'http';;
 import fs from 'fs';
+import { Readable } from 'stream';
 import path from 'path';
 import QueryString from 'querystring';
 import UrlUtils from 'url';
@@ -24,16 +23,15 @@ import {
 	BandcampSearchResultsList,
 	BandcampIdentities,
 	BandcampAudioSource,
-	BandcampFanFeedPage } from './types';
+	BandcampFanFeedPage,
+	bandcampHttpError,
+	bandcampNoFileContentError,
+} from './types';
 import {
 	PrivBandcampAPI$FanDashFeedUpdates,
 	PrivBandcampAPI$Fan$CollectionSummary,
-	PrivBandcampFanFeedPage } from './types/private';
-import {
-	HttpResponse,
-	sendHttpRequest,
-	SendHttpRequestOptions,
-	performHttpRequest } from './network_utils';
+	PrivBandcampFanFeedPage,
+} from './types/private';
 import { createPathForFile, formatTrackAudioFileOutputPath } from './media_utils';
 
 
@@ -45,16 +43,24 @@ type BandcampOptions = {
 	cookies?: (tough.Store | (tough.Cookie | string)[] | undefined)
 };
 
-type LoadNode = {
-	cancelled: boolean
-};
-
 type FanInfo = {
 	id: string
 	url: string
 	name: string
 	username: string
 };
+
+type HttpRequestOptions = {
+	method?: 'GET' | 'POST' | 'PUT' | 'DELETE',
+	body?: string,
+	headers?: {[key: string]: string},
+	session?: BandcampSession,
+	abortSignal?: AbortSignal,
+}
+
+type RequestOptions = {
+	abortSignal?: AbortSignal,
+}
 
 
 export class Bandcamp {
@@ -65,11 +71,11 @@ export class Bandcamp {
 	_parser: BandcampParser
 
 	_fan: FanInfo | null
-	_fanLoadNode: LoadNode | null
+	_fanAbortController: AbortController | null
 	_fanPromise: Promise<FanInfo | null> | null
 	_fanCrumbs: {[key: string]: string} | null
 	_fanCrumbsFetchDate: Date | null
-	_fanCrumbsLoadNode: LoadNode | null
+	_fanCrumbsAbortController: AbortController | null
 	_fanCrumbsPromise: Promise<{[key: string]: string} | null> | null
 
 	constructor(options?: BandcampOptions) {
@@ -77,12 +83,12 @@ export class Bandcamp {
 		this._parser = new BandcampParser();
 
 		this._fan = null;
-		this._fanLoadNode = null;
+		this._fanAbortController = null;
 		this._fanPromise = null;
 
 		this._fanCrumbs = null;
 		this._fanCrumbsFetchDate = null;
-		this._fanCrumbsLoadNode = null;
+		this._fanCrumbsAbortController = null;
 		this._fanCrumbsPromise = null;
 	}
 
@@ -107,9 +113,8 @@ export class Bandcamp {
 		return await this._session.getLoggedInStatus();
 	}
 
-	async _updateSessionFromResponse(res: HttpResponse, session: (BandcampSession | undefined)) {
-		const headers = this._parser.parseResponseHeaders(res);
-		let setCookiesHeaders = headers["Set-Cookie"];
+	async _updateSessionFromResponse(res: Response, session: (BandcampSession | undefined)) {
+		let setCookiesHeaders = res.headers.getSetCookie();
 		if(setCookiesHeaders) {
 			if(!(setCookiesHeaders instanceof Array)) {
 				setCookiesHeaders = [ setCookiesHeaders ];
@@ -120,7 +125,13 @@ export class Bandcamp {
 
 
 
-	async _createRequestHeaders(url: string, options: { headers?: http.OutgoingHttpHeaders, session?: BandcampSession }): Promise<{ isBandcampDomain: boolean, headers: http.OutgoingHttpHeaders }> {
+	async _createRequestHeaders(url: string, options: {
+		headers?: {[key: string]: string | string[]},
+		session?: BandcampSession
+	}): Promise<{
+		isBandcampDomain: boolean,
+		headers: {[key: string]: string | string[]}
+	}> {
 		const session = options?.session || this._session;
 		// add auth headers
 		const isBandcampDomain = this._parser.isUrlBandcampDomain(url);
@@ -161,61 +172,96 @@ export class Bandcamp {
 		};
 	}
 
-	async sendHttpRequest(url: string, options?: (SendHttpRequestOptions & {session?: BandcampSession})): Promise<{res: HttpResponse, data: Buffer}> {
+	async sendHttpRequest(url: string, options?: HttpRequestOptions): Promise<{
+		res: Response,
+		data: string
+	}> {
 		// create options
 		const { isBandcampDomain, headers } = await this._createRequestHeaders(url, {
 			headers: options?.headers,
 			session: options?.session,
 		});
-		const httpOptions = {
-			...options,
-			headers,
-		};
-		delete httpOptions.session;
 		// send request
-		const { res, data } = await sendHttpRequest(url, httpOptions);
+		const method = options?.method || 'GET';
+		const res = await fetch(url, {
+			method,
+			headers,
+			body: options?.body,
+			signal: options?.abortSignal,
+		});
 		// update session if needed
 		if(isBandcampDomain) {
 			this._updateSessionFromResponse(res, options?.session).catch((error) => {
 				console.error(error);
 			});
 		}
+		// handle response
+		if(!res.ok) {
+			if(res.headers.get('Content-Type')?.startsWith('application/json')) {
+				const resJson: any = await res.json();
+				if(resJson.error_message) {
+					throw bandcampHttpError(url, res, resJson.error_message);
+				} else if(typeof resJson.error === 'string') {
+					throw bandcampHttpError(url, res, resJson.error);
+				}
+			} else {
+				res.body?.cancel();
+			}
+			throw bandcampHttpError(url, res);
+		}
+		options?.abortSignal?.throwIfAborted();
+		const resData = await res.text();
 		// return result
-		return { res, data };
+		return {
+			res,
+			data:resData
+		};
 	}
 
-	async downloadFile(url: string, filepath: string, options?: { headers?: http.OutgoingHttpHeaders, session?: BandcampSession }): Promise<void> {
+	async downloadFile(url: string, filepath: string, options?: HttpRequestOptions): Promise<void> {
+		// create options
 		const { isBandcampDomain, headers } = await this._createRequestHeaders(url, {
 			headers: options?.headers,
 			session: options?.session,
 		});
-		await performHttpRequest<void>(url, {
-			method: 'GET',
-			headers
-		}, (res, resolve, reject) => {
-			// update session if needed
-			if(isBandcampDomain) {
-				this._updateSessionFromResponse(res, options?.session).catch((error) => {
-					console.error(error);
-				});
-			}
-			// open file stream
-			let file: fs.WriteStream;
-			try {
-				file = fs.createWriteStream(filepath);
-			} catch(error: any) {
-				reject(error);
-				return;
-			}
-			file.on('open', () => {
-				// write until finished
-				res.pipe(file);
-				// close the file when finished
-				file.on('finish', () => {
-					file.close();
-					resolve();
-				});
+		// send request
+		const method = options?.method || 'GET';
+		const res = await fetch(url, {
+			method,
+			headers,
+			body: options?.body,
+			signal: options?.abortSignal,
+		});
+		if(!res.ok) {
+			res.body?.cancel();
+			throw bandcampHttpError(url, res);
+		}
+		// update session if needed
+		if(isBandcampDomain) {
+			this._updateSessionFromResponse(res, options?.session).catch((error) => {
+				console.error(error);
 			});
+		}
+		// handle response
+		if(!res.ok) {
+			res.body?.cancel();
+			throw bandcampHttpError(url, res);
+		}
+		if(!res.body) {
+			throw bandcampNoFileContentError(url, res);
+		}
+		const resBodyStream = Readable.fromWeb(res.body);
+		// open file stream
+		const file = fs.createWriteStream(filepath, {
+			autoClose: true,
+			flags: 'wx'
+		});
+		// pipe response into file
+		return await new Promise((resolve, reject) => {
+			// write until finished
+			resBodyStream.pipe(file);
+			// close the file when finished
+			file.on('finish', resolve);
 			file.on('error', reject);
 		});
 	}
@@ -225,18 +271,14 @@ export class Bandcamp {
 	_clearFanData() {
 		// clear fan data
 		this._fan = null;
-		if(this._fanLoadNode != null) {
-			this._fanLoadNode.cancelled = true;
-		}
-		this._fanLoadNode = null;
+		this._fanAbortController?.abort();
+		this._fanAbortController = null;
 		this._fanPromise = null;
 		// clear fan crumbs data
 		this._fanCrumbs = null;
-		if(this._fanCrumbsLoadNode != null) {
-			this._fanCrumbsLoadNode.cancelled = true;
-		}
+		this._fanCrumbsAbortController?.abort();
+		this._fanCrumbsAbortController = null;
 		this._fanCrumbsFetchDate = null;
-		this._fanCrumbsLoadNode = null;
 		this._fanCrumbsPromise = null;
 	}
 
@@ -247,35 +289,36 @@ export class Bandcamp {
 		if(this._fan) {
 			return this._fan;
 		}
-		if(this._fanPromise != null) {
+		if(this._fanPromise) {
 			return await this._fanPromise;
 		}
-		const loadNode = {cancelled: false};
-		this._fanLoadNode = loadNode;
+		const abortController = new AbortController();
+		this._fanAbortController = abortController;
+		const abortSignal = abortController.signal;
 		this._fanPromise = (async (): Promise<FanInfo | null> => {
-			// get identities
-			const { fan } = await this.getMyIdentities();
-			if(loadNode.cancelled) {
-				return null;
-			}
-			if(!fan) {
+			try {
+				// get identities
+				const { fan } = await this.getMyIdentities({
+					abortSignal,
+				});
+				abortSignal.throwIfAborted();
+				if(!fan) {
+					return null;
+				}
+				const fanInfo = {
+					id: fan.id,
+					url: fan.url,
+					name: fan.name,
+					username: fan.username,
+				};
+				// apply data
+				this._fan = fanInfo;
+				return fanInfo;
+			} finally {
 				this._fanPromise = null;
-				return null;
+				this._fanAbortController = null;
 			}
-			const fanInfo = {
-				id: fan.id,
-				url: fan.url,
-				name: fan.name,
-				username: fan.username,
-			};
-			// apply data
-			this._fan = fanInfo;
-			this._fanPromise = null;
-			return fanInfo;
 		})();
-		this._fanPromise.catch((error) => {
-			this._fanPromise = null;
-		});
 		return await this._fanPromise;
 	}
 
@@ -297,27 +340,21 @@ export class Bandcamp {
 		if(this._fanCrumbsPromise != null) {
 			return await this._fanCrumbsPromise;
 		}
-		const loadNode = {cancelled: false};
-		this._fanCrumbsLoadNode = loadNode;
+		const abortController = new AbortController();
+		this._fanCrumbsAbortController = abortController;
+		const abortSignal = abortController.signal;
 		const startFetchDate = new Date();
 		this._fanCrumbsPromise = (async (): Promise<{[key: string]: string} | null> => {
 			// get fan page data
-			const { res, data } = await this.sendHttpRequest(fanInfo.url);
-			if(loadNode.cancelled) {
-				return null;
-			}
-			if(res.statusCode < 200 || res.statusCode >= 300) {
-				throw new Error(res.statusMessage);
-			}
+			const { res, data } = await this.sendHttpRequest(fanInfo.url, {
+				abortSignal
+			});
+			abortSignal.throwIfAborted();
 			if(!data) {
-				throw new Error("Unable to get identity data");
-			}
-			const dataString = data.toString();
-			if(!dataString) {
-				throw new Error("Unable to get identity data");
+				throw new Error("No fan crumbs data in response");
 			}
 			// parse response
-			const $ = cheerio.load(dataString);
+			const $ = cheerio.load(data);
 			// get crumb info
 			const crumbs = this._parser.parseCrumbs($);
 			// apply data
@@ -354,18 +391,11 @@ export class Bandcamp {
 			feedURL += '/';
 		}
 		feedURL += 'feed';
-		const { res, data } = await sendHttpRequest(feedURL);
-		if(res.statusCode < 200 || res.statusCode >= 300) {
-			throw new Error(res.statusMessage);
-		}
+		const { res, data } = await this.sendHttpRequest(feedURL);
 		if(!data) {
-			throw new Error("No data in response");
+			throw new Error("No fan feed data in response");
 		}
-		const dataString = data.toString();
-		if(!dataString) {
-			throw new Error("Empty response");
-		}
-		const $ = cheerio.load(dataString);
+		const $ = cheerio.load(data);
 		const pageData = $('#pagedata').attr('data-blob');
 		if(!pageData) {
 			throw new Error("No page data");
@@ -386,28 +416,21 @@ export class Bandcamp {
 			throw new Error(`Not logged in`);
 		}
 		const url = `https://bandcamp.com/fan_dash_feed_updates`;
-		const jsonBody = QueryString.stringify({
+		const body = QueryString.stringify({
 			fan_id: currentFan.id,
 			older_than: olderThan,
 		});
 		const { res, data } = await this.sendHttpRequest(url, {
 			method: 'POST',
-			body: jsonBody,
+			body,
 			headers: {
 				'content-type': 'application/x-www-form-urlencoded'
 			}
 		});
-		if(res.statusCode < 200 || res.statusCode >= 300) {
-			throw new Error(res.statusMessage);
-		}
 		if(!data) {
-			throw new Error("No data in response");
+			throw new Error("No response data for fan dash feed updates");
 		}
-		const dataString = data.toString();
-		if(!dataString) {
-			throw new Error("Empty response");
-		}
-		return JSON.parse(dataString);
+		return JSON.parse(data);
 	}
 
 
@@ -428,9 +451,6 @@ export class Bandcamp {
 		// send request
 		const url = "https://bandcamp.com/search?"+QueryString.stringify(params);
 		const { res, data } = await this.sendHttpRequest(url);
-		if(res.statusCode < 200 || res.statusCode >= 300) {
-			throw new Error(res.statusMessage);
-		}
 		if(!data) {
 			throw new Error("Unable to get data from search url");
 		}
@@ -449,12 +469,8 @@ export class Bandcamp {
 		if(!data) {
 			throw new Error("Unable to get data from url");
 		}
-		const dataString = data.toString();
-		if(!dataString) {
-			throw new Error("Unable to get data from url");
-		}
 		// parse response
-		const $ = cheerio.load(dataString);
+		const $ = cheerio.load(data);
 		const type = options.forceType ? options.forceType : this._parser.parseType(url, $);
 		// parse data by type
 		if(type === BandcampItemType.Fan) {
@@ -487,7 +503,7 @@ export class Bandcamp {
 							fan.wishlist = fan2.wishlist;
 						}
 					} else {
-						console.error(`Unable to get wishlist data from url (response was ${resWl.statusCode})`);
+						console.error(`Unable to get wishlist data from url (response was ${resWl.status})`);
 					}
 				}
 			}
@@ -496,11 +512,7 @@ export class Bandcamp {
 			// handle other item types
 			const item = this._parser.parseItemFromURL(url, type, $);
 			if(item == null) {
-				if(res.statusCode >= 200 && res.statusCode < 300) {
-					throw new Error(`Failed to parse '${type}' item`);
-				} else {
-					throw new Error(res.statusCode+": "+res.statusMessage);
-				}
+				throw new Error(`Failed to parse '${type}' item`);
 			}
 			// if we're logged in and missing some audio streams,
 			//  and if the link isn't a bandcamp subdomain
@@ -543,20 +555,13 @@ export class Bandcamp {
 				'Sec-Fetch-Site': 'cross-site'
 			}
 		});
-		if(res.statusCode < 200 || res.statusCode >= 300) {
-			throw new Error(`${res.statusCode}: ${res.statusMessage}`);
-		}
 		if(!data) {
-			throw new Error("Unable to get data from URL");
+			throw new Error("Unable to get data from cdui link");
 		}
-		const dataString = data.toString();
-		if(!dataString) {
-			throw new Error("Unable to get data from URL");
-		}
-		if(dataString === 'oops') {
+		if(data === 'oops') {
 			throw new Error("request misformatted, got an oops");
 		}
-		return dataString;
+		return data;
 	}
 
 	async _fetchItemStreamsFromCDUI(cduiLink: string, refererURL: string) {
@@ -598,7 +603,7 @@ export class Bandcamp {
 				'Sec-Fetch-Site': 'same-origin',
 			}
 		});
-		const collectionSummary = dataCs ? JSON.parse(dataCs.toString()) : dataCs;
+		const collectionSummary = dataCs ? JSON.parse(dataCs) : dataCs;
 		return collectionSummary;
 	}
 
@@ -610,21 +615,14 @@ export class Bandcamp {
 		}) as any as Promise<BandcampFan>;
 	}
 
-	async getMyIdentities(): Promise<BandcampIdentities> {
+	async getMyIdentities(options?: RequestOptions): Promise<BandcampIdentities> {
 		const url = 'https://bandcamp.com/';
-		const { res, data } = await this.sendHttpRequest(url);
-		if(res.statusCode < 200 || res.statusCode >= 300) {
-			throw new Error(res.statusMessage);
-		}
+		const { res, data } = await this.sendHttpRequest(url, options);
 		if(!data) {
-			throw new Error("Unable to get identity data");
-		}
-		const dataString = data.toString();
-		if(!dataString) {
-			throw new Error("Unable to get identity data");
+			throw new Error("No identity data in response");
 		}
 		// parse response
-		const $ = cheerio.load(dataString);
+		const $ = cheerio.load(data);
 		return this._parser.parseIdentitiesFromPage($);
 	}
 
@@ -639,7 +637,7 @@ export class Bandcamp {
 			olderThanToken?: string | null,
 			count?: number
 		},
-		resultParser: (res: HttpResponse, data: Buffer) => T): Promise<T> {
+		resultParser: (res: Response, data: string) => T): Promise<T> {
 		if(!fanURL) {
 			throw new Error("missing required fanURL for _getFanSectionItems");
 		} else if(fanId == null) {
@@ -677,7 +675,7 @@ export class Bandcamp {
 			method: 'POST',
 			body: jsonBody,
 			headers: {
-				'Content-Length': jsonBody.length,
+				'Content-Length': `${jsonBody.length}`,
 				'Origin': 'https://bandcamp.com',
 				'Referer': referrer,
 				'Sec-Fetch-Dest': 'empty',
@@ -753,7 +751,7 @@ export class Bandcamp {
 			fanURL: string,
 			fanId: string | number
 		},
-		resultParser: (res: HttpResponse, data: Buffer) => T): Promise<T> {
+		resultParser: (res: Response, data: string) => T): Promise<T> {
 		if(!options.fanURL) {
 			throw new Error("missing required fanURL for _searchFanSectionItems");
 		} else if(options.fanId == null) {
@@ -791,7 +789,7 @@ export class Bandcamp {
 			method: 'POST',
 			body: jsonBody,
 			headers: {
-				'Content-Length': jsonBody.length,
+				'Content-Length': `${jsonBody.length}`,
 				'Origin': 'https://bandcamp.com',
 				'Referer': options.referer,
 				'Sec-Fetch-Dest': 'empty',
@@ -844,19 +842,11 @@ export class Bandcamp {
 		if(!data) {
 			throw new Error("Unable to get data from artist url");
 		}
-		let dataString = data.toString();
-		if(!dataString) {
-			throw new Error("Unable to get data from artist url");
-		}
 		// parse response
-		const $ = cheerio.load(dataString);
+		const $ = cheerio.load(data);
 		const artist = this._parser.parseItemFromURL(artistURL, BandcampItemType.Artist, $);
 		if(artist == null) {
-			if(res.statusCode >= 200 && res.statusCode < 300) {
-				throw new Error("Failed to parse artist page");
-			} else {
-				throw new Error(res.statusCode+": "+res.statusMessage);
-			}
+			throw new Error("Failed to parse artist page");
 		}
 		const bandId = artist.id;
 		// ensure fanId is set
@@ -888,8 +878,8 @@ export class Bandcamp {
 		}
 		// send post request
 		const reqBody = QueryString.stringify(reqBodyObj);
-		const headers: {[key: string]: string | number} = {
-			'Content-Length': reqBody.length,
+		const headers: {[key: string]: string} = {
+			'Content-Length': `${reqBody.length}`,
 			'Content-Type': 'application/x-www-form-urlencoded',
 			'Referer': `${artistURL}/`,
 			'Origin': artistURL,
@@ -912,8 +902,7 @@ export class Bandcamp {
 		});
 		res = reqResult.res;
 		data = reqResult.data;
-		dataString = data ? data.toString() : "";
-		const result = dataString ? JSON.parse(dataString) : null;
+		const result = data ? JSON.parse(data) : null;
 		this._parser.parseFollowActionError(res, result, action);
 		return result;
 	}
@@ -940,12 +929,11 @@ export class Bandcamp {
 		// get data from fan url
 		const { targetFanId, crumbs } = await (async () => {
 			const { res, data } = await this.sendHttpRequest(fanURL);
-			const dataString = data ? data.toString() : null;
-			if(!dataString) {
+			if(!data) {
 				throw new Error("Unable to get data from fan url");
 			}
 			// parse response
-			const $ = cheerio.load(dataString);
+			const $ = cheerio.load(data);
 			const pageData = this._parser.parsePageData($);
 			if(!pageData) {
 				throw new Error("Could not parse page data to get fan_data");
@@ -979,7 +967,7 @@ export class Bandcamp {
 		const { res, data } = await this.sendHttpRequest('https://bandcamp.com/fan_follow_cb', {
 			method: 'POST',
 			headers: {
-				'Content-Length': reqBody.length,
+				'Content-Length': `${reqBody.length}`,
 				'Content-Type': 'application/x-www-form-urlencoded',
 				'Referer': `${fanURL}/`,
 				'Origin': 'https://bandcamp.com',
@@ -991,8 +979,7 @@ export class Bandcamp {
 			body: reqBody
 		});
 		// parse response
-		const dataString = data ? data.toString() : null;
-		const result = dataString ? JSON.parse(dataString) : null;
+		const result = data ? JSON.parse(data) : null;
 		this._parser.parseFollowActionError(res, result, action);
 		return result;
 	}
@@ -1022,19 +1009,14 @@ export class Bandcamp {
 		const { item, refToken, crumbs } = await (async () => {
 			// get data from item URL
 			const { res, data } = await this.sendHttpRequest(itemURL);
-			const dataString = data ? data.toString() : null;
-			if(!dataString) {
+			if(!data) {
 				throw new Error("Could not get item data");
 			}
 			// parse item data
-			const $ = cheerio.load(dataString);
+			const $ = cheerio.load(data);
 			const item = this._parser.parseItemFromURL(itemURL, this._parser.parseType(itemURL), $);
 			if(item == null) {
-				if(res.statusCode >= 200 && res.statusCode < 300) {
-					throw new Error("Failed to parse item");
-				} else {
-					throw new Error(res.statusCode+": "+res.statusMessage);
-				}
+				throw new Error("Failed to parse item");
 			}
 			// parse ref token
 			const refToken = this._parser.parseReferrerToken($);
@@ -1093,8 +1075,8 @@ export class Bandcamp {
 		}
 		// send post request
 		const reqBody = QueryString.stringify(reqBodyObj);
-		const headers: {[key: string]: string | number} = {
-			'Content-Length': reqBody.length,
+		const headers: {[key: string]: string} = {
+			'Content-Length': `${reqBody.length}`,
 			'Content-Type': 'application/x-www-form-urlencoded',
 			'Origin': this._parser.cleanUpURL(UrlUtils.resolve(itemURL, '/')),
 			'Referer': `${itemURL}/`,
@@ -1116,8 +1098,7 @@ export class Bandcamp {
 			body: reqBody
 		});
 		// parse response
-		const dataString = data ? data.toString() : null;
-		const result = dataString ? JSON.parse(dataString) : null;
+		const result = data ? JSON.parse(data) : null;
 		this._parser.parseFollowActionError(res, result, action);
 		return result;
 	}
@@ -1156,19 +1137,11 @@ export class Bandcamp {
 				if(!data) {
 					throw new Error("Unable to get data from item URL");
 				}
-				const dataString = data.toString();
-				if(!dataString) {
-					throw new Error("Unable to get data from item URL");
-				}
 				// parse response
-				const $ = cheerio.load(dataString);
+				const $ = cheerio.load(data);
 				const item = this._parser.parseItemFromURL(itemURL, this._parser.parseType(itemURL), $);
 				if(item == null) {
-					if(res.statusCode >= 200 && res.statusCode < 300) {
-						throw new Error("Failed to parse item");
-					} else {
-						throw new Error(res.statusCode+": "+res.statusMessage);
-					}
+					throw new Error("Failed to parse item");
 				}
 				return item;
 			})()
@@ -1201,7 +1174,7 @@ export class Bandcamp {
 		const { res, data } = await this.sendHttpRequest(`https://bandcamp.com/${apiEndpoint}`, {
 			method: 'POST',
 			headers: {
-				'Content-Length': reqBody.length,
+				'Content-Length': `${reqBody.length}`,
 				'Origin': 'https://bandcamp.com',
 				'Referer': `${fanInfo.url}/`,
 				'Sec-Fetch-Dest': 'empty',
@@ -1212,8 +1185,7 @@ export class Bandcamp {
 			body: reqBody
 		});
 		// parse response
-		const dataString = data ? data.toString() : null;
-		const result = dataString ? JSON.parse(dataString) : null;
+		const result = data ? JSON.parse(data) : null;
 		this._parser.parseFollowActionError(res, result, action);
 		return result;
 	}
@@ -1243,19 +1215,14 @@ export class Bandcamp {
 			(async () => {
 				// get data from item URL
 				const { res, data } = await this.sendHttpRequest(itemURL);
-				const dataString = data ? data.toString() : null;
-				if(!dataString) {
+				if(!data) {
 					throw new Error("Could not get item data");
 				}
 				// parse item data
-				const $ = cheerio.load(dataString);
+				const $ = cheerio.load(data);
 				const item = this._parser.parseItemFromURL(itemURL, this._parser.parseType(itemURL), $);
 				if(item == null) {
-					if(res.statusCode >= 200 && res.statusCode < 300) {
-						throw new Error("Failed to parse item");
-					} else {
-						throw new Error(res.statusCode+": "+res.statusMessage);
-					}
+					throw new Error("Failed to parse item");
 				}
 				// get purchase status
 				let isPurchased = null;
@@ -1322,7 +1289,7 @@ export class Bandcamp {
 			const { res, data } = await this.sendHttpRequest(`https://bandcamp.com/${apiEndpoint}`, {
 				method: 'POST',
 				headers: {
-					'Content-Length': reqBody.length,
+					'Content-Length': `${reqBody.length}`,
 					'Origin': 'https://bandcamp.com',
 					'Referer': `${fanInfo.url}/`,
 					'Sec-Fetch-Dest': 'empty',
@@ -1333,8 +1300,7 @@ export class Bandcamp {
 				body: reqBody
 			});
 			// parse response
-			const dataString = data ? data.toString() : null;
-			const result = dataString ? JSON.parse(dataString) : null;
+			const result = data ? JSON.parse(data) : null;
 			this._parser.parseFollowActionError(res, result, hideAction);
 			return result;
 		}
@@ -1383,8 +1349,8 @@ export class Bandcamp {
 			}
 			// send post request
 			const reqBody = QueryString.stringify(reqBodyObj);
-			const headers: {[key: string]: string | number} = {
-				'Content-Length': reqBody.length,
+			const headers: {[key: string]: string} = {
+				'Content-Length': `${reqBody.length}`,
 				'Content-Type': 'application/x-www-form-urlencoded',
 				'Origin': this._parser.cleanUpURL(UrlUtils.resolve(itemURL, '/')),
 				'Referer': `${itemURL}/`,
@@ -1406,8 +1372,7 @@ export class Bandcamp {
 				body: reqBody
 			});
 			// parse response
-			const dataString = data ? data.toString() : null;
-			const result = dataString ? JSON.parse(dataString) : null;
+			const result = data ? JSON.parse(data) : null;
 			this._parser.parseFollowActionError(res, result, collectAction);
 			return result;
 		}

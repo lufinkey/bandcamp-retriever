@@ -1,7 +1,3 @@
-
-import {
-	HttpResponse
-} from './network_utils';
 import UrlUtils, {
 	URL
 } from 'url';
@@ -46,7 +42,8 @@ import {
 	BandcampFanFeed$Album,
 	BandcampItemTypeChar,
 	BandcampFanFeed$Track,
-	BandcampAudioFileType
+	BandcampAudioFileType,
+	bandcampRequestFailed
 } from './types';
 import {
 	PrivBandcampTRAlbumData,
@@ -78,28 +75,6 @@ import {
 
 
 export class BandcampParser {
-	parseResponseHeaders(res: HttpResponse): {[key: string]: (string | string[])} {
-		const headers: {[key: string]: (string | string[])} = {};
-		const rawHeaders = res.rawHeaders;
-		for(let i=0; i<rawHeaders.length; i++) {
-			const headerName = rawHeaders[i];
-			i++;
-			let headerValue: string | string[] = rawHeaders[i];
-			const existingHeaderValue = headers[headerName];
-			if(existingHeaderValue) {
-				if(existingHeaderValue instanceof Array) {
-					headerValue = existingHeaderValue.concat([ headerValue ]);
-				} else {
-					headerValue = [ existingHeaderValue, headerValue ]
-				}
-			}
-			headers[headerName] = headerValue;
-		}
-		return headers;
-	}
-
-
-
 	isUrlBandcampDomain(url: string): boolean {
 		const urlParts = UrlUtils.parse(url);
 		if(urlParts.hostname === 'bandcamp.com' || urlParts.hostname?.endsWith('.bandcamp.com')) {
@@ -336,12 +311,8 @@ export class BandcampParser {
 
 
 
-	parseSearchResultsData(url: string, data: Buffer): BandcampSearchResultsList {
-		const dataString = data.toString();
-		if(!dataString) {
-			throw new Error("Unable to get data from url");
-		}
-		const $ = cheerio.load(dataString);
+	parseSearchResultsData(url: string, data: string): BandcampSearchResultsList {
+		const $ = cheerio.load(data);
 		return this.parseSearchResults(url, $);
 	}
 	parseSearchResults(url: string, $: cheerio.CheerioAPI): BandcampSearchResultsList {
@@ -1982,12 +1953,8 @@ export class BandcampParser {
 
 
 
-	parseFanHtmlData(url: string, data: Buffer, collectionSummary: PrivBandcampAPI$Fan$CollectionSummary | null): BandcampFan {
-		const dataString = data ? data.toString() : null;
-		if(!dataString) {
-			throw new Error("Could not get data for fan");
-		}
-		const $ = cheerio.load(dataString);
+	parseFanHtmlData(url: string, data: string, collectionSummary: PrivBandcampAPI$Fan$CollectionSummary | null): BandcampFan {
+		const $ = cheerio.load(data);
 		return this.parseFanHtml(url, $, collectionSummary);
 	}
 
@@ -2072,51 +2039,27 @@ export class BandcampParser {
 
 
 
-	parseFanCollectionItemsErrorJson(res: HttpResponse, data: Buffer) {
-		// check response code
-		if(res.statusCode < 200 || res.statusCode >= 300) {
-			const dataString = data ? data.toString() : null;
-			if(!dataString) {
-				throw new Error(res.statusMessage);
-			}
-			let resJson = null
-			try {
-				resJson = JSON.parse(dataString);
-			} catch(error) {
-				throw new Error(res.statusMessage);
-			}
-			if(resJson.error_message) {
-				throw new Error(resJson.error_message);
-			} else if(typeof resJson.error === 'string') {
-				throw new Error(resJson.error);
-			}
-			throw new Error(res.statusMessage);
-		}
+	parseFanCollectionItemsErrorJson(res: Response, data: string) {
 		// parse json
-		const dataString = data ? data.toString() : null;
-		if(!dataString) {
-			throw new Error("Missing data for fan collection items");
-		}
-		const json = JSON.parse(dataString);
+		const json = JSON.parse(data);
 		// check for error
 		if(json.error === true) {
 			if(json.error_message) {
-				throw new Error(json.error_message);
+				throw bandcampRequestFailed(res.url, res, json.error_message);
 			} else {
-				throw new Error("Bad request");
+				throw bandcampRequestFailed(res.url, res, "Request failed with unknown error");
 			}
 		}
 	}
 
-	parseFanCollectionItemsJsonData(res: HttpResponse, data: Buffer): BandcampFan$CollectionPage {
+	parseFanCollectionItemsJsonData(res: Response, data: string): BandcampFan$CollectionPage {
 		// check for errors
 		this.parseFanCollectionItemsErrorJson(res, data);
 		// parse json
-		const dataString = data ? data.toString() : null;
-		if(!dataString) {
-			throw new Error("Missing data for fan collection items");
+		if(!data) {
+			throw new Error("Fan collection items response was empty");
 		}
-		const json: PrivBandcampAPI$Fan$CollectionItemsResult = JSON.parse(dataString);
+		const json: PrivBandcampAPI$Fan$CollectionItemsResult = JSON.parse(data);
 		// return items
 		return {
 			hasMore: json.more_available,
@@ -2186,15 +2129,14 @@ export class BandcampParser {
 		});
 	}
 
-	parseFanCollectionArtistsJsonData(res: HttpResponse, data: Buffer): BandcampFan$FollowedArtistPage {
+	parseFanCollectionArtistsJsonData(res: Response, data: string): BandcampFan$FollowedArtistPage {
 		// check for errors
 		this.parseFanCollectionItemsErrorJson(res, data);
 		// parse json
-		const dataString = data ? data.toString() : null;
-		if(!dataString) {
-			throw new Error("Missing data for fan collection items");
+		if(!data) {
+			throw new Error("Fan collection artists response was empty");
 		}
-		const json: PrivBandcampAPI$Fan$FollowingArtistsResult = JSON.parse(dataString);
+		const json: PrivBandcampAPI$Fan$FollowingArtistsResult = JSON.parse(data);
 		// return items
 		return {
 			hasMore: json.more_available,
@@ -2221,15 +2163,14 @@ export class BandcampParser {
 		};
 	}
 
-	parseFanCollectionFansJsonData(res: HttpResponse, data: Buffer): BandcampFan$FollowedFanPage {
+	parseFanCollectionFansJsonData(res: Response, data: string): BandcampFan$FollowedFanPage {
 		// check for errors
 		this.parseFanCollectionItemsErrorJson(res, data);
 		// parse json
-		const dataString = data ? data.toString() : null;
-		if(!dataString) {
-			throw new Error("Missing data for fan collection items");
+		if(!data) {
+			throw new Error("Fan collection fans response was empty");
 		}
-		const json: PrivBandcampAPI$Fan$FanFollowItemsResult = JSON.parse(dataString);
+		const json: PrivBandcampAPI$Fan$FanFollowItemsResult = JSON.parse(data);
 		// return items
 		return {
 			hasMore: json.more_available,
@@ -2256,15 +2197,14 @@ export class BandcampParser {
 		};
 	}
 
-	parseFanSearchMediaItemsJsonData(res: HttpResponse, data: Buffer): BandcampFan$SearchMediaItemsPage {
+	parseFanSearchMediaItemsJsonData(res: Response, data: string): BandcampFan$SearchMediaItemsPage {
 		// check for errors
 		this.parseFanCollectionItemsErrorJson(res, data);
 		// parse json
-		const dataString = data ? data.toString() : null;
-		if(!dataString) {
-			throw new Error("Missing data for fan collection items");
+		if(!data) {
+			throw new Error("Fan collection search response was empty");
 		}
-		const json: PrivBandcampAPI$Fan$SearchItemsResult = JSON.parse(dataString);
+		const json: PrivBandcampAPI$Fan$SearchItemsResult = JSON.parse(data);
 		// return items
 		return {
 			items: this.parseFanCollectionItemList((json.tralbums || []), (item, rawItem) => item)
@@ -2272,17 +2212,14 @@ export class BandcampParser {
 	}
 
 
-	parseFollowActionError(res: HttpResponse, json: any, action: string) {
-		if(res.statusCode < 200 || res.statusCode >= 300) {
-			throw new Error(res.statusCode+': '+res.statusMessage);
-		}
+	parseFollowActionError(res: Response, json: any, action: string) {
 		if(json.ok === false) {
 			if(json.error_message) {
-				throw new Error(json.error_message);
+				throw bandcampRequestFailed(res.url, res, json.error_message);
 			} else if(typeof json.error === 'string') {
-				throw new Error(json.error);
+				throw bandcampRequestFailed(res.url, res, json.error);
 			} else {
-				throw new Error(action+" request failed: "+JSON.stringify(json));
+				throw bandcampRequestFailed(res.url, res, `${action} request failed: ${JSON.stringify(json)}`);
 			}
 		}
 	}
